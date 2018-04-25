@@ -1,0 +1,34 @@
+{
+  "name": "@netflix/x-element",
+  "author": "Casey Klebba",
+  "description": "Custom Element base class.",
+  "version": "1.0.0-rc.17",
+  "license": "MIT",
+  "repository": "netflix/x-element",
+  "main": "x-element.js",
+  "module": "x-element.js",
+  "scripts": {
+    "start": "element-server",
+    "lint": "eslint --quiet .",
+    "lint-strict": "eslint ."
+  },
+  "files": [
+    "/x-element.js",
+    "/x-element-basic.js",
+    "/x-element-properties.js",
+    "/etc",
+    "/demo",
+    "/test",
+    "/index.html",
+    "/index.js",
+    "/index.css"
+  ],
+  "dependencies": {
+    "lit-html": "^0.9.0"
+  },
+  "devDependencies": {
+    "@klebba/element-server": "^1.0.5",
+    "eslint": "^4.19.1",
+    "eslint-config-klebba": "^1.0.3"
+  }
+}
