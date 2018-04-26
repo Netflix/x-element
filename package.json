@@ -27,8 +27,8 @@
     "lit-html": "^0.9.0"
   },
   "devDependencies": {
-    "@klebba/element-server": "^1.0.5",
+    "@netflix/element-server": "^1.0.8",
     "eslint": "^4.19.1",
-    "eslint-config-klebba": "^1.0.3"
+    "eslint-config-netflix-data": "^1.0.4"
   }
 }

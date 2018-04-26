@@ -1,6 +1,6 @@
 module.exports = {
   root: true,
-  extends: ['eslint-config-klebba'],
+  extends: ['eslint-config-netflix-data'],
   env: {
     browser: true,
   },

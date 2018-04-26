@@ -2,9 +2,9 @@
 # yarn lockfile v1
 
 
-"@klebba/element-server@^1.0.5":
-  version "1.0.5"
-  resolved "https://registry.yarnpkg.com/@klebba/element-server/-/element-server-1.0.5.tgz#c6c9384211d2eb735b7284185eedcd809363413d"
+"@netflix/element-server@^1.0.8":
+  version "1.0.8"
+  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/@netflix/element-server/-/@netflix/element-server-1.0.8.tgz#c5c4dc11a5fa37ea1715b7095a2a6e890da6d7a8"
   dependencies:
     node-static "^0.7.10"
 
@@ -17,10 +17,6 @@ acorn-jsx@^3.0.0:
 acorn@^3.0.4:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-3.3.0.tgz#45e37fb39e8da3f25baee3ff5369e2bb5f22017a"
-
-acorn@^5.4.0:
-  version "5.4.1"
-  resolved "https://registry.yarnpkg.com/acorn/-/acorn-5.4.1.tgz#fdc58d9d17f4a4e98d102ded826a9b9759125102"
 
 acorn@^5.5.0:
   version "5.5.3"
@@ -220,14 +216,14 @@ escape-string-regexp@^1.0.2, escape-string-regexp@^1.0.5:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/escape-string-regexp/-/escape-string-regexp-1.0.5.tgz#1b61c0562190a8dff6ae3bb2cf0200ca130b86d4"
 
-eslint-config-klebba@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/eslint-config-klebba/-/eslint-config-klebba-1.0.3.tgz#eb80401cd3b3a8ada617158f0aecc4d97fc9eb99"
+eslint-config-netflix-data@^1.0.4:
+  version "1.0.4"
+  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/eslint-config-netflix-data/-/eslint-config-netflix-data-1.0.4.tgz#2c8354c5d425cf7ab9a4718bbb3b4ee706a6056d"
   dependencies:
-    eslint "^4.9.0"
+    eslint "^4.19.1"
     eslint-config-prettier "^2.6.0"
-    eslint-plugin-prettier "^2.3.1"
-    prettier "^1.7.4"
+    eslint-plugin-prettier "^2.6.0"
+    prettier "^1.12.1"
 
 eslint-config-prettier@^2.6.0:
   version "2.9.0"
@@ -235,9 +231,9 @@ eslint-config-prettier@^2.6.0:
   dependencies:
     get-stdin "^5.0.1"
 
-eslint-plugin-prettier@^2.3.1:
+eslint-plugin-prettier@^2.6.0:
   version "2.6.0"
-  resolved "https://registry.yarnpkg.com/eslint-plugin-prettier/-/eslint-plugin-prettier-2.6.0.tgz#33e4e228bdb06142d03c560ce04ec23f6c767dd7"
+  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/eslint-plugin-prettier/-/eslint-plugin-prettier-2.6.0.tgz#33e4e228bdb06142d03c560ce04ec23f6c767dd7"
   dependencies:
     fast-diff "^1.1.1"
     jest-docblock "^21.0.0"
@@ -295,55 +291,6 @@ eslint@^4.19.1:
     strip-json-comments "~2.0.1"
     table "4.0.2"
     text-table "~0.2.0"
-
-eslint@^4.9.0:
-  version "4.18.1"
-  resolved "https://registry.yarnpkg.com/eslint/-/eslint-4.18.1.tgz#b9138440cb1e98b2f44a0d578c6ecf8eae6150b0"
-  dependencies:
-    ajv "^5.3.0"
-    babel-code-frame "^6.22.0"
-    chalk "^2.1.0"
-    concat-stream "^1.6.0"
-    cross-spawn "^5.1.0"
-    debug "^3.1.0"
-    doctrine "^2.1.0"
-    eslint-scope "^3.7.1"
-    eslint-visitor-keys "^1.0.0"
-    espree "^3.5.2"
-    esquery "^1.0.0"
-    esutils "^2.0.2"
-    file-entry-cache "^2.0.0"
-    functional-red-black-tree "^1.0.1"
-    glob "^7.1.2"
-    globals "^11.0.1"
-    ignore "^3.3.3"
-    imurmurhash "^0.1.4"
-    inquirer "^3.0.6"
-    is-resolvable "^1.0.0"
-    js-yaml "^3.9.1"
-    json-stable-stringify-without-jsonify "^1.0.1"
-    levn "^0.3.0"
-    lodash "^4.17.4"
-    minimatch "^3.0.2"
-    mkdirp "^0.5.1"
-    natural-compare "^1.4.0"
-    optionator "^0.8.2"
-    path-is-inside "^1.0.2"
-    pluralize "^7.0.0"
-    progress "^2.0.0"
-    require-uncached "^1.0.3"
-    semver "^5.3.0"
-    strip-ansi "^4.0.0"
-    strip-json-comments "~2.0.1"
-    table "^4.0.1"
-    text-table "~0.2.0"
-
-espree@^3.5.2:
-  version "3.5.3"
-  resolved "https://registry.yarnpkg.com/espree/-/espree-3.5.3.tgz#931e0af64e7fbbed26b050a29daad1fc64799fa6"
-  dependencies:
-    acorn "^5.4.0"
-    acorn-jsx "^3.0.0"
 
 espree@^3.5.4:
   version "3.5.4"
@@ -714,9 +661,9 @@ prelude-ls@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.1.2.tgz#21932a549f5e52ffd9a827f570e04be62a97da54"
 
-prettier@^1.7.4:
-  version "1.10.2"
-  resolved "https://registry.yarnpkg.com/prettier/-/prettier-1.10.2.tgz#1af8356d1842276a99a5b5529c82dd9e9ad3cc93"
+prettier@^1.12.1:
+  version "1.12.1"
+  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/prettier/-/prettier-1.12.1.tgz#c1ad20e803e7749faf905a409d2367e06bbe7325"
 
 process-nextick-args@~2.0.0:
   version "2.0.0"
@@ -857,7 +804,7 @@ supports-color@^5.2.0:
   dependencies:
     has-flag "^3.0.0"
 
-table@4.0.2, table@^4.0.1:
+table@4.0.2:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/table/-/table-4.0.2.tgz#a33447375391e766ad34d3486e6e2aedc84d2e36"
   dependencies:
