@@ -29,6 +29,6 @@
   "devDependencies": {
     "@netflix/element-server": "^1.0.8",
     "eslint": "^4.19.1",
-    "eslint-config-netflix-data": "^1.0.4"
+    "eslint-config-netflix-data": "^1.0.8"
   }
 }
