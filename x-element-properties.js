@@ -50,7 +50,7 @@ export default class AbstractPropertiesElement extends XElementBasic {
   }
 
   static initializeProperties(target) {
-    if (!this.propertiesInitialized) {
+    if (!target.propertiesInitialized) {
       // Configure user defined property getter/setters
       const props = target.constructor.properties;
       for (const prop in props) {
