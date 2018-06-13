@@ -87,4 +87,8 @@ suite('scratch', ctx => {
   it('should allow Date types', el.objDateProp.getFullYear() > 2017);
 
   it('should allow Map types', el.objMapProp.has('foo') === false);
+
+  // lifecycle
+  ctx.body.removeChild(el);
+  ctx.body.appendChild(el);
 });
