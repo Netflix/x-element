@@ -31,7 +31,7 @@ export default class AbstractPropertiesElement extends XElementBasic {
   }
 
   get propertiesInitialized() {
-    return this[Symbol.for('__initialized__')];
+    return this[Symbol.for('__propertiesInitialized__')];
   }
 
   static get properties() {
@@ -57,7 +57,7 @@ export default class AbstractPropertiesElement extends XElementBasic {
         const { type, value, reflectToAttribute: reflect } = props[prop];
         this.addPropertyAccessor(target, prop, type, value, reflect);
       }
-      target[Symbol.for('__initialized__')] = true;
+      target[Symbol.for('__propertiesInitialized__')] = true;
     }
   }
 
