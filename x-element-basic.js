@@ -5,9 +5,7 @@
 export default class AbstractBasicElement extends HTMLElement {
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
-    // cause the template to perform an initial synchronous render
-    this.render();
+    this.constructor.setup(this);
   }
 
   connectedCallback() {
@@ -19,6 +17,16 @@ export default class AbstractBasicElement extends HTMLElement {
   attributeChangedCallback() {}
 
   adoptedCallback() {}
+
+  static get shadowRootInit() {
+    return { mode: 'open' };
+  }
+
+  static setup(target) {
+    target.attachShadow(this.shadowRootInit);
+    // cause the template to perform an initial synchronous render
+    target.render();
+  }
 
   render() {
     const proxy = this.constructor.renderProxy(this);
