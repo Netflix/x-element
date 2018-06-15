@@ -72,9 +72,7 @@ export default class AbstractPropertiesElement extends XElementBasic {
       get() {
         return target[symbol];
       },
-      set(valueOrFn) {
-        // Resolve values passed as functions
-        const value = valueOrFn instanceof Function ? valueOrFn() : valueOrFn;
+      set(value) {
         // Apply the user-provided type function
         const result = this.constructor.applyType(value, type);
         // Save the typed result
@@ -103,8 +101,9 @@ export default class AbstractPropertiesElement extends XElementBasic {
         type
       );
     } else if (defaultValue !== undefined) {
-      // pass element default through the accessor
-      target[prop] = defaultValue;
+      // pass element default through the accessor (resolve values defined as functions)
+      target[prop] =
+        defaultValue instanceof Function ? defaultValue() : defaultValue;
     }
   }
 
