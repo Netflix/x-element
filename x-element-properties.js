@@ -16,8 +16,8 @@ export default class AbstractPropertiesElement extends XElementBasic {
     this.constructor.initializeProperties(this);
   }
 
-  attributeChangedCallback(attr, oldValue, newValue, ns) {
-    super.attributeChangedCallback(attr, oldValue, newValue, ns);
+  attributeChangedCallback(attr, oldValue, newValue, namespace) {
+    super.attributeChangedCallback(attr, oldValue, newValue, namespace);
     if (newValue !== oldValue && this.propertiesInitialized) {
       // Ensure all attribute changes are processed by property accessors.
       // This is required for frameworks which set attributes instead of props.
