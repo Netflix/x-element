@@ -24,11 +24,11 @@
     "/index.css"
   ],
   "dependencies": {
-    "lit-html": "^0.9.0"
+    "lit-html": "^0.11.1"
   },
   "devDependencies": {
     "@netflix/element-server": "^1.0.9",
-    "eslint": "^4.19.1",
-    "eslint-config-netflix-data": "^1.0.8"
+    "eslint": "^5.5.0",
+    "eslint-config-netflix-data": "^1.0.9"
   }
 }
