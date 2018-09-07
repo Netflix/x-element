@@ -17,7 +17,7 @@ import { ifDefined } from '../../lit-html/directives/if-defined.js';
 import { repeat } from '../../lit-html/directives/repeat.js';
 import { unsafeHtml } from '../../lit-html/directives/unsafe-html.js';
 import { until } from '../../lit-html/directives/until.js';
-import { when } from '../../lit-html/directiveswhen.js';
+import { when } from '../../lit-html/directives/when.js';
 
 const directives = {
   asyncAppend,
