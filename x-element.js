@@ -15,7 +15,7 @@ import { asyncReplace } from '../../lit-html/directives/async-replace.js';
 import { guard } from '../../lit-html/directives/guard.js';
 import { ifDefined } from '../../lit-html/directives/if-defined.js';
 import { repeat } from '../../lit-html/directives/repeat.js';
-import { unsafeHtml } from '../../lit-html/directives/unsafe-html.js';
+import { unsafeHTML } from '../../lit-html/directives/unsafe-html.js';
 import { until } from '../../lit-html/directives/until.js';
 import { when } from '../../lit-html/directives/when.js';
 
@@ -25,7 +25,7 @@ const directives = {
   guard,
   ifDefined,
   repeat,
-  unsafeHtml,
+  unsafeHTML,
   until,
   when,
 };
