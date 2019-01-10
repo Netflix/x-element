@@ -1,6 +1,7 @@
-import XElementProperties from '../x-element-properties.js';
+import ElementMixin from '../mixins/element-mixin.js';
+import PropertiesMixin from '../mixins/properties-mixin.js';
 
-class TestElement extends XElementProperties {
+class TestElement extends PropertiesMixin(ElementMixin(HTMLElement)) {
   static template() {
     return ({ camelCaseProperty: ccp }) => `
       <span>${ccp}</span>

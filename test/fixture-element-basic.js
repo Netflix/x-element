@@ -1,6 +1,6 @@
-import XElementBasic from '../x-element-basic.js';
+import ElementMixin from '../mixins/element-mixin.js';
 
-class TestElement extends XElementBasic {
+class TestElement extends ElementMixin(HTMLElement) {
   static template() {
     return ({ user }) => `
       <span>Hello ${user}.</span>
