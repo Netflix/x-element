@@ -58,7 +58,13 @@ export default superclass =>
         // Configure user defined property getter/setters
         const props = target.constructor.properties;
         for (const prop in props) {
-          const { type, value, reflectToAttribute: reflect } = props[prop];
+          const { type, value } = props[prop];
+          // TODO: Eventually this should just be `reflect`. To allow
+          //  implementers to catch up, we allow reflect or reflectToAttribute.
+          //  for now, favor reflect and fallback to reflectToAttribute.
+          const reflect = Reflect.has(props[prop], 'reflect')
+            ? props[prop].reflect
+            : props[prop].reflectToAttribute;
           this.addPropertyAccessor(target, prop, type, value, reflect);
         }
         target[Symbol.for('__propertiesInitialized__')] = true;

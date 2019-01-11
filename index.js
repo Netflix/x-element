@@ -67,12 +67,12 @@ class HelloElement extends XElement {
     return {
       rank: {
         type: String,
-        reflectToAttribute: true,
+        reflect: true,
       },
       tabindex: {
         type: Number,
         value: 1,
-        reflectToAttribute: true,
+        reflect: true,
       },
     };
   }

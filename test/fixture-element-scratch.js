@@ -12,60 +12,60 @@ class TestElement extends XElement {
       // reflected with no value
       prop1: {
         type: String,
-        reflectToAttribute: true,
+        reflect: true,
       },
       // reflected with falsy initial value (null)
       prop2: {
         type: String,
         value: null,
-        reflectToAttribute: true,
+        reflect: true,
       },
       // reflected with falsy initial value (undefined)
       prop3: {
         type: String,
         value: null,
-        reflectToAttribute: true,
+        reflect: true,
       },
       // reflected with falsy initial value (false)
       prop4: {
         type: String,
         value: false,
-        reflectToAttribute: true,
+        reflect: true,
       },
       // reflected with initial value
       prop5: {
         type: String,
         value: 'test',
-        reflectToAttribute: true,
+        reflect: true,
       },
       // Boolean without initial value
       prop6: {
         type: Boolean,
-        reflectToAttribute: true,
+        reflect: true,
       },
       // Boolean with `false` initial value
       prop7: {
         type: Boolean,
         value: false,
-        reflectToAttribute: true,
+        reflect: true,
       },
       // Boolean with `true` initial value
       prop8: {
         type: Boolean,
         value: true,
-        reflectToAttribute: true,
+        reflect: true,
       },
       // Boolean with truthy initial value (String)
       prop9: {
         type: Boolean,
         value: 'ok',
-        reflectToAttribute: true,
+        reflect: true,
       },
       // Boolean with falsy initial value (Number)
       prop10: {
         type: Boolean,
         value: 0,
-        reflectToAttribute: true,
+        reflect: true,
       },
       arrayProp: {
         type: Array,
@@ -79,7 +79,7 @@ class TestElement extends XElement {
       },
       objPropReflect: {
         type: Object,
-        reflectToAttribute: true,
+        reflect: true,
         value: () => {
           return { foo: 'bar' };
         },
