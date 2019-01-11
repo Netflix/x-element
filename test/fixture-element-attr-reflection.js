@@ -12,21 +12,27 @@ class TestElement extends XElementProperties {
       camelCaseProperty: {
         type: String,
         value: 'reflectedCamel',
-        reflectToAttribute: true,
+        reflect: true,
       },
       overrideProperty: {
         type: String,
         value: 'override_me',
-        reflectToAttribute: true,
+        reflect: true,
       },
       booleanPropertyTrue: {
         type: Boolean,
         value: true,
-        reflectToAttribute: true,
+        reflect: true,
       },
       booleanPropertyFalse: {
         type: Boolean,
         value: false,
+        reflect: true,
+      },
+      // TODO: remove when we only support `reflect` not `reflectToAttribute`.
+      fallbackCheck: {
+        type: String,
+        value: 'fallback',
         reflectToAttribute: true,
       },
     };
