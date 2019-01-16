@@ -29,12 +29,6 @@ class TestElement extends XElementProperties {
         value: false,
         reflect: true,
       },
-      // TODO: remove when we only support `reflect` not `reflectToAttribute`.
-      fallbackCheck: {
-        type: String,
-        value: 'fallback',
-        reflectToAttribute: true,
-      },
     };
   }
 

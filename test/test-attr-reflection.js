@@ -40,9 +40,4 @@ suite('x-element attribute reflection', ctx => {
     'does not reflect next false value (Boolean)',
     el.hasAttribute('boolean-property-true') === false
   );
-  // TODO: remove this when we remove support for reflectToAttribute.
-  it(
-    'has a reflectToAttribute fallback',
-    el.hasAttribute('fallback-check') === true
-  );
 });
