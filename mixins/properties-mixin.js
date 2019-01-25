@@ -7,14 +7,13 @@ const caseMap = new Map();
 /**
  * Provides property management via a declarative 'properties' block.
  */
-// TODO: come closer to parity with LitElement.
 export default superclass =>
   class extends superclass {
-    connectedCallback() {
-      super.connectedCallback();
+    static initialize(target) {
       // Only reflect attributes when the element is connected
       // See https://dom.spec.whatwg.org/#dom-node-isconnected
-      this.constructor.initializeProperties(this);
+      super.initialize(target);
+      this.initializeProperties(target);
     }
 
     attributeChangedCallback(attr, oldValue, newValue, namespace) {

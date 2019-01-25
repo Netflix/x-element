@@ -1,7 +1,7 @@
 import { suite, it } from './runner.js';
 import './fixture-element-scratch.js';
 
-suite('scratch', ctx => {
+suite('scratch', async ctx => {
   document.onerror = evt => {
     console.error(evt.error);
   };
@@ -65,13 +65,13 @@ suite('scratch', ctx => {
 
   // Async data binding
   el.prop1 = null;
-  el.render(); // force sync render
+  await el;
   it(
     'should update the DOM bindings',
     el.shadowRoot.querySelector('span').textContent === ''
   );
   el.prop1 = 'test2';
-  el.render(); // force sync render
+  await el;
   it(
     'should update the DOM bindings again',
     el.shadowRoot.querySelector('span').textContent === 'test2'

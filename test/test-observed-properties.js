@@ -1,14 +1,13 @@
 import { suite, it } from './runner.js';
 import './fixture-element-observed-properties.js';
 
-suite('x-element observed properties', async ctx => {
+suite('x-element observed properties', ctx => {
   const el = document.createElement('test-element-observed-properties');
   el.a = 'oh';
   el.b = 'hai';
 
   ctx.body.appendChild(el);
 
-  await el;
   it(
     'initialized as expected',
     JSON.stringify(el.changes) ===

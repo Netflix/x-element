@@ -1,7 +1,7 @@
 import { suite, it } from './runner.js';
 import './fixture-element-attr-binding.js';
 
-suite('x-element property (unit)', async ctx => {
+suite('x-element property (unit)', ctx => {
   const el = document.createElement('test-element-attr-binding');
   it(
     'converts dash to camel case',
@@ -24,7 +24,6 @@ suite('x-element property binding', async ctx => {
     el.shadowRoot.querySelector('#nul').textContent === ''
   );
 
-  await el;
   it(
     'renders the initial value',
     el.shadowRoot.querySelector('#camel').textContent === 'Bactrian'
