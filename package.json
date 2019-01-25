@@ -13,14 +13,12 @@
     "lint-strict": "eslint ."
   },
   "files": [
-    "/mixins/element-mixin.js",
-    "/mixins/lit-html-mixin.js",
-    "/mixins/properties-mixin.js",
     "/x-element.js",
     "/x-element-basic.js",
     "/x-element-properties.js",
     "/etc",
     "/demo",
+    "/mixins",
     "/test",
     "/index.html",
     "/index.js",

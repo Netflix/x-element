@@ -1,5 +1,7 @@
 import XElementProperties from '../x-element-properties.js';
 
+let count = 0;
+
 class TestElementComputedProperties extends XElementProperties {
   static get properties() {
     return {
@@ -27,16 +29,50 @@ class TestElementComputedProperties extends XElementProperties {
         type: Boolean,
         reflect: true,
       },
+      y: {
+        type: Boolean,
+      },
+      z: {
+        type: Boolean,
+        computed: 'computeZ(y)',
+      },
+      today: {
+        type: Date,
+      },
+      tomorrow: {
+        type: Date,
+        computed: 'computeTomorrow(today)',
+      },
+      countTrigger: {
+        type: String,
+      },
+      count: {
+        type: Number,
+        computed: 'computeCount(countTrigger)',
+        value: count,
+      },
     };
   }
   computeC(a, b) {
     return a + b;
   }
-  computeNegative(c) {
+  static computeNegative(c) {
     return c < 0;
+  }
+  static computeCount() {
+    // This doesn't use an observer to prevent a coupled test.
+    return ++count;
   }
   static computeUnderline(negative) {
     return !!negative;
+  }
+  static computeZ(y) {
+    return y;
+  }
+  static computeTomorrow(today) {
+    if (today) {
+      return today.valueOf() + 1000 * 60 * 60 * 24;
+    }
   }
   static template() {
     return ({ a, b, c }) => {
@@ -65,4 +101,44 @@ class TestElementComputedProperties extends XElementProperties {
 customElements.define(
   'test-element-computed-properties',
   TestElementComputedProperties
+);
+
+class TestElementComputedPropertiesErrors extends XElementProperties {
+  static get properties() {
+    return {
+      malformed: {
+        type: Boolean,
+        computed: 'thisMalformed!!!',
+      },
+      dne: {
+        type: Boolean,
+        computed: 'thisDNE(malformed)',
+      },
+      missing: {
+        type: String,
+        computed: 'computeMissing(notDeclared)',
+      },
+      zz: {
+        type: Boolean,
+      },
+      cyclic: {
+        type: String,
+        computed: 'computeCyclic(zz, cyclic)',
+      },
+    };
+  }
+  static computeMissing(notDeclared) {
+    return `this is just here to get past the unresolved method check`;
+  }
+  static computeCyclic(zz, cyclic) {
+    return `this is just here to get past the unresolved method check`;
+  }
+  static template() {
+    return () => ``;
+  }
+}
+
+customElements.define(
+  'test-element-computed-properties-errors',
+  TestElementComputedPropertiesErrors
 );

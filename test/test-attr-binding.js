@@ -1,7 +1,10 @@
 import { suite, it } from './runner.js';
 import './fixture-element-attr-binding.js';
 
-suite('x-element property (unit)', async ctx => {
+suite('x-element property (unit)', ctx => {
+  document.onerror = evt => {
+    console.error(evt.error);
+  };
   const el = document.createElement('test-element-attr-binding');
   it(
     'converts dash to camel case',
@@ -15,6 +18,10 @@ suite('x-element property (unit)', async ctx => {
 });
 
 suite('x-element property binding', async ctx => {
+  document.onerror = evt => {
+    console.error(evt.error);
+  };
+
   const el = document.createElement('test-element-attr-binding');
   ctx.body.appendChild(el);
 
@@ -24,7 +31,6 @@ suite('x-element property binding', async ctx => {
     el.shadowRoot.querySelector('#nul').textContent === ''
   );
 
-  await el;
   it(
     'renders the initial value',
     el.shadowRoot.querySelector('#camel').textContent === 'Bactrian'
@@ -53,6 +59,10 @@ suite('x-element property binding', async ctx => {
 });
 
 suite('x-element attribute binding (2)', async ctx => {
+  document.onerror = evt => {
+    console.error(evt.error);
+  };
+
   const el = document.createElement('test-element-attr-binding');
   ctx.body.appendChild(el);
 
@@ -85,6 +95,9 @@ suite('x-element attribute binding (2)', async ctx => {
 });
 
 suite('x-element attribute binding (3)', async ctx => {
+  document.onerror = evt => {
+    console.error(evt.error);
+  };
   const el = document.createElement('test-element-attr-binding');
   ctx.body.appendChild(el);
 
