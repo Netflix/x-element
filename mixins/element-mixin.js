@@ -4,6 +4,7 @@
 // TODO: come closer to parity with LitElement.
 //  * consider mimicking createRenderRoot (instead of shadowRootInit) which
 //    returns a root instance.
+
 export default superclass =>
   class extends superclass {
     constructor() {
@@ -12,7 +13,11 @@ export default superclass =>
     }
 
     connectedCallback() {
-      this.constructor.upgradeObservedAttributes(this);
+      const symbol = Symbol.for('__initialized__');
+      if (!this[symbol]) {
+        this[symbol] = true;
+        this.constructor.initialize(this);
+      }
     }
 
     disconnectedCallback() {}
@@ -27,6 +32,10 @@ export default superclass =>
 
     static setup(target) {
       target.attachShadow(this.shadowRootInit);
+    }
+
+    static initialize(target) {
+      this.upgradeObservedAttributes(target);
       // cause the template to perform an initial synchronous render
       target.render();
     }
