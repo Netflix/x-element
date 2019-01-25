@@ -35,7 +35,7 @@ export default superclass =>
     }
 
     static initialize(target) {
-      this.upgradeObservedAttributes(target);
+      this.upgradeOwnProperties(target);
       // cause the template to perform an initial synchronous render
       target.render();
     }
@@ -107,23 +107,15 @@ export default superclass =>
       return () => ``;
     }
 
-    static upgradeObservedAttributes(target) {
-      const attrs = this.observedAttributes;
-      if (Array.isArray(attrs)) {
-        attrs.forEach(attr => this.upgradeProperty(target, attr));
-      }
-    }
-
     /**
+     * Prevent shadowing from properties added to element instance pre-upgrade.
      * @see https://developers.google.com/web/fundamentals/web-components/best-practices#lazy-properties
      */
-    static upgradeProperty(target, prop) {
-      if (target.hasOwnProperty(prop)) {
-        const value = target[prop];
-        // delete property so it does not shadow the element post-upgrade
-        // noop if the property is not configurable (e.g. already has accessors)
-        Reflect.deleteProperty(target, prop);
-        target[prop] = value;
+    static upgradeOwnProperties(target) {
+      for (const key of Reflect.ownKeys(target)) {
+        const value = Reflect.get(target, key);
+        Reflect.deleteProperty(target, key);
+        Reflect.set(target, key, value);
       }
     }
   };
