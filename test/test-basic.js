@@ -1,13 +1,17 @@
 import { suite, it } from './runner.js';
 import './fixture-element-basic.js';
 
-suite('x-element basic', ctx => {
+suite('x-element basic', async ctx => {
+  document.onerror = evt => {
+    console.error(evt.error);
+  };
   const el = document.createElement('test-element-basic');
   it(
     'upgrades the element with a shadowRoot',
     el.shadowRoot instanceof DocumentFragment
   );
   ctx.body.appendChild(el);
+  await el;
   it(
     'renders the template with variables',
     el.shadowRoot.querySelector('span').textContent === 'Hello world.'
@@ -23,6 +27,9 @@ suite('x-element basic', ctx => {
 });
 
 suite('x-element basic (Boolean)', ctx => {
+  document.onerror = evt => {
+    console.error(evt.error);
+  };
   const el = document.createElement('test-element-basic');
   ctx.body.appendChild(el);
   el.booleanProperty = true;

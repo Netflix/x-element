@@ -1,13 +1,27 @@
 import { suite, it } from './runner.js';
 import './fixture-element-scratch.js';
 
-suite('scratch', ctx => {
+suite('scratch', async ctx => {
+  let errorsWhenReflectingUnserializableType = false;
+
   document.onerror = evt => {
-    console.error(evt.error);
+    if (
+      evt.error.message ===
+      `Attempted to serialize "objPropReflect" and reflect, but it is not a Boolean, String, or Number type (Object).`
+    ) {
+      errorsWhenReflectingUnserializableType = true;
+    } else {
+      console.error(evt.error);
+    }
   };
 
   const el = document.createElement('test-element-scratch');
   ctx.body.appendChild(el);
+
+  it(
+    'should error on unserializable reflection',
+    errorsWhenReflectingUnserializableType
+  );
 
   // Attribute reflection tests
   it(
@@ -65,13 +79,13 @@ suite('scratch', ctx => {
 
   // Async data binding
   el.prop1 = null;
-  el.render(); // force sync render
+  await el;
   it(
     'should update the DOM bindings',
     el.shadowRoot.querySelector('span').textContent === ''
   );
   el.prop1 = 'test2';
-  el.render(); // force sync render
+  await el;
   it(
     'should update the DOM bindings again',
     el.shadowRoot.querySelector('span').textContent === 'test2'

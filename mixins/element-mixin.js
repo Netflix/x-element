@@ -4,6 +4,9 @@
 // TODO: come closer to parity with LitElement.
 //  * consider mimicking createRenderRoot (instead of shadowRootInit) which
 //    returns a root instance.
+const DIRTY = Symbol.for('__dirty__');
+const HAS_CONNECTED = Symbol.for('__hasConnected__');
+
 export default superclass =>
   class extends superclass {
     constructor() {
@@ -12,7 +15,10 @@ export default superclass =>
     }
 
     connectedCallback() {
-      this.constructor.upgradeObservedAttributes(this);
+      if (!this[HAS_CONNECTED]) {
+        this[HAS_CONNECTED] = true;
+        this.constructor.initialize(this);
+      }
     }
 
     disconnectedCallback() {}
@@ -27,13 +33,28 @@ export default superclass =>
 
     static setup(target) {
       target.attachShadow(this.shadowRootInit);
+    }
+
+    static beforeInitialRender(target) {
+      // Hook for subclasses.
+    }
+
+    static afterInitialRender(target) {
+      // Hook for subclasses.
+    }
+
+    static initialize(target) {
+      this.upgradeOwnProperties(target);
+      this.beforeInitialRender(target);
       // cause the template to perform an initial synchronous render
       target.render();
+      this.afterInitialRender(target);
     }
 
     render() {
       const proxy = this.constructor.renderProxy(this);
       this.shadowRoot.innerHTML = this.constructor.template()(proxy, this);
+      this[DIRTY] = false;
     }
 
     /**
@@ -42,13 +63,15 @@ export default superclass =>
      * changes. All the changes will be batched in a single render.
      */
     async invalidate() {
-      const symbol = Symbol.for('__dirty__');
-      if (!this[symbol]) {
-        this[symbol] = true;
+      if (!this[DIRTY]) {
+        this[DIRTY] = true;
         // schedule microtask, which runs before requestAnimationFrame
         // https://jakearchibald.com/2015/tasks-microtasks-queues-and-schedules/
-        this[symbol] = await false;
-        this.render();
+        if ((await true) && this[DIRTY]) {
+          // This guard checks if a synchronous render happened while awaiting.
+          this.render();
+          this[DIRTY] = false;
+        }
       }
     }
 
@@ -98,23 +121,15 @@ export default superclass =>
       return () => ``;
     }
 
-    static upgradeObservedAttributes(target) {
-      const attrs = this.observedAttributes;
-      if (Array.isArray(attrs)) {
-        attrs.forEach(attr => this.upgradeProperty(target, attr));
-      }
-    }
-
     /**
+     * Prevent shadowing from properties added to element instance pre-upgrade.
      * @see https://developers.google.com/web/fundamentals/web-components/best-practices#lazy-properties
      */
-    static upgradeProperty(target, prop) {
-      if (target.hasOwnProperty(prop)) {
-        const value = target[prop];
-        // delete property so it does not shadow the element post-upgrade
-        // noop if the property is not configurable (e.g. already has accessors)
-        Reflect.deleteProperty(target, prop);
-        target[prop] = value;
+    static upgradeOwnProperties(target) {
+      for (const key of Reflect.ownKeys(target)) {
+        const value = Reflect.get(target, key);
+        Reflect.deleteProperty(target, key);
+        Reflect.set(target, key, value);
       }
     }
   };
