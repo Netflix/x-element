@@ -1,8 +1,9 @@
 /**
- * Implements property to attribute reflection.
+ * Implements properties and property effects (computed, observer, reflect).
  */
 
 import ElementMixin from './mixins/element-mixin.js';
 import PropertiesMixin from './mixins/properties-mixin.js';
+import PropertyEffectsMixin from './mixins/property-effects-mixin.js';
 
-export default PropertiesMixin(ElementMixin(HTMLElement));
+export default PropertyEffectsMixin(PropertiesMixin(ElementMixin(HTMLElement)));

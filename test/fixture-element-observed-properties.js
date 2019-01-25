@@ -24,28 +24,36 @@ class TestElementObservedProperties extends XElementProperties {
         reflect: true,
         observer: 'observePopped',
       },
+      dne: {
+        type: Boolean,
+        observer: 'thisDNE',
+      },
     };
   }
   computeC(a, b) {
     return `${a} ${b}`;
   }
+  // TODO: switch order of arguments.
   observeA(oldValue, newValue) {
-    const changes = this.changes || [];
+    const changes = Object.assign([], this.changes);
     changes.push({ property: 'a', newValue, oldValue });
     this.changes = changes;
   }
+  // TODO: switch order of arguments.
   observeB(oldValue, newValue) {
-    const changes = this.changes || [];
+    const changes = Object.assign([], this.changes);
     changes.push({ property: 'b', newValue, oldValue });
     this.changes = changes;
   }
+  // TODO: switch order of arguments.
   observeC(oldValue, newValue) {
-    const changes = this.changes || [];
+    const changes = Object.assign([], this.changes);
     changes.push({ property: 'c', newValue, oldValue });
     this.changes = changes;
   }
+  // TODO: switch order of arguments.
   observePopped(oldValue, newValue) {
-    const changes = this.changes || [];
+    const changes = Object.assign([], this.changes);
     changes.push({ property: 'popped', newValue, oldValue });
     this.changes = changes;
   }

@@ -27,6 +27,39 @@ class TestElementComputedProperties extends XElementProperties {
         type: Boolean,
         reflect: true,
       },
+      y: {
+        type: Boolean,
+      },
+      z: {
+        type: Boolean,
+        computed: 'computeZ(y)',
+      },
+      today: {
+        type: Date,
+      },
+      tomorrow: {
+        type: Date,
+        computed: 'computeTomorrow(today)',
+      },
+      malformed: {
+        type: Boolean,
+        computed: 'thisMalformed!!!',
+      },
+      dne: {
+        type: Boolean,
+        computed: 'thisDNE(a)',
+      },
+      missing: {
+        type: String,
+        computed: 'computeMissing(notDeclared)',
+      },
+      zz: {
+        type: Boolean,
+      },
+      cyclic: {
+        type: String,
+        computed: 'computeCyclic(zz, cyclic)',
+      },
     };
   }
   computeC(a, b) {
@@ -37,6 +70,20 @@ class TestElementComputedProperties extends XElementProperties {
   }
   static computeUnderline(negative) {
     return !!negative;
+  }
+  static computeZ(y) {
+    return y;
+  }
+  static computeTomorrow(today) {
+    if (today) {
+      return today.valueOf() + 1000 * 60 * 60 * 24;
+    }
+  }
+  static computeMissing(notDeclared) {
+    return `this is just here to get past the unresolved method check`;
+  }
+  static computeCyclic(zz, cyclic) {
+    return `this is just here to get past the unresolved method check`;
   }
   static template() {
     return ({ a, b, c }) => {

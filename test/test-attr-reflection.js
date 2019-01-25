@@ -1,14 +1,16 @@
 import { suite, it } from './runner.js';
 import './fixture-element-attr-reflection.js';
 
-suite('x-element attribute reflection', ctx => {
+suite('x-element attribute reflection', async ctx => {
+  document.onerror = evt => {
+    console.error(evt.error);
+  };
   const el = document.createElement('test-element-attr-reflection');
   ctx.body.appendChild(el);
   it(
     'reflects initial value',
     el.getAttribute('camel-case-property') === 'reflectedCamel'
   );
-  el.render();
   it(
     'renders the template with the initial value',
     el.shadowRoot.querySelector('span').textContent === 'reflectedCamel'
@@ -22,11 +24,12 @@ suite('x-element attribute reflection', ctx => {
     el.hasAttribute('boolean-property-false') === false
   );
   el.camelCaseProperty = 'dromedary';
-  el.render();
   it(
-    'reflects next value',
-    el.getAttribute('camel-case-property') === 'dromedary'
+    'reflects next value, but should not have rendered change yet',
+    el.getAttribute('camel-case-property') === 'dromedary' &&
+      el.shadowRoot.querySelector('span').textContent === 'reflectedCamel'
   );
+  await el;
   it(
     'renders the template with the next value',
     el.shadowRoot.querySelector('span').textContent === 'dromedary'

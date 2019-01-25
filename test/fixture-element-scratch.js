@@ -96,7 +96,14 @@ class TestElement extends XElement {
           return new Map();
         },
       },
+      computedProp: {
+        type: String,
+        computed: 'computeComputedProp(prop1, prop2)',
+      },
     };
+  }
+  static computeComputedProp(prop1, prop2) {
+    return `${prop1} ${prop2}`;
   }
 }
 
