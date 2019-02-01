@@ -27,7 +27,7 @@
     "/index.css"
   ],
   "dependencies": {
-    "lit-html": "^0.13.0"
+    "lit-html": "^1.0.0-rc.2"
   },
   "devDependencies": {
     "@netflix/element-server": "^1.0.9",
