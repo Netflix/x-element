@@ -2,7 +2,7 @@
   "name": "@netflix/x-element",
   "author": "Casey Klebba",
   "description": "Custom Element base class.",
-  "version": "1.0.0-rc.33",
+  "version": "1.0.0-rc.34",
   "license": "MIT",
   "repository": "netflix/x-element",
   "main": "x-element.js",
