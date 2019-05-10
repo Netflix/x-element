@@ -14,6 +14,11 @@ custom extension is supported.
 Provides base functionality for creating custom elements with shadow roots and
 hooks to re-render the element.
 
+### `listeners-mixin`
+
+Provides a declarative `listeners` block which adds bound listeners on connect
+and removes them on disconnect.
+
 ### `properties-mixin`
 
 Allows you to declare the `properties` block. This leverages the `element-mixin`
