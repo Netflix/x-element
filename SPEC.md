@@ -14,6 +14,12 @@ custom extension is supported.
 Provides base functionality for creating custom elements with shadow roots and
 hooks to re-render the element.
 
+### `styles-mixin`
+
+Provides a way to define and share styles across instances of `x-element` via a
+declarative `styles` block. Styles are converted from strings to `CSSStyleSheet`
+instances and the results are cached for all future usage.
+
 ### `properties-mixin`
 
 Allows you to declare the `properties` block. This leverages the `element-mixin`
