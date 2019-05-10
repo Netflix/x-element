@@ -1,9 +1,77 @@
 import { suite, it } from './runner.js';
 import './fixture-element-computed-properties.js';
 
+const parsingTestCases = [
+  {
+    label: 'parses simple case',
+    computed: 'computeC(a, b)',
+    expected: { methodName: 'computeC', dependencies: ['a', 'b'] },
+  },
+  {
+    label: 'parses multiline case',
+    computed: `
+      computeC(
+        a,
+        b
+      )
+    `,
+    expected: { methodName: 'computeC', dependencies: ['a', 'b'] },
+  },
+  {
+    label: 'allows trailing commas',
+    computed: `
+      computeC(
+        a,
+        b,
+      )
+    `,
+    expected: { methodName: 'computeC', dependencies: ['a', 'b'] },
+  },
+  {
+    label: 'does not allow middle commas',
+    computed: `
+      computeC(
+        a,,
+        b,
+      )
+    `,
+    expected: undefined,
+  },
+  {
+    label: 'does not allow spaces in tokens',
+    computed: `
+      computeC(
+        a a,
+        b,
+      )
+    `,
+    expected: undefined,
+  },
+  {
+    label: 'does not allow commas in method name',
+    computed: 'comp,uteC(a, b)',
+    expected: undefined,
+  },
+  {
+    label: 'does not allow spaces in method name',
+    computed: 'comp uteC(a, b)',
+    expected: undefined,
+  },
+  {
+    label: 'does not allow parentheses in tokens (0)',
+    computed: 'computeC(a), b)',
+    expected: undefined,
+  },
+  {
+    label: 'does not allow parentheses in tokens (1)',
+    computed: 'computeC(a(, b)',
+    expected: undefined,
+  },
+];
+
 suite('x-element computed properties', ctx => {
   // Test errors
-  const malformedMessage = `Malformed computed "thisMalformed!!!".`;
+  const malformedMessage = `Malformed computed "malformed(a,,b)".`;
   const unresolvedMessage = `Cannot resolve methodName "thisDNE".`;
   const missingMessage = `Missing dependency "notDeclared".`;
   const cyclicMessage = 'Computed properties are cyclic.';
@@ -46,6 +114,12 @@ suite('x-element computed properties', ctx => {
   document.addEventListener('error', evt => console.error(evt.error));
   const el = document.createElement('test-element-computed-properties');
   ctx.body.appendChild(el);
+
+  // Test parsing of computed DSL.
+  for (const { label, computed, expected } of parsingTestCases) {
+    const actual = el.constructor.parseComputed(computed);
+    it(label, JSON.stringify(actual) === JSON.stringify(expected));
+  }
 
   it(
     'initialized as expected',
