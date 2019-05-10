@@ -13,7 +13,13 @@ class TestElementComputedProperties extends XElementProperties {
       },
       c: {
         type: Number,
-        computed: 'computeC(a, b)',
+        // Checks that multiline computed strings will work.
+        computed: `
+          computeC(
+            a,
+            b,
+          )
+        `,
       },
       negative: {
         type: Boolean,
@@ -108,7 +114,7 @@ class TestElementComputedPropertiesErrors extends XElementProperties {
     return {
       malformed: {
         type: Boolean,
-        computed: 'thisMalformed!!!',
+        computed: 'malformed(a,,b)',
       },
       dne: {
         type: Boolean,

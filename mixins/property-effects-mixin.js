@@ -3,7 +3,7 @@
  */
 import Graph from '../etc/graph.js';
 
-const COMPUTED_REGEX = /^(.+)\((.+)\)$/;
+const COMPUTED_REGEX = /^function[^(]*\(([^)]*)\)[\s\S]*$/;
 const COMPUTED_INFO = Symbol.for('__computedInfo__');
 const COMPUTE_READY = Symbol.for('__computeReady__');
 const OBSERVE_READY = Symbol.for('__observeReady__');
@@ -12,12 +12,20 @@ const REFLECT_READY = Symbol.for('__reflectReady__');
 export default superclass =>
   class extends superclass {
     static parseComputed(computed) {
-      // Parse computed DSL. E.g., "myFunction(propertyOne, propertyTwo)".
-      const match = computed.match(COMPUTED_REGEX);
-      if (match) {
-        const [methodName, argsString = ''] = match.slice(1);
-        const dependencies = argsString.split(',').map(dep => dep.trim());
-        return { methodName, dependencies };
+      // Note, we don't protect against deconstruction, defaults, and comments.
+      try {
+        let candidate;
+        eval(`candidate = (() => function ${computed} {})()`);
+        if (candidate instanceof Function) {
+          const dependencies = `${candidate}`
+            .match(COMPUTED_REGEX)[1]
+            .split(',')
+            .map(part => part.trim())
+            .filter(part => part);
+          return { methodName: candidate.name, dependencies };
+        }
+      } catch (err) {
+        // Bad input. Ignore.
       }
     }
 
