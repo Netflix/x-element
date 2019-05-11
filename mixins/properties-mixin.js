@@ -96,12 +96,13 @@ export default superclass =>
       Reflect.defineProperty(target, property, { get, set, configurable });
     }
 
+    static setup(target) {
+      super.setup(target);
+      this.analyzeProperties(target, this.properties);
+    }
+
     static beforeInitialRender(target) {
       super.beforeInitialRender(target);
-
-      // Analysis may dispatchErrors, only do this after element is connected.
-      this.analyzeProperties(target, this.properties);
-
       // Only reflect attributes when the element is connected
       // See https://dom.spec.whatwg.org/#dom-node-isconnected
       const entries = Object.entries(target.propertyDefinitions);
