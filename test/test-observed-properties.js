@@ -1,5 +1,5 @@
 import { suite, it } from './runner.js';
-import './fixture-element-observed-properties.js';
+import { TestElementObservedPropertiesErrorsUnresolved } from './fixture-element-observed-properties.js';
 
 const isObject = obj => obj instanceof Object && obj !== null;
 const deepEqual = (a, b) => {
@@ -16,16 +16,17 @@ const deepEqual = (a, b) => {
 };
 
 suite('x-element observed properties', ctx => {
-  const unresolvedMessage = `Cannot resolve methodName "thisDNE".`;
-
+  // Test analysis-time errors.
   let unresolved = false;
+  try {
+    new TestElementObservedPropertiesErrorsUnresolved();
+  } catch (err) {
+    unresolved = err.message === `Cannot resolve methodName "thisDNE".`;
+  }
+  it('should error for unresolved method names', unresolved);
 
   document.onerror = evt => {
-    if (evt.error.message === unresolvedMessage) {
-      unresolved = true;
-    } else {
-      console.error(evt.error);
-    }
+    console.error(evt.error);
   };
 
   const el = document.createElement('test-element-observed-properties');
@@ -33,8 +34,6 @@ suite('x-element observed properties', ctx => {
   el.b = 'hai';
 
   ctx.body.appendChild(el);
-
-  it('should error for unresolved method names', unresolved);
 
   it(
     'initialized as expected',

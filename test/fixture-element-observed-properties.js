@@ -24,10 +24,6 @@ class TestElementObservedProperties extends XElementProperties {
         reflect: true,
         observer: 'observePopped',
       },
-      dne: {
-        type: Boolean,
-        observer: 'thisDNE',
-      },
     };
   }
   computeC(a, b) {
@@ -90,3 +86,16 @@ customElements.define(
   'test-element-observed-properties',
   TestElementObservedProperties
 );
+
+
+class TestElementObservedPropertiesErrorsUnresolved extends XElementProperties {
+  static get properties() {
+    return { dne: { type: Boolean, observer: 'thisDNE' } };
+  }
+}
+customElements.define(
+  'test-element-observed-properties-errors-unresolved',
+  TestElementObservedPropertiesErrorsUnresolved
+);
+
+export { TestElementObservedPropertiesErrorsUnresolved };

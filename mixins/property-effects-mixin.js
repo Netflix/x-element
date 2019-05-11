@@ -25,7 +25,7 @@ export default superclass =>
           return { methodName: candidate.name, dependencies };
         }
       } catch (err) {
-        // Bad input. Ignore.
+        throw new Error(`Malformed computed "${computed}".`);
       }
     }
 
@@ -36,8 +36,7 @@ export default superclass =>
       } else if (target.constructor[methodName] instanceof Function) {
         return target.constructor[methodName].bind(target.constructor);
       } else {
-        const err = new Error(`Cannot resolve methodName "${methodName}".`);
-        target.dispatchError(err);
+        throw new Error(`Cannot resolve methodName "${methodName}".`);
       }
     }
 
@@ -100,35 +99,28 @@ export default superclass =>
         if (definition.computed) {
           hasComputedProperties = true;
           const { computed } = definition;
-          const parsedComputed = this.parseComputed(computed);
-          if (parsedComputed) {
-            const { methodName, dependencies } = parsedComputed;
-            for (const dependency of dependencies) {
-              if (dependency in properties === false) {
-                const err = new Error(`Missing dependency "${dependency}".`);
-                target.dispatchError(err);
-              }
+          const { methodName, dependencies } = this.parseComputed(computed);
+          for (const dependency of dependencies) {
+            if (dependency in properties === false) {
+              throw new Error(`Missing dependency "${dependency}".`);
             }
-            const callback = this.createComputedCallback(
-              target,
-              property,
-              methodName,
-              dependencies
-            );
-            if (callback) {
-              dependentToCallback[property] = callback;
+          }
+          const callback = this.createComputedCallback(
+            target,
+            property,
+            methodName,
+            dependencies
+          );
+          if (callback) {
+            dependentToCallback[property] = callback;
+          }
+          for (const dependency of dependencies) {
+            if (dependency in dependencyToDependents === false) {
+              dependencyToDependents[dependency] = [];
             }
-            for (const dependency of dependencies) {
-              if (dependency in dependencyToDependents === false) {
-                dependencyToDependents[dependency] = [];
-              }
-              if (property in dependencyToDependents[dependency] === false) {
-                dependencyToDependents[dependency].push(property);
-              }
+            if (property in dependencyToDependents[dependency] === false) {
+              dependencyToDependents[dependency].push(property);
             }
-          } else {
-            const err = new Error(`Malformed computed "${computed}".`);
-            target.dispatchError(err);
           }
         }
       }
@@ -159,7 +151,7 @@ export default superclass =>
               callbacks.forEach(callback => callback());
           }
         } else {
-          target.dispatchError(new Error('Computed properties are cyclic.'));
+          throw new Error('Computed properties are cyclic.');
         }
       }
     }

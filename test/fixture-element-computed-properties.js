@@ -109,42 +109,57 @@ customElements.define(
   TestElementComputedProperties
 );
 
-class TestElementComputedPropertiesErrors extends XElementProperties {
+class TestElementComputedPropertiesErrorsMalformed extends XElementProperties {
   static get properties() {
-    return {
-      malformed: {
-        type: Boolean,
-        computed: 'malformed(a,,b)',
-      },
-      dne: {
-        type: Boolean,
-        computed: 'thisDNE(malformed)',
-      },
-      missing: {
-        type: String,
-        computed: 'computeMissing(notDeclared)',
-      },
-      zz: {
-        type: Boolean,
-      },
-      cyclic: {
-        type: String,
-        computed: 'computeCyclic(zz, cyclic)',
-      },
-    };
-  }
-  static computeMissing(notDeclared) {
-    return `this is just here to get past the unresolved method check`;
-  }
-  static computeCyclic(zz, cyclic) {
-    return `this is just here to get past the unresolved method check`;
-  }
-  static template() {
-    return () => ``;
+    return { malformed: { type: Boolean, computed: 'malformed(a,,b)' } };
   }
 }
-
 customElements.define(
-  'test-element-computed-properties-errors',
-  TestElementComputedPropertiesErrors
+  'test-element-computed-properties-errors-malformed',
+  TestElementComputedPropertiesErrorsMalformed
 );
+
+class TestElementComputedPropertiesErrorsUnresolved extends XElementProperties {
+  static get properties() {
+    return {
+      a: { type: String },
+      dne: { type: Boolean, computed: 'thisDNE(a)' },
+    };
+  }
+}
+customElements.define(
+  'test-element-computed-properties-errors-unresolved',
+  TestElementComputedPropertiesErrorsUnresolved
+);
+
+class TestElementComputedPropertiesErrorsMissing extends XElementProperties {
+  static get properties() {
+    return { missing: { type: String, computed: 'computeMissing(notHere)' } };
+  }
+  static computeMissing() {}
+}
+customElements.define(
+  'test-element-computed-properties-errors-missing',
+  TestElementComputedPropertiesErrorsMissing
+);
+
+class TestElementComputedPropertiesErrorsCyclic extends XElementProperties {
+  static get properties() {
+    return {
+      a: { type: Boolean },
+      cyclic: { type: Boolean, computed: 'computeCyclic(a, cyclic)' },
+    };
+  }
+  static computeCyclic() {}
+}
+customElements.define(
+  'test-element-computed-properties-errors-cyclic',
+  TestElementComputedPropertiesErrorsCyclic
+);
+
+export {
+  TestElementComputedPropertiesErrorsMalformed,
+  TestElementComputedPropertiesErrorsUnresolved,
+  TestElementComputedPropertiesErrorsMissing,
+  TestElementComputedPropertiesErrorsCyclic,
+};

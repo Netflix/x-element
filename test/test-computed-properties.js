@@ -1,5 +1,10 @@
 import { suite, it } from './runner.js';
-import './fixture-element-computed-properties.js';
+import {
+  TestElementComputedPropertiesErrorsMalformed,
+  TestElementComputedPropertiesErrorsUnresolved,
+  TestElementComputedPropertiesErrorsMissing,
+  TestElementComputedPropertiesErrorsCyclic,
+} from './fixture-element-computed-properties.js';
 
 const parsingTestCases = [
   {
@@ -35,7 +40,7 @@ const parsingTestCases = [
         b,
       )
     `,
-    expected: undefined,
+    error: true,
   },
   {
     label: 'does not allow spaces in tokens',
@@ -45,70 +50,63 @@ const parsingTestCases = [
         b,
       )
     `,
-    expected: undefined,
+    error: true,
   },
   {
     label: 'does not allow commas in method name',
     computed: 'comp,uteC(a, b)',
-    expected: undefined,
+    error: true,
   },
   {
     label: 'does not allow spaces in method name',
     computed: 'comp uteC(a, b)',
-    expected: undefined,
+    error: true,
   },
   {
     label: 'does not allow parentheses in tokens (0)',
     computed: 'computeC(a), b)',
-    expected: undefined,
+    error: true,
   },
   {
     label: 'does not allow parentheses in tokens (1)',
     computed: 'computeC(a(, b)',
-    expected: undefined,
+    error: true,
   },
 ];
 
 suite('x-element computed properties', ctx => {
-  // Test errors
-  const malformedMessage = `Malformed computed "malformed(a,,b)".`;
-  const unresolvedMessage = `Cannot resolve methodName "thisDNE".`;
-  const missingMessage = `Missing dependency "notDeclared".`;
-  const cyclicMessage = 'Computed properties are cyclic.';
-
+  // Test analysis-time errors.
   let malformed = false;
+  try {
+    new TestElementComputedPropertiesErrorsMalformed();
+  } catch (err) {
+    malformed = err.message === `Malformed computed "malformed(a,,b)".`;
+  }
+  it('should throw halting error for malformed computed DSL', malformed);
+
   let unresolved = false;
+  try {
+    new TestElementComputedPropertiesErrorsUnresolved();
+  } catch (err) {
+    unresolved = err.message === `Cannot resolve methodName "thisDNE".`;
+  }
+  it('should throw halting error for unresolved method names', unresolved);
+
   let missing = false;
+  try {
+    new TestElementComputedPropertiesErrorsMissing();
+  } catch (err) {
+    missing = err.message === `Missing dependency "notHere".`;
+  }
+  it('should throw halting error for missing dependencies', missing);
+
   let cyclic = false;
-
-  const onErrorTest = evt => {
-    if (evt.error.message === malformedMessage) {
-      malformed = true;
-    } else if (evt.error.message === unresolvedMessage) {
-      unresolved = true;
-    } else if (evt.error.message === missingMessage) {
-      missing = true;
-    } else if (evt.error.message === cyclicMessage) {
-      cyclic = true;
-    } else {
-      console.error(evt.error);
-    }
-  };
-  document.addEventListener('error', onErrorTest);
-
-  ctx.body.appendChild(
-    document.createElement('test-element-computed-properties-errors')
-  );
-
-  it('should error for malformed computed DSL', malformed);
-
-  it('should error for unresolved method names', unresolved);
-
-  it('should error for missing dependencies', missing);
-
+  try {
+    new TestElementComputedPropertiesErrorsCyclic();
+  } catch (err) {
+    cyclic = err.message === 'Computed properties are cyclic.';
+  }
   it('should error for cyclic dependency graphs', cyclic);
-
-  document.removeEventListener('error', onErrorTest);
 
   // Test normal use case.
   document.addEventListener('error', evt => console.error(evt.error));
@@ -116,9 +114,19 @@ suite('x-element computed properties', ctx => {
   ctx.body.appendChild(el);
 
   // Test parsing of computed DSL.
-  for (const { label, computed, expected } of parsingTestCases) {
-    const actual = el.constructor.parseComputed(computed);
-    it(label, JSON.stringify(actual) === JSON.stringify(expected));
+  for (const { label, computed, expected, error } of parsingTestCases) {
+    if (error) {
+      let errored = false;
+      try {
+        el.constructor.parseComputed(computed);
+      } catch (err) {
+        errored = err.message === `Malformed computed "${computed}".`;
+      }
+      it(label, errored);
+    } else {
+      const actual = el.constructor.parseComputed(computed);
+      it(label, JSON.stringify(actual) === JSON.stringify(expected));
+    }
   }
 
   it(
