@@ -88,7 +88,7 @@ suite('x-element computed properties', ctx => {
   try {
     new TestElementComputedPropertiesErrorsUnresolved();
   } catch (err) {
-    unresolved = err.message === `Cannot resolve methodName "thisDNE".`;
+    unresolved = err.message === `Missing computed method "thisDNE".`;
   }
   it('should throw halting error for unresolved method names', unresolved);
 

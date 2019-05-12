@@ -21,7 +21,7 @@ suite('x-element observed properties', ctx => {
   try {
     new TestElementObservedPropertiesErrorsUnresolved();
   } catch (err) {
-    unresolved = err.message === `Cannot resolve methodName "thisDNE".`;
+    unresolved = err.message === `Missing observer method "thisDNE".`;
   }
   it('should error for unresolved method names', unresolved);
 

@@ -4,19 +4,22 @@
 // TODO: come closer to parity with LitElement.
 //  * consider mimicking createRenderRoot (instead of shadowRootInit) which
 //    returns a root instance.
-const DIRTY = Symbol.for('__dirty__');
-const HAS_CONNECTED = Symbol.for('__hasConnected__');
+const analyzedSet = new Set();
+const initializedSet = new WeakSet();
+const dirtySet = new WeakSet();
 
 export default superclass =>
   class extends superclass {
     constructor() {
       super();
-      this.constructor.setup(this);
+      if (analyzedSet.has(this) === false) {
+        analyzedSet.add(this);
+        this.constructor.analyze();
+      }
     }
-
     connectedCallback() {
-      if (!this[HAS_CONNECTED]) {
-        this[HAS_CONNECTED] = true;
+      if (initializedSet.has(this) === false) {
+        initializedSet.add(this);
         this.constructor.initialize(this);
       }
     }
@@ -31,8 +34,8 @@ export default superclass =>
       return { mode: 'open' };
     }
 
-    static setup(target) {
-      target.attachShadow(this.shadowRootInit);
+    static analyze() {
+      // Hook for subclasses.
     }
 
     static beforeInitialRender(target) {
@@ -45,6 +48,7 @@ export default superclass =>
 
     static initialize(target) {
       this.upgradeOwnProperties(target);
+      target.attachShadow(this.shadowRootInit);
       this.beforeInitialRender(target);
       // cause the template to perform an initial synchronous render
       target.render();
@@ -54,7 +58,7 @@ export default superclass =>
     render() {
       const proxy = this.constructor.renderProxy(this);
       this.shadowRoot.innerHTML = this.constructor.template()(proxy, this);
-      this[DIRTY] = false;
+      dirtySet.delete(this);
     }
 
     /**
@@ -63,14 +67,14 @@ export default superclass =>
      * changes. All the changes will be batched in a single render.
      */
     async invalidate() {
-      if (!this[DIRTY]) {
-        this[DIRTY] = true;
+      if (dirtySet.has(this) === false) {
+        dirtySet.add(this);
         // schedule microtask, which runs before requestAnimationFrame
         // https://jakearchibald.com/2015/tasks-microtasks-queues-and-schedules/
-        if ((await true) && this[DIRTY]) {
+        if ((await true) && dirtySet.has(this)) {
           // This guard checks if a synchronous render happened while awaiting.
           this.render();
-          this[DIRTY] = false;
+          dirtySet.delete(this);
         }
       }
     }

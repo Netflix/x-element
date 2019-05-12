@@ -22,7 +22,6 @@ to observe and `invalidate` on property changes to cause a re-render. The
 
 - `type` [Function]: type associated with the property.
 - `value` [Funciton|Any Literal]: _initial_ value for the property or getter.
-- `readOnly` [Boolean]: prevent property updates via normal setter?
 
 ### `property-effects-mixin`
 

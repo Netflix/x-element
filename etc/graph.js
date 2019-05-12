@@ -10,6 +10,12 @@ export default class Graph {
     Reflect.defineProperty(this, 'solution', {
       value: Object.freeze(Graph.sort(this)),
     });
+    Reflect.defineProperty(this, 'roots', {
+      value: Object.freeze(
+        nodes.filter(node => edges.every(edge => edge[1] !== node))
+      ),
+    });
+    this._nodeMap = new Map();
   }
 
   static *createFromNodeGenerator(graph, node, seen = []) {
@@ -44,6 +50,13 @@ export default class Graph {
       }
     }
     return new Graph(nodes, edges);
+  }
+
+  fromNode(node) {
+    if (this._nodeMap.has(node) === false) {
+      this._nodeMap.set(node, this.constructor.createFromNode(this, node));
+    }
+    return this._nodeMap.get(node);
   }
 
   static sort(graph) {
