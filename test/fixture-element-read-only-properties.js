@@ -22,7 +22,7 @@ class TestElement extends XElementProperties {
     super.connectedCallback();
     // TODO: improve interface for readOnly properties.
     const property = 'readOnlyProperty';
-    const definition = this.propertyDefinitions[property];
+    const definition = this.finalizedProperties[property];
     const value = 'Ferus';
     this.constructor.changeProperty(this, property, definition, value);
   }

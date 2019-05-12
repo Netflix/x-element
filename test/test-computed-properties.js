@@ -10,7 +10,7 @@ const parsingTestCases = [
   {
     label: 'parses simple case',
     computed: 'computeC(a, b)',
-    expected: { methodName: 'computeC', dependencies: ['a', 'b'] },
+    expected: ['computeC', 'a', 'b'],
   },
   {
     label: 'parses multiline case',
@@ -20,7 +20,7 @@ const parsingTestCases = [
         b
       )
     `,
-    expected: { methodName: 'computeC', dependencies: ['a', 'b'] },
+    expected: ['computeC', 'a', 'b'],
   },
   {
     label: 'allows trailing commas',
@@ -30,7 +30,7 @@ const parsingTestCases = [
         b,
       )
     `,
-    expected: { methodName: 'computeC', dependencies: ['a', 'b'] },
+    expected: ['computeC', 'a', 'b'],
   },
   {
     label: 'does not allow middle commas',
@@ -104,7 +104,7 @@ suite('x-element computed properties', ctx => {
   try {
     new TestElementComputedPropertiesErrorsCyclic();
   } catch (err) {
-    cyclic = err.message === 'Computed properties are cyclic.';
+    cyclic = err.message === 'Graph is cyclic.';
   }
   it('should error for cyclic dependency graphs', cyclic);
 

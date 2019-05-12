@@ -6,25 +6,43 @@ export default class Graph {
     for (const edge of this.edges) {
       Object.freeze(edge);
     }
+    // Sort immediately to prevent instantiation of cyclic graphs.
+    Reflect.defineProperty(this, 'solution', {
+      value: Object.freeze(Graph.sort(this)),
+    });
   }
 
-  static _makeGraphLoop(n, mapping, edges, nodes) {
-    if (nodes.includes(n) === false) {
+  static *createFromNodeGenerator(graph, node, seen = []) {
+    if (seen.includes(node) === false) {
       // Don't traverse nodes we've already traversed. Prevents infinite loop.
-      nodes.push(n);
-      if (n in mapping) {
-        for (const m of mapping[n]) {
-          edges.push([n, m]);
-          this._makeGraphLoop(m, mapping, edges, nodes);
+      seen.push(node);
+      yield { node };
+      const edges = graph.edges.filter(testEdge => testEdge[0] === node);
+      for (const edge of edges) {
+        yield { edge };
+        const next = edge[1];
+        for (const datum of this.createFromNodeGenerator(graph, next, seen)) {
+          yield datum;
         }
       }
     }
   }
 
-  static createFromNodeMapping(node, mapping) {
+  // Create a graph of all nodes/edges related to the give node.
+  static createFromNode(graph, node) {
+    if (graph instanceof Graph === false) {
+      throw new Error('Cannot call createFromNode on non-Graph instance.');
+    }
     const edges = [];
     const nodes = [];
-    this._makeGraphLoop(node, mapping, edges, nodes);
+    for (const datum of this.createFromNodeGenerator(graph, node)) {
+      if (datum.edge) {
+        edges.push(datum.edge);
+      }
+      if (datum.node) {
+        nodes.push(datum.node);
+      }
+    }
     return new Graph(nodes, edges);
   }
 
@@ -72,9 +90,10 @@ export default class Graph {
         }
       }
     }
-    // If there are remaining edges, the graph is cyclic; return undefined.
-    if (edges.length === 0) {
-      return solution;
+    // If there are remaining edges, the graph is cyclic; throw.
+    if (edges.length !== 0) {
+      throw new Error('Graph is cyclic.');
     }
+    return solution;
   }
 }

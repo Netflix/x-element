@@ -4,168 +4,193 @@
 import Graph from '../etc/graph.js';
 
 const COMPUTED_REGEX = /^function[^(]*\(([^)]*)\)[\s\S]*$/;
-const COMPUTED_INFO = Symbol.for('__computedInfo__');
 const COMPUTE_READY = Symbol.for('__computeReady__');
 const OBSERVE_READY = Symbol.for('__observeReady__');
 const REFLECT_READY = Symbol.for('__reflectReady__');
+const PROPERTY_GRAPH = Symbol.for('__propertyGraph__');
+const COMPUTE_FINALIZERS = Symbol.for('__computeFinalizers__');
+const INITIAL_COMPUTE_FINALIZER = Symbol.for('__initialComputeFinalizer__');
+const INITIAL_COMPUTE = Symbol.for('__initialCompute__');
+
+const computedMap = new Map();
 
 export default superclass =>
   class extends superclass {
     static parseComputed(computed) {
       // Note, we don't protect against deconstruction, defaults, and comments.
-      try {
-        let candidate;
-        eval(`candidate = (() => function ${computed} {})()`);
-        if (candidate instanceof Function) {
-          const dependencies = `${candidate}`
-            .match(COMPUTED_REGEX)[1]
-            .split(',')
-            .map(part => part.trim())
-            .filter(part => part);
-          return { methodName: candidate.name, dependencies };
-        }
-      } catch (err) {
-        throw new Error(`Malformed computed "${computed}".`);
-      }
-    }
-
-    static resolveMethodName(target, methodName) {
-      // Look for method on instance and then on constructor.
-      if (target[methodName] instanceof Function) {
-        return target[methodName].bind(target);
-      } else if (target.constructor[methodName] instanceof Function) {
-        return target.constructor[methodName].bind(target.constructor);
-      } else {
-        throw new Error(`Cannot resolve methodName "${methodName}".`);
-      }
-    }
-
-    static createComputedCallback(target, property, methodName, dependencies) {
-      const method = this.resolveMethodName(target, methodName);
-      if (method) {
-        return skipIfUndefined => {
-          // Get definition at runtime in case things changed during analysis.
-          const definition = target.propertyDefinitions[property];
-          const args = dependencies.map(dependency => target[dependency]);
-          if (!skipIfUndefined || args.some(arg => arg !== undefined)) {
-            const value = this.applyType(method(...args), definition.type);
-            this.changeProperty(target, property, definition, value);
+      if (computedMap.has(computed) === false) {
+        try {
+          let candidate;
+          eval(`candidate = (() => function ${computed} {})()`);
+          if (candidate instanceof Function) {
+            const dependencies = `${candidate}`
+              .match(COMPUTED_REGEX)[1]
+              .split(',')
+              .map(part => part.trim())
+              .filter(part => part);
+            const array = [candidate.name, ...dependencies];
+            computedMap.set(computed, array);
           }
-        };
-      }
-    }
-
-    static analyzeObserverProperty(target, property, definition) {
-      if (definition.observer) {
-        const methodName = definition.observer;
-        const method = this.resolveMethodName(target, methodName);
-        if (method) {
-          return Object.assign({}, definition, { observe: method });
+        } catch (err) {
+          throw new Error(`Malformed computed "${computed}".`);
         }
       }
-      return definition;
+      return computedMap.get(computed);
     }
 
-    static analyzeComputedProperty(target, property, definition) {
-      const computedInfo = target[COMPUTED_INFO];
-      if (computedInfo) {
-        const { dependencyToDependents, dependentToCallback } = computedInfo;
-        if (property in dependencyToDependents && !definition.computed) {
-          const sorted = Graph.sort(
-            Graph.createFromNodeMapping(property, dependencyToDependents)
-          );
-          if (sorted) {
-            const callbacks = sorted
-              .map(dependent => dependentToCallback[dependent])
-              .filter(callback => callback);
-            if (callbacks.length > 0) {
-              const compute = () => callbacks.forEach(callback => callback());
-              return Object.assign({}, definition, { compute });
-            }
-          }
-        } else if (definition.computed) {
-          return Object.assign({}, definition, { readOnly: true });
-        }
-      }
-      return definition;
-    }
-
-    static analyzeComputedProperties(target, properties) {
-      const dependencyToDependents = {};
-      const dependentToCallback = {};
-
-      let hasComputedProperties = false;
+    static createPropertyGraph(properties) {
+      const nodes = Array.from(Object.keys(properties));
+      const edges = [];
       for (const [property, definition] of Object.entries(properties)) {
         if (definition.computed) {
-          hasComputedProperties = true;
           const { computed } = definition;
-          const { methodName, dependencies } = this.parseComputed(computed);
+          const dependencies = this.parseComputed(computed).slice(1);
           for (const dependency of dependencies) {
             if (dependency in properties === false) {
               throw new Error(`Missing dependency "${dependency}".`);
             }
-          }
-          const callback = this.createComputedCallback(
-            target,
-            property,
-            methodName,
-            dependencies
-          );
-          if (callback) {
-            dependentToCallback[property] = callback;
-          }
-          for (const dependency of dependencies) {
-            if (dependency in dependencyToDependents === false) {
-              dependencyToDependents[dependency] = [];
-            }
-            if (property in dependencyToDependents[dependency] === false) {
-              dependencyToDependents[dependency].push(property);
-            }
+            edges.push([dependency, property]);
           }
         }
       }
+      return new Graph(nodes, edges);
+    }
 
-      if (hasComputedProperties) {
-        target[COMPUTED_INFO] = {
-          dependencyToDependents,
-          dependentToCallback,
-        };
+    static createComputeFinalizers(properties) {
+      const finalizers = {};
 
-        // We also need to initialize our computed props. We set that up here.
-        const nodes = Array.from(Object.keys(properties));
-        const edges = [];
-        const entries = Object.entries(dependencyToDependents);
-        for (const [dependency, dependents] of entries) {
-          edges.push(...dependents.map(dependent => [dependency, dependent]));
-        }
-        const sorted = Graph.sort(new Graph(nodes, edges));
-        if (sorted) {
-          const callbacks = sorted
-            .map(dependent => dependentToCallback[dependent])
-            .filter(callback => callback);
-          if (callbacks.length > 0) {
-            // The "true" arg skips callback if dependencies are all undefined.
-            // TODO: #27: skip initial compute if dependencies are all undefined
-            //  pass "true" arg to each callback to accomplish this.
-            target[COMPUTED_INFO].initialCompute = () =>
-              callbacks.forEach(callback => callback());
-          }
-        } else {
-          throw new Error('Computed properties are cyclic.');
+      // Loop once to add all the computed property finalizers.
+      for (const [property, definition] of Object.entries(properties)) {
+        if (definition.computed) {
+          const { method, dependencies, type } = definition;
+          finalizers[property] = target => () => {
+            const args = dependencies.map(dependency => target[dependency]);
+            const value = this.applyType(method(...args), type);
+            const finalDefinition = target.finalizedProperties[property];
+            this.changeProperty(target, property, finalDefinition, value);
+          };
         }
       }
+
+      // Loop again to add all the root dependency property finalizers.
+      for (const [property, definition] of Object.entries(properties)) {
+        if (definition.dependants) {
+          const { dependants } = definition;
+          finalizers[property] = target => {
+            const callbacks = dependants.map(dependant =>
+              finalizers[dependant](target)
+            );
+            return () => callbacks.forEach(callback => callback());
+          };
+        }
+      }
+
+      return finalizers;
     }
 
-    static analyzeProperties(target, properties) {
-      // Computed properties need to be analyzed altogether since it's a graph.
-      this.analyzeComputedProperties(target, properties);
-      super.analyzeProperties(target, properties);
+    static createInitialComputeFinalizer(properties) {
+      const propertyGraph = properties[PROPERTY_GRAPH];
+      return target => {
+        const callbacks = propertyGraph.solution
+          .filter(property => properties[property].computed)
+          .map(property => {
+            const { method, dependencies, type } = properties[property];
+            return () => {
+              // TODO: #27: skip initial compute if dependencies are undefined.
+              const args = dependencies.map(dependency => target[dependency]);
+              const value = this.applyType(method(...args), type);
+              const finalDefinition = target.finalizedProperties[property];
+              this.changeProperty(target, property, finalDefinition, value);
+            };
+          });
+        return () => callbacks.forEach(callback => callback());
+      };
     }
 
-    static analyzeProperty(target, property, definition) {
-      let next = super.analyzeProperty(target, property, definition);
-      next = this.analyzeObserverProperty(target, property, next);
-      return this.analyzeComputedProperty(target, property, next);
+    static analyzePropertyComputed(property, definition, propertyGraph) {
+      let next = definition;
+      const isDependency = propertyGraph.edges.some(
+        edge => edge[0] === property
+      );
+      if (!definition.computed && isDependency) {
+        const dependants = Graph.createFromNode(
+          propertyGraph,
+          property
+        ).solution.slice(1);
+        next = Object.assign({}, definition, { dependants });
+      } else if (definition.computed) {
+        const [methodName, ...dependencies] = this.parseComputed(
+          definition.computed
+        );
+        if (this[methodName] instanceof Function === false) {
+          throw new Error(`Cannot resolve methodName "${methodName}".`);
+        }
+        const method = this[methodName].bind(this);
+        next = Object.assign({}, definition, {
+          method,
+          dependencies,
+          readOnly: true,
+        });
+      }
+      return next;
+    }
+
+    static analyzePropertyObserver(property, definition) {
+      let next = definition;
+      if (definition.observer) {
+        const methodName = definition.observer;
+        if (this[methodName] instanceof Function === false) {
+          throw new Error(`Cannot resolve methodName "${methodName}".`);
+        }
+        const observe = this[methodName].bind(this);
+        next = Object.assign({}, definition, { observe });
+      }
+      return next;
+    }
+
+    static analyzeProperty(property, definition, properties) {
+      let next = definition;
+      const propertyGraph = properties[PROPERTY_GRAPH];
+      next = super.analyzeProperty(property, next, properties);
+      next = this.analyzePropertyComputed(property, next, propertyGraph);
+      next = this.analyzePropertyObserver(property, next);
+      return next;
+    }
+
+    static analyzeProperties(properties) {
+      const graph = this.createPropertyGraph(properties);
+      let next = Object.assign({}, properties, { [PROPERTY_GRAPH]: graph });
+      next = super.analyzeProperties(next);
+      const computeFinalizers = this.createComputeFinalizers(next);
+      const initialComputeFinalizers = this.createInitialComputeFinalizer(next);
+      next = Object.assign({}, next, {
+        [COMPUTE_FINALIZERS]: computeFinalizers,
+        [INITIAL_COMPUTE_FINALIZER]: initialComputeFinalizers,
+      });
+      return next;
+    }
+
+    static finalizeProperty(target, property, definition, properties) {
+      let next = super.finalizeProperty(
+        target,
+        property,
+        definition,
+        properties
+      );
+      const computeFinalizers = properties[COMPUTE_FINALIZERS];
+      if (next.dependants) {
+        const compute = computeFinalizers[property](target);
+        next = Object.assign({}, next, { compute });
+      }
+      return next;
+    }
+
+    static finalizeProperties(target, properties) {
+      let next = super.finalizeProperties(target, properties);
+      next = Object.assign({}, next, {
+        [INITIAL_COMPUTE]: next[INITIAL_COMPUTE_FINALIZER](target),
+      });
+      return next;
     }
 
     static serializeProperty(target, property, definition, value) {
@@ -200,17 +225,15 @@ export default superclass =>
 
     static beforeInitialRender(target) {
       super.beforeInitialRender(target);
+      target.finalizedProperties[INITIAL_COMPUTE]();
       target[COMPUTE_READY] = true;
-      if (target[COMPUTED_INFO] && target[COMPUTED_INFO].initialCompute) {
-        target[COMPUTED_INFO].initialCompute();
-      }
     }
 
     static afterInitialRender(target) {
       super.afterInitialRender(target);
       target[REFLECT_READY] = true;
       target[OBSERVE_READY] = true;
-      const entries = Object.entries(target.propertyDefinitions);
+      const entries = Object.entries(target.finalizedProperties);
       for (const [property, definition] of entries) {
         const value = target[property];
         if (definition.reflect && value !== undefined) {
@@ -218,10 +241,9 @@ export default superclass =>
         }
         if (definition.observe && value !== undefined) {
           // TODO: #26: switch order of arguments.
-          definition.observe(undefined, value);
+          definition.observe(target, undefined, value);
         }
       }
-      delete target[COMPUTED_INFO];
     }
 
     static propertyDidChange(target, property, definition, value, oldValue) {
@@ -231,7 +253,7 @@ export default superclass =>
       }
       if (definition.observe && target[OBSERVE_READY]) {
         // TODO: #26: switch order of arguments.
-        definition.observe(oldValue, value);
+        definition.observe(target, oldValue, value);
       }
       if (definition.compute && target[COMPUTE_READY]) {
         definition.compute();

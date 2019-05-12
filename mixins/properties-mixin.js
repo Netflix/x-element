@@ -2,9 +2,13 @@
  * Provides declarative 'properties' block.
  */
 
+// TODO: should converge on terminology:
+//  "setup", "analyze", "finalize", and "initialize"...
 const DASH_TO_CAMEL = /-[a-z]/g;
 const CAMEL_TO_DASH = /([A-Z])/g;
-const PROPERTY_DEFINITIONS = Symbol.for('__propertyDefinitions__');
+const HAS_ANALYZED = Symbol.for('__hasAnalyzed__');
+const ANALYZED_PROPERTIES = Symbol.for('__analyzedProperties__');
+const FINALIZED_PROPERTIES = Symbol.for('__finalizedProperties__');
 const PROPERTIES_INITIALIZED = Symbol.for('__propertiesInitialized__');
 const PROPERTY_VALUE_CACHE = Symbol.for('__propertyValueCache__');
 
@@ -15,6 +19,16 @@ const caseMap = new Map();
  */
 export default superclass =>
   class extends superclass {
+    constructor() {
+      super();
+      const ctor = this.constructor;
+      if (
+        ctor.hasOwnProperty(HAS_ANALYZED) === false ||
+        ctor[HAS_ANALYZED] === false
+      ) {
+        ctor[ANALYZED_PROPERTIES] = ctor.analyzeProperties(ctor.properties);
+      }
+    }
     static get properties() {
       return {};
     }
@@ -30,26 +44,44 @@ export default superclass =>
       }
     }
 
-    get propertyDefinitions() {
-      // This is defined during analysis and should only be used thereafter.
-      return this[PROPERTY_DEFINITIONS];
+    static get analyzedProperties() {
+      return this[ANALYZED_PROPERTIES];
     }
 
-    static analyzeProperty(target, property, definition) {
+    get finalizedProperties() {
+      return this[FINALIZED_PROPERTIES];
+    }
+
+    static analyzeProperty(property, definition, properties) {
       return definition;
     }
 
-    static analyzeProperties(target, properties) {
-      const propertyDefinitions = {};
+    static analyzeProperties(properties) {
+      let next = properties;
       for (const [property, definition] of Object.entries(properties)) {
-        propertyDefinitions[property] = this.analyzeProperty(
+        next = Object.assign({}, next, {
+          [property]: this.analyzeProperty(property, definition, properties),
+        });
+      }
+      return next;
+    }
+
+    static finalizeProperty(target, property, definition, properties) {
+      return definition;
+    }
+
+    static finalizeProperties(target, properties) {
+      let next = properties;
+      for (const [property, definition] of Object.entries(properties)) {
+        const finalDefinition = this.finalizeProperty(
           target,
           property,
-          definition
+          definition,
+          properties
         );
+        next = Object.assign({}, next, { [property]: finalDefinition });
       }
-      target[PROPERTY_DEFINITIONS] = propertyDefinitions;
-      target[PROPERTY_VALUE_CACHE] = {};
+      return next;
     }
 
     static getInitialValue(target, property, definition) {
@@ -96,17 +128,8 @@ export default superclass =>
       Reflect.defineProperty(target, property, { get, set, configurable });
     }
 
-    static setup(target) {
-      super.setup(target);
-      this.analyzeProperties(target, this.properties);
-    }
-
-    static beforeInitialRender(target) {
-      super.beforeInitialRender(target);
-      // Only reflect attributes when the element is connected
-      // See https://dom.spec.whatwg.org/#dom-node-isconnected
-      const entries = Object.entries(target.propertyDefinitions);
-      for (const [property, definition] of entries) {
+    static initializeProperties(target, properties) {
+      for (const [property, definition] of Object.entries(properties)) {
         const value = this.getInitialValue(target, property, definition);
         this.initializeProperty(target, property, definition);
         target[property] = value;
@@ -114,6 +137,19 @@ export default superclass =>
 
       // Allows us to guard against early handling in attributeChangedCallback.
       target[PROPERTIES_INITIALIZED] = true;
+    }
+
+    static beforeInitialRender(target) {
+      super.beforeInitialRender(target);
+      // Only reflect attributes when the element is connected
+      // See https://dom.spec.whatwg.org/#dom-node-isconnected
+      const finalizedProperties = this.finalizeProperties(
+        target,
+        this.analyzedProperties
+      );
+      target[FINALIZED_PROPERTIES] = finalizedProperties;
+      target[PROPERTY_VALUE_CACHE] = {};
+      this.initializeProperties(target, finalizedProperties);
     }
 
     static shouldPropertyChange(
@@ -152,7 +188,7 @@ export default superclass =>
       if (newValue !== oldValue && this[PROPERTIES_INITIALIZED]) {
         const ctor = this.constructor;
         const property = ctor.dashToCamelCase(attribute);
-        const definition = this.propertyDefinitions[property];
+        const definition = this.finalizedProperties[property];
         this[property] = ctor.deserializeAttribute(
           this,
           property,

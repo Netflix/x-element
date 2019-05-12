@@ -26,32 +26,32 @@ class TestElementObservedProperties extends XElementProperties {
       },
     };
   }
-  computeC(a, b) {
+  static computeC(a, b) {
     return `${a} ${b}`;
   }
   // TODO: #26: switch order of arguments.
-  observeA(oldValue, newValue) {
-    const changes = Object.assign([], this.changes);
+  static observeA(target, oldValue, newValue) {
+    const changes = Object.assign([], target.changes);
     changes.push({ property: 'a', newValue, oldValue });
-    this.changes = changes;
+    target.changes = changes;
   }
   // TODO: #26: switch order of arguments.
-  observeB(oldValue, newValue) {
-    const changes = Object.assign([], this.changes);
+  static observeB(target, oldValue, newValue) {
+    const changes = Object.assign([], target.changes);
     changes.push({ property: 'b', newValue, oldValue });
-    this.changes = changes;
+    target.changes = changes;
   }
   // TODO: #26: switch order of arguments.
-  observeC(oldValue, newValue) {
-    const changes = Object.assign([], this.changes);
+  static observeC(target, oldValue, newValue) {
+    const changes = Object.assign([], target.changes);
     changes.push({ property: 'c', newValue, oldValue });
-    this.changes = changes;
+    target.changes = changes;
   }
   // TODO: #26: switch order of arguments.
-  observePopped(oldValue, newValue) {
-    const changes = Object.assign([], this.changes);
+  static observePopped(target, oldValue, newValue) {
+    const changes = Object.assign([], target.changes);
     changes.push({ property: 'popped', newValue, oldValue });
-    this.changes = changes;
+    target.changes = changes;
   }
   static template() {
     return ({ changes }) => {
@@ -86,7 +86,6 @@ customElements.define(
   'test-element-observed-properties',
   TestElementObservedProperties
 );
-
 
 class TestElementObservedPropertiesErrorsUnresolved extends XElementProperties {
   static get properties() {

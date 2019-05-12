@@ -59,7 +59,7 @@ class TestElementComputedProperties extends XElementProperties {
       },
     };
   }
-  computeC(a, b) {
+  static computeC(a, b) {
     return a + b;
   }
   static computeNegative(c) {

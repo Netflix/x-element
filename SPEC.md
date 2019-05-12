@@ -47,23 +47,23 @@ This mixin simply makes an opinion to use `lit-html` as the templating engine.
 
 ### Analysis
 
-Analysis should take place once per class on first construction. This allows all
-future instances to share common setup work. The result of the analysis phase is
-made available again during initialization.
+Analysis should take place once per class before first construction. This allows
+all future instances to share common, class-level setup work.
 
-Note: work to truly cache analysis work per-class is ongoing. Right now, this
-happens per instance.
+### Setup
+
+Setup should take place as soon as an instance is available during construction.
+Setup binds a context to our analysis and may create a render root.
 
 ### Initialization
 
-Initialization should take place once per instance on first connection. This
-allows each class to leverage cached information in the analysis phase and
-leverage initialization work through disconnection and reconnection to the DOM.
+Initialization should take place on first connection. The element is considered
+fully operational only after it's been initialized.
+
 Initialization should work in the following order:
 
-- handle post-definition upgrade scenario
-- initialize render root
-- initialize property values
+- handle element upgrade
+- initialize properties
 - compute properties
 - render
 - enable property effects
@@ -76,7 +76,7 @@ When properties update on an initialized element, the following should occur:
 
 - reflect property if needed
 - observe property if needed
-- compute dependent properties if needed, causes subsequent property changes
+- compute dependent properties
 
 ## Properties
 
