@@ -12,15 +12,16 @@ export default superclass =>
   class extends superclass {
     constructor() {
       super();
-      if (analyzedSet.has(this) === false) {
-        analyzedSet.add(this);
-        this.constructor.analyze();
+      const ctor = this.constructor;
+      if (ctor.analyzed === false) {
+        ctor.analyze();
+        analyzedSet.add(ctor);
       }
     }
     connectedCallback() {
-      if (initializedSet.has(this) === false) {
-        initializedSet.add(this);
+      if (this.constructor.isTargetInitialized(this) === false) {
         this.constructor.initialize(this);
+        initializedSet.add(this);
       }
     }
 
@@ -32,6 +33,14 @@ export default superclass =>
 
     static get shadowRootInit() {
       return { mode: 'open' };
+    }
+
+    static get analyzed() {
+      return analyzedSet.has(this);
+    }
+
+    static isTargetInitialized(target) {
+      return initializedSet.has(target);
     }
 
     static analyze() {

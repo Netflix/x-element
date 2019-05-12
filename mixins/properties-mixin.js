@@ -1,16 +1,12 @@
 /**
  * Provides declarative 'properties' block.
  */
-// TODO: Can we cache properties information? See attributeChangedCallback...
-// TODO: should converge on terminology, can setup move to `initialize`?
-//  "analyze", "setup", , and "initialize"...
 const DASH_TO_CAMEL = /-[a-z]/g;
 const CAMEL_TO_DASH = /([A-Z])/g;
 const RAW_VALUES = Symbol.for('__rawValues__');
 
 const caseMap = new Map();
 const cachedPropertiesMap = new Map();
-const propertiesInitializedSet = new WeakSet();
 
 /**
  * Provides property management via a declarative 'properties' block.
@@ -74,18 +70,18 @@ export default superclass =>
     static initializeProperty(target, property, definition) {
       const symbol = Symbol.for(property);
       const get = () => target[symbol];
-      const set = rawValue => {
-        const oldRawValue = target[RAW_VALUES][property];
+      const set = raw => {
+        const oldRaw = target[RAW_VALUES][property];
         const propertyShouldChange = this.shouldPropertyChange(
           target,
           property,
           definition,
-          rawValue,
-          oldRawValue
+          raw,
+          oldRaw
         );
         if (propertyShouldChange) {
-          target[RAW_VALUES][property] = rawValue;
-          const value = this.applyType(rawValue, definition.type);
+          target[RAW_VALUES][property] = raw;
+          const value = this.applyType(raw, definition.type);
           this.changeProperty(target, property, definition, value);
         }
       };
@@ -95,8 +91,6 @@ export default superclass =>
     }
 
     static initializeProperties(target, properties) {
-      // Allows us to guard early handling in attributeChangedCallback.
-      propertiesInitializedSet.add(target);
       for (const [property, definition] of Object.entries(properties)) {
         const value = this.getInitialValue(target, property, definition);
         this.initializeProperty(target, property, definition);
@@ -112,17 +106,8 @@ export default superclass =>
       this.initializeProperties(target, this.cachedProperties);
     }
 
-    static shouldPropertyChange(
-      target,
-      property,
-      definition,
-      rawValue,
-      oldRawValue
-    ) {
-      return (
-        rawValue !== oldRawValue &&
-        (rawValue === rawValue || oldRawValue === oldRawValue)
-      );
+    static shouldPropertyChange(target, property, definition, raw, oldRaw) {
+      return raw !== oldRaw && (raw === raw || oldRaw === oldRaw);
     }
 
     static propertyWillChange(target, property, definition, value, oldValue) {
@@ -144,8 +129,8 @@ export default superclass =>
 
     attributeChangedCallback(attribute, oldValue, newValue, namespace) {
       super.attributeChangedCallback(attribute, oldValue, newValue, namespace);
-      if (newValue !== oldValue && propertiesInitializedSet.has(this)) {
-        const ctor = this.constructor;
+      const ctor = this.constructor;
+      if (newValue !== oldValue && ctor.isTargetInitialized(this)) {
         const property = ctor.dashToCamelCase(attribute);
         const definition = ctor.cachedProperties[property];
         this[property] = ctor.deserializeAttribute(

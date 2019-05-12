@@ -5,11 +5,6 @@ import Graph from '../etc/graph.js';
 
 const COMPUTED_REGEX = /^function[^(]*\(([^)]*)\)[\s\S]*$/;
 
-// TODO: can we be more naive and use `initialized` instead of these flags?
-const COMPUTE_READY = Symbol.for('__computeReady__');
-const OBSERVE_READY = Symbol.for('__observeReady__');
-const REFLECT_READY = Symbol.for('__reflectReady__');
-
 const computedMap = new Map();
 const graphMap = new Map();
 
@@ -142,13 +137,10 @@ export default superclass =>
     static beforeInitialRender(target) {
       super.beforeInitialRender(target);
       this.performInitialCompute(target, this.graph, this.cachedProperties);
-      target[COMPUTE_READY] = true;
     }
 
     static afterInitialRender(target) {
       super.afterInitialRender(target);
-      target[REFLECT_READY] = true;
-      target[OBSERVE_READY] = true;
       const entries = Object.entries(this.cachedProperties);
       for (const [property, definition] of entries) {
         const value = target[property];
@@ -168,36 +160,24 @@ export default superclass =>
       }
     }
 
-    static shouldPropertyChange(
-      target,
-      property,
-      definition,
-      rawValue,
-      oldRawValue
-    ) {
+    static shouldPropertyChange(target, property, definition, raw, oldRaw) {
       return (
         !definition.computed &&
-        super.shouldPropertyChange(
-          target,
-          property,
-          definition,
-          rawValue,
-          oldRawValue
-        )
+        super.shouldPropertyChange(target, property, definition, raw, oldRaw)
       );
     }
 
     static propertyDidChange(target, property, definition, value, oldValue) {
       super.propertyDidChange(target, property, definition, value, oldValue);
-      if (definition.reflect && target[REFLECT_READY]) {
+      if (definition.reflect && this.isTargetInitialized(target)) {
         this.reflectPropertyToAttribute(target, property, definition, value);
       }
-      if (definition.observer && target[OBSERVE_READY]) {
+      if (definition.observer && this.isTargetInitialized(target)) {
         // TODO: #26: switch order of arguments.
         this[definition.observer](target, oldValue, value);
       }
       const graph = this.graph;
-      if (graph.roots.includes(property) && target[COMPUTE_READY]) {
+      if (graph.roots.includes(property) && this.isTargetInitialized(target)) {
         this.performCompute(target, graph, property, this.cachedProperties);
       }
     }
