@@ -5,31 +5,19 @@ import Graph from '../etc/graph.js';
 
 const COMPUTED_REGEX = /^function[^(]*\(([^)]*)\)[\s\S]*$/;
 
-const computedMap = new Map();
-const graphMap = new Map();
+const graphMap = new WeakMap();
 
 export default superclass =>
   class extends superclass {
-    static parseComputed(computed) {
-      // Note, we don't protect against deconstruction, defaults, and comments.
-      if (computedMap.has(computed) === false) {
-        try {
-          let candidate;
-          eval(`candidate = (() => function ${computed} {})()`);
-          if (candidate instanceof Function) {
-            const dependencies = `${candidate}`
-              .match(COMPUTED_REGEX)[1]
-              .split(',')
-              .map(part => part.trim())
-              .filter(part => part);
-            const array = [candidate.name, ...dependencies];
-            computedMap.set(computed, array);
-          }
-        } catch (err) {
-          throw new Error(`Malformed computed "${computed}".`);
-        }
+    static transformPropertyDefinition(definition) {
+      if (definition.computed) {
+        const readOnly = definition.computed ? true : false;
+        const computed = this.parseComputed(definition.computed);
+        return super.transformPropertyDefinition(
+          Object.assign({}, definition, { computed, readOnly })
+        );
       }
-      return computedMap.get(computed);
+      return super.transformPropertyDefinition(definition);
     }
 
     static createGraph(properties) {
@@ -37,8 +25,7 @@ export default superclass =>
       const edges = [];
       for (const [property, definition] of Object.entries(properties)) {
         if (definition.computed) {
-          const { computed } = definition;
-          const dependencies = this.parseComputed(computed).slice(1);
+          const dependencies = definition.computed.slice(1);
           for (const dependency of dependencies) {
             if (dependency in properties === false) {
               throw new Error(`Missing dependency "${dependency}".`);
@@ -52,7 +39,7 @@ export default superclass =>
 
     static get graph() {
       if (graphMap.has(this) === false) {
-        graphMap.set(this, this.createGraph(this.properties));
+        graphMap.set(this, this.createGraph(this.cachedProperties));
       }
       return graphMap.get(this);
     }
@@ -62,10 +49,10 @@ export default superclass =>
         .fromNode(property)
         .solution.slice(1)
         .forEach(dependant => {
-          const { computed, type } = properties[dependant];
-          const [method, ...dependencies] = this.parseComputed(computed);
+          const definition = properties[dependant];
+          const [method, ...dependencies] = definition.computed;
           const args = dependencies.map(dependency => target[dependency]);
-          const value = this.applyType(this[method](...args), type);
+          const value = this.applyType(this[method](...args), definition.type);
           this.changeProperty(target, dependant, properties[dependant], value);
         });
     }
@@ -75,17 +62,18 @@ export default superclass =>
         .filter(property => properties[property].computed)
         .forEach(property => {
           // TODO: #27: skip initial compute if dependencies are undefined.
-          const { computed, type } = properties[property];
-          const [method, ...dependencies] = this.parseComputed(computed);
+          const definition = properties[property];
+          const [method, ...dependencies] = definition.computed;
           const args = dependencies.map(dependency => target[dependency]);
-          const value = this.applyType(this[method](...args), type);
+          const value = this.applyType(this[method](...args), definition.type);
           this.changeProperty(target, property, properties[property], value);
         });
     }
 
     static analyzeProperty(property, definition) {
+      super.analyzeProperty(property, definition);
       if (definition.computed) {
-        const [method] = this.parseComputed(definition.computed);
+        const [method] = definition.computed;
         if (this[method] instanceof Function === false) {
           throw new Error(`Missing computed method "${method}".`);
         }
@@ -95,13 +83,11 @@ export default superclass =>
           throw new Error(`Missing observer method "${definition.observer}".`);
         }
       }
-      return super.analyzeProperty(property, definition);
     }
 
-    static analyzeProperties(properties) {
-      // Synchronously ensure that our property graph is valid.
-      const graph = this.graph;
-      super.analyzeProperties(properties);
+    static analyze() {
+      super.analyze();
+      this.graph; // Ensure that our graph is valid. See graph getter.
     }
 
     static serializeProperty(target, property, definition, value) {
@@ -154,19 +140,6 @@ export default superclass =>
       }
     }
 
-    static getInitialValue(target, property, definition) {
-      if (!definition.computed) {
-        return super.getInitialValue(target, property, definition);
-      }
-    }
-
-    static shouldPropertyChange(target, property, definition, raw, oldRaw) {
-      return (
-        !definition.computed &&
-        super.shouldPropertyChange(target, property, definition, raw, oldRaw)
-      );
-    }
-
     static propertyDidChange(target, property, definition, value, oldValue) {
       super.propertyDidChange(target, property, definition, value, oldValue);
       if (definition.reflect && this.isTargetInitialized(target)) {
@@ -179,6 +152,24 @@ export default superclass =>
       const graph = this.graph;
       if (graph.roots.includes(property) && this.isTargetInitialized(target)) {
         this.performCompute(target, graph, property, this.cachedProperties);
+      }
+    }
+
+    static parseComputed(computed) {
+      // Note, we don't protect against deconstruction, defaults, and comments.
+      try {
+        let candidate;
+        eval(`candidate = (() => function ${computed} {})()`);
+        if (candidate instanceof Function) {
+          const dependencies = `${candidate}`
+            .match(COMPUTED_REGEX)[1]
+            .split(',')
+            .map(part => part.trim())
+            .filter(part => part);
+          return [candidate.name, ...dependencies];
+        }
+      } catch (err) {
+        throw new Error(`Malformed computed "${computed}".`);
       }
     }
   };

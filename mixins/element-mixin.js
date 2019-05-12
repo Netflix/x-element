@@ -4,7 +4,7 @@
 // TODO: come closer to parity with LitElement.
 //  * consider mimicking createRenderRoot (instead of shadowRootInit) which
 //    returns a root instance.
-const analyzedSet = new Set();
+const analyzedSet = new WeakSet();
 const initializedSet = new WeakSet();
 const dirtySet = new WeakSet();
 
@@ -18,6 +18,7 @@ export default superclass =>
         analyzedSet.add(ctor);
       }
     }
+
     connectedCallback() {
       if (this.constructor.isTargetInitialized(this) === false) {
         this.constructor.initialize(this);
