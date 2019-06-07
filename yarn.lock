@@ -627,10 +627,10 @@ levn@^0.3.0, levn@~0.3.0:
     prelude-ls "~1.1.2"
     type-check "~0.3.2"
 
-lit-html@^1.0.0-rc.2:
-  version "1.0.0-rc.2"
-  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/lit-html/-/lit-html-1.0.0-rc.2.tgz#b9c904520fe005d349aa737a86d83645d97d5a89"
-  integrity sha1-uckEUg/gBdNJqnN6htg2Rdl9Wok=
+lit-html@^1.1.0:
+  version "1.1.0"
+  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/lit-html/-/lit-html-1.1.0.tgz#6951fb717fb48fe34d915ae163448a04da321562"
+  integrity sha1-aVH7cX+0j+NNkVrhY0SKBNoyFWI=
 
 lodash@^4.17.10, lodash@^4.17.5:
   version "4.17.10"
