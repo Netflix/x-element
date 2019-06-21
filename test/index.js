@@ -1,12 +1,12 @@
-import run from './runner.js';
+import { test } from '../../../x-test-js/x-test.js';
 
-run('./test-upgrade.js');
-run('./test-basic.js');
-run('./test-listeners.js');
-run('./test-attr-binding.js');
-run('./test-attr-reflection.js');
-run('./test-read-only-properties.js');
-run('./test-graph.js');
-run('./test-computed-properties.js');
-run('./test-observed-properties.js');
-run('./test-scratch.js');
+test('./test-upgrade.html');
+test('./test-basic.html');
+test('./test-listeners.html');
+test('./test-attr-binding.html');
+test('./test-attr-reflection.html');
+test('./test-read-only-properties.html');
+test('./test-graph.html');
+test('./test-computed-properties.html');
+test('./test-observed-properties.html');
+test('./test-scratch.html');

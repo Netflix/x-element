@@ -1,4 +1,4 @@
-import { suite, it } from './runner.js';
+import { it, assert, todo } from '../../../x-test-js/x-test.js';
 import './fixture-element-computed-properties.js';
 
 const parsingTestCases = [
@@ -69,19 +69,17 @@ const parsingTestCases = [
   },
 ];
 
-suite('x-element computed properties', ctx => {
-  // Test errors
+it('should dispatch expected errors', () => {
   const malformedMessage = `Malformed computed "malformed(a,,b)".`;
   const unresolvedMessage = `Cannot resolve methodName "thisDNE".`;
   const missingMessage = `Missing dependency "notDeclared".`;
   const cyclicMessage = 'Computed properties are cyclic.';
-
   let malformed = false;
   let unresolved = false;
   let missing = false;
   let cyclic = false;
-
-  const onErrorTest = evt => {
+  const onError = evt => {
+    evt.stopPropagation();
     if (evt.error.message === malformedMessage) {
       malformed = true;
     } else if (evt.error.message === unresolvedMessage) {
@@ -91,111 +89,93 @@ suite('x-element computed properties', ctx => {
     } else if (evt.error.message === cyclicMessage) {
       cyclic = true;
     } else {
-      console.error(evt.error);
+      throw new Error(`unexpected malformedMessage: "${malformedMessage}"`);
     }
   };
-  document.addEventListener('error', onErrorTest);
+  const el = document.createElement('test-element-computed-properties-errors');
+  el.addEventListener('error', onError);
+  document.body.appendChild(el);
+  assert(malformed);
+  assert(unresolved);
+  assert(missing);
+  assert(cyclic);
+});
 
-  ctx.body.appendChild(
-    document.createElement('test-element-computed-properties-errors')
-  );
-
-  it('should error for malformed computed DSL', malformed);
-
-  it('should error for unresolved method names', unresolved);
-
-  it('should error for missing dependencies', missing);
-
-  it('should error for cyclic dependency graphs', cyclic);
-
-  document.removeEventListener('error', onErrorTest);
-
-  // Test normal use case.
-  document.addEventListener('error', evt => console.error(evt.error));
-  const el = document.createElement('test-element-computed-properties');
-  ctx.body.appendChild(el);
-
-  // Test parsing of computed DSL.
+it('computed property dsl', () => {
+  const el = document.createElement('test-element-computed-properties-errors');
   for (const { label, computed, expected } of parsingTestCases) {
     const actual = el.constructor.parseComputed(computed);
-    it(label, JSON.stringify(actual) === JSON.stringify(expected));
+    assert(JSON.stringify(actual) === JSON.stringify(expected), label);
   }
+});
 
-  it(
-    'initialized as expected',
-    el.a === undefined &&
-      el.b === undefined &&
-      // TODO: #27: Don't initialize until at least one dependency is defined.
-      //  We should switch the "isNaN" check to the commented out one.
-      // el.c === undefined &&
-      Number.isNaN(el.c) &&
-      // TODO: #27: Don't initialize until at least one dependency is defined.
-      //  We should switch the "false" check to the commented out one.
-      // el.negative === undefined &&
-      el.negative === false &&
-      // TODO: #27: Don't initialize until at least one dependency is defined.
-      //  We should switch the "false" check to the commented out one.
-      // el.underline === undefined &&
-      el.underline === false &&
-      el.y === undefined &&
-      el.z === undefined &&
-      el.countTrigger === undefined &&
-      // TODO: #27: Don't initialize until at least one dependency is defined.
-      //  We should be able to get `0` back here eventually.
-      // el.count === 0
-      el.count === 1
-  );
+it('initializes as expected', () => {
+  const el = document.createElement('test-element-computed-properties');
+  document.body.appendChild(el);
+  assert(el.a === undefined);
+  assert(el.b === undefined);
+  assert(el.y === undefined);
+  assert(el.z === undefined);
+  assert(el.countTrigger === undefined);
+  // TODO: #27. Should revert these.
+  assert(Number.isNaN(el.c));
+  assert(el.negative === false);
+  assert(el.underline === false);
+});
 
+todo('Issue #27', `don't initialize until a dependency is defined`, () => {
+  const el = document.createElement('test-element-computed-properties');
+  document.body.appendChild(el);
+  assert(el.c === undefined);
+  assert(el.negative === undefined);
+});
+
+it('properties are recomputed when dependencies change (a, b)', () => {
+  const el = document.createElement('test-element-computed-properties');
+  document.body.appendChild(el);
   el.a = 1;
   el.b = -2;
-  it(
-    'properties are recomputed when dependencies change (0)',
-    el.a === 1 &&
-      el.b === -2 &&
-      el.c === -1 &&
-      el.negative === true &&
-      el.underline === true &&
-      el.y === undefined &&
-      el.z === undefined
-  );
+  assert(el.a === 1);
+  assert(el.b === -2);
+  assert(el.c === -1);
+  assert(el.negative === true);
+  assert(el.underline === true);
+});
 
+it('properties are recomputed when dependencies change (y)', () => {
+  const el = document.createElement('test-element-computed-properties');
+  document.body.appendChild(el);
   el.y = true;
-  it(
-    'properties are recomputed when dependencies change (1)',
-    el.a === 1 &&
-      el.b === -2 &&
-      el.c === -1 &&
-      el.negative === true &&
-      el.underline === true &&
-      el.y === true &&
-      el.z === true
-  );
-
+  assert(el.y === true);
+  assert(el.z === true);
   el.y = false;
-  it(
-    'properties are recomputed when dependencies change (2)',
-    el.a === 1 &&
-      el.b === -2 &&
-      el.c === -1 &&
-      el.negative === true &&
-      el.underline === true &&
-      el.y === false &&
-      el.z === false
-  );
+  assert(el.y === false);
+  assert(el.z === false);
+});
 
-  it(
-    'computed properties can be reflected',
-    el.hasAttribute('negative') && el.hasAttribute('underline')
-  );
+it('computed properties can be reflected', () => {
+  const el = document.createElement('test-element-computed-properties');
+  document.body.appendChild(el);
+  el.a = -1;
+  el.b = 0;
+  assert(el.c === -1);
+  assert(el.negative === true);
+  assert(el.underline === true);
+  assert(el.hasAttribute('negative'));
+  assert(el.hasAttribute('underline'));
+});
 
+it('skips computation when dependencies are the same', () => {
+  const el = document.createElement('test-element-computed-properties');
+  document.body.appendChild(el);
+  let count = el.count;
   el.countTrigger = 'foo';
-  const count = el.count;
+  assert(el.count === ++count);
   el.countTrigger = 'foo';
   el.countTrigger = 'foo';
   el.countTrigger = 'foo';
   el.countTrigger = 'foo';
-  it('skips compute when dependencies are the same', count === el.count);
-
+  assert(el.count === count);
   el.countTrigger = 'bar';
-  it('computes when dependencies change again', count === el.count - 1);
+  assert(el.count === ++count);
 });

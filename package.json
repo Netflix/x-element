@@ -10,7 +10,8 @@
   "scripts": {
     "start": "element-server",
     "lint": "eslint --quiet .",
-    "lint-strict": "eslint ."
+    "lint-strict": "eslint .",
+    "test": "set -o pipefail; node test.js | tap-parser -l"
   },
   "files": [
     "/x-element.js",
@@ -30,6 +31,9 @@
   "devDependencies": {
     "@netflix/element-server": "^1.0.9",
     "eslint": "^5.9.0",
-    "eslint-config-netflix-data": "^1.0.9"
+    "eslint-config-netflix-data": "^1.0.9",
+    "puppeteer": "^1.11.0",
+    "tap-parser": "^9.0.0",
+    "x-test-js": "^1.0.0-rc.1"
   }
 }

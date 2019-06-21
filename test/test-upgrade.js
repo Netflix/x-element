@@ -1,4 +1,4 @@
-import { suite, it } from './runner.js';
+import { assert, it } from '../../../x-test-js/x-test.js';
 import TestElement from './fixture-element-upgrade.js';
 
 const setupEl = el => {
@@ -35,39 +35,39 @@ const hasUpgraded = el => {
   );
 };
 
-suite('x-element upgrade lifecycle', ctx => {
+it('x-element upgrade lifecycle', () => {
   const localName = 'test-element-upgrade';
-  it(
-    'localName is initially undefined',
-    customElements.get(localName) === undefined
+  assert(
+    customElements.get(localName) === undefined,
+    'localName is initially undefined'
   );
 
-  const el1 = ctx.createElement(localName);
+  const el1 = document.createElement(localName);
   el1.id = 'el1';
   setupEl(el1);
-  ctx.body.appendChild(el1);
+  document.body.appendChild(el1);
 
-  const el2 = ctx.createElement(localName);
+  const el2 = document.createElement(localName);
   el2.id = 'el2';
   setupEl(el2);
 
-  it(
-    'el1 is setup as expected',
+  assert(
     el1.localName === localName &&
-      ctx.getElementById('el1') === el1 &&
-      hasNotUpgraded(el1)
+      document.getElementById('el1') === el1 &&
+      hasNotUpgraded(el1),
+    'el1 is setup as expected'
   );
 
-  it(
-    'el2 is setup as expected',
+  assert(
     el1.localName === localName &&
-      ctx.getElementById('el2') === null &&
-      hasNotUpgraded(el2)
+      document.getElementById('el2') === null &&
+      hasNotUpgraded(el2),
+    'el2 is setup as expected'
   );
 
   customElements.define(localName, TestElement);
 
-  const el3 = ctx.createElement(localName);
+  const el3 = document.createElement(localName);
   el3.id = 'el3';
   el3.className = 'marsupialia';
   el3.reflectedProperty = 'plantigrade';
@@ -77,27 +77,27 @@ suite('x-element upgrade lifecycle', ctx => {
   el4.className = 'marsupialia';
   el4.reflectedProperty = 'plantigrade';
 
-  it(
-    'elements created after definition do not need upgrading',
-    hasUpgraded(el3) && hasUpgraded(el4)
+  assert(
+    hasUpgraded(el3) && hasUpgraded(el4),
+    'elements created after definition do not need upgrading'
   );
 
-  it('element in document is upgraded upon definition', hasUpgraded(el1));
-  it(
-    'element in document synchronously renders',
-    el1.shadowRoot.textContent === 'didelphidae'
+  assert(hasUpgraded(el1), 'element in document is upgraded upon definition');
+  assert(
+    el1.shadowRoot.textContent === 'didelphidae',
+    'element in document synchronously renders'
   );
 
-  it('element out of document is still not upgraded', hasNotUpgraded(el2));
-  ctx.body.appendChild(el2);
-  it(
-    'element out of document upgrades/renders after being added',
-    el2.shadowRoot.textContent === 'didelphidae'
+  assert(hasNotUpgraded(el2), 'element out of document is still not upgraded');
+  document.body.appendChild(el2);
+  assert(
+    el2.shadowRoot.textContent === 'didelphidae',
+    'element out of document upgrades/renders after being added'
   );
 
-  ctx.body.appendChild(el3);
-  it(
-    'element created after definition upgrades/renders after being added',
-    el3.shadowRoot.textContent === 'didelphidae'
+  document.body.appendChild(el3);
+  assert(
+    el3.shadowRoot.textContent === 'didelphidae',
+    'element created after definition upgrades/renders after being added'
   );
 });

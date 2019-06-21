@@ -1,4 +1,4 @@
-import { suite, it } from './runner.js';
+import { assert, it } from '../../../x-test-js/x-test.js';
 import './fixture-element-observed-properties.js';
 
 const isObject = obj => obj instanceof Object && obj !== null;
@@ -15,29 +15,28 @@ const deepEqual = (a, b) => {
   );
 };
 
-suite('x-element observed properties', ctx => {
+it('x-element observed properties', () => {
   const unresolvedMessage = `Cannot resolve methodName "thisDNE".`;
 
   let unresolved = false;
-
-  document.onerror = evt => {
-    if (evt.error.message === unresolvedMessage) {
-      unresolved = true;
-    } else {
-      console.error(evt.error);
-    }
-  };
 
   const el = document.createElement('test-element-observed-properties');
   el.a = 'oh';
   el.b = 'hai';
 
-  ctx.body.appendChild(el);
+  const onError = evt => {
+    if (evt.error.message === unresolvedMessage) {
+      evt.stopPropagation();
+      unresolved = true;
+      el.removeEventListener('error', onError);
+    }
+  };
+  el.addEventListener('error', onError);
 
-  it('should error for unresolved method names', unresolved);
+  document.body.appendChild(el);
+  assert(unresolved, 'should error for unresolved method names');
 
-  it(
-    'initialized as expected',
+  assert(
     deepEqual(el.changes, [
       {
         property: 'a',
@@ -54,12 +53,12 @@ suite('x-element observed properties', ctx => {
         newValue: 'oh hai',
         oldValue: undefined,
       },
-    ])
+    ]),
+    'initialized as expected'
   );
 
   el.b = 'hey';
-  it(
-    'observers are called when properties change',
+  assert(
     deepEqual(el.changes, [
       {
         property: 'a',
@@ -86,12 +85,12 @@ suite('x-element observed properties', ctx => {
         newValue: 'oh hey',
         oldValue: 'oh hai',
       },
-    ])
+    ]),
+    'observers are called when properties change'
   );
 
   el.b = 'hey';
-  it(
-    'observers are not called when set property is the same',
+  assert(
     deepEqual(el.changes, [
       {
         property: 'a',
@@ -118,13 +117,13 @@ suite('x-element observed properties', ctx => {
         newValue: 'oh hey',
         oldValue: 'oh hai',
       },
-    ])
+    ]),
+    'observers are not called when set property is the same'
   );
 
   el.popped = true;
   el.setAttribute('popped', 'still technically true');
-  it(
-    'no re-entrance for observed, reflected properties',
+  assert(
     deepEqual(el.changes, [
       {
         property: 'a',
@@ -156,6 +155,7 @@ suite('x-element observed properties', ctx => {
         newValue: true,
         oldValue: undefined,
       },
-    ])
+    ]),
+    'no re-entrance for observed, reflected properties',
   );
 });

@@ -1,110 +1,80 @@
-import { suite, it } from './runner.js';
 import './fixture-element-attr-binding.js';
+import { assert, it } from '../../../x-test-js/x-test.js';
 
-suite('x-element property (unit)', ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
+it('converts dash to camel case and back', () => {
   const el = document.createElement('test-element-attr-binding');
-  it(
-    'converts dash to camel case',
-    el.constructor.dashToCamelCase('foo-bar') === 'fooBar'
-  );
-
-  it(
-    'converts camel to dash case',
-    el.constructor.camelToDashCase('fooBar') === 'foo-bar'
-  );
+  assert(el.constructor.dashToCamelCase('foo-bar') === 'fooBar');
+  assert(el.constructor.camelToDashCase('fooBar') === 'foo-bar');
 });
 
-suite('x-element property binding', async ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
-
+it('renders an empty string in place of null value', () => {
   const el = document.createElement('test-element-attr-binding');
-  ctx.body.appendChild(el);
+  document.body.appendChild(el);
+  assert(el.shadowRoot.querySelector('#nul').textContent === '');
+});
 
-  await el;
-  it(
-    'renders an empty string in place of null value',
-    el.shadowRoot.querySelector('#nul').textContent === ''
-  );
+it('renders the initial value', () => {
+  const el = document.createElement('test-element-attr-binding');
+  document.body.appendChild(el);
+  assert(el.shadowRoot.querySelector('#camel').textContent === 'Bactrian');
+});
 
-  it(
-    'renders the initial value',
-    el.shadowRoot.querySelector('#camel').textContent === 'Bactrian'
-  );
-
+it('property setter updates on next micro tick after connect', async () => {
+  const el = document.createElement('test-element-attr-binding');
+  el.camelCaseProperty = 'Nonconforming';
+  document.body.appendChild(el);
+  assert(el.shadowRoot.querySelector('#camel').textContent === 'Nonconforming');
   el.camelCaseProperty = 'Dromedary';
-  await el;
-  it(
-    'renders new value',
-    el.shadowRoot.querySelector('#camel').textContent === 'Dromedary'
-  );
+  assert(el.shadowRoot.querySelector('#camel').textContent === 'Nonconforming');
+  await true;
+  assert(el.shadowRoot.querySelector('#camel').textContent === 'Dromedary');
+});
 
+it('property setter renders blank value', async () => {
+  const el = document.createElement('test-element-attr-binding');
+  document.body.appendChild(el);
   el.camelCaseProperty = '';
-  await el;
-  it(
-    'renders blank value',
-    el.shadowRoot.querySelector('#camel').textContent === ''
-  );
-
+  await true;
+  assert(el.shadowRoot.querySelector('#camel').textContent === '');
   el.camelCaseProperty = 'Bactrian';
-  await el;
-  it(
-    'renders new value',
-    el.shadowRoot.querySelector('#camel').textContent === 'Bactrian'
-  );
+  await true;
+  assert(el.shadowRoot.querySelector('#camel').textContent === 'Bactrian');
 });
 
-suite('x-element attribute binding (2)', async ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
-
+it('observes all dash-cased versions of declared properties', () => {
   const el = document.createElement('test-element-attr-binding');
-  ctx.body.appendChild(el);
+  const expected = ['camel-case-property', 'numeric-property', 'null-property'];
+  const actual = el.constructor.observedAttributes;
+  assert(expected.length === actual.length);
+  assert(expected.every(attribute => actual.includes(attribute)));
+});
 
-  await el;
-  it(
-    'renders the initial value',
-    el.shadowRoot.querySelector('#camel').textContent === 'Bactrian'
-  );
-
-  el.setAttribute('camel-case-property', 'Racing Camel');
-  await el;
-  it(
-    'renders the attr value',
-    el.shadowRoot.querySelector('#camel').textContent === 'Racing Camel'
-  );
-
+it('removeAttribute renders blank', async () => {
+  const el = document.createElement('test-element-attr-binding');
+  document.body.appendChild(el);
   el.removeAttribute('camel-case-property');
-  await el;
-  it(
-    'renders blank on attribute removal',
-    el.shadowRoot.querySelector('#camel').textContent === ''
-  );
-
-  el.setAttribute('camel-case-property', 'Bactrian');
-  await el;
-  it(
-    'renders the attr value',
-    el.shadowRoot.querySelector('#camel').textContent === 'Bactrian'
-  );
+  await true;
+  // Note, in general, changing non-reflected properties via attributes can
+  // be problematic. For example, attributeChangedCallback is not fired if the
+  // attribute does not change.
+  assert(el.shadowRoot.querySelector('#camel').textContent !== '');
+  el.setAttribute('camel-case-property', 'foo');
+  el.removeAttribute('camel-case-property');
+  await true;
+  assert(el.shadowRoot.querySelector('#camel').textContent === '');
 });
 
-suite('x-element attribute binding (3)', async ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
+it('setAttribute renders the new value', async () => {
   const el = document.createElement('test-element-attr-binding');
-  ctx.body.appendChild(el);
+  document.body.appendChild(el);
+  el.setAttribute('camel-case-property', 'Racing Camel');
+  await true;
+  assert(el.shadowRoot.querySelector('#camel').textContent === 'Racing Camel');
+});
 
-  await el;
-  it(
-    'renders the initial value',
-    el.shadowRoot.querySelector('#num').textContent === '10'
-  );
-  it('has a numeric type', el.numericProperty === 10);
+it('coerces attributes to the specified type', async () => {
+  const el = document.createElement('test-element-attr-binding');
+  document.body.appendChild(el);
+  el.setAttribute('numeric-property', '-99');
+  assert(el.numericProperty === -99);
 });

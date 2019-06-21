@@ -1,43 +1,38 @@
-import { suite, it } from './runner.js';
 import './fixture-element-basic.js';
+import { it, assert } from '../../../x-test-js/x-test.js';
 
-suite('x-element basic', async ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
+it('upgrades the element with a shadowRoot', () => {
   const el = document.createElement('test-element-basic');
-  it(
-    'upgrades the element with a shadowRoot',
-    el.shadowRoot instanceof DocumentFragment
-  );
-  ctx.body.appendChild(el);
-  await el;
-  it(
-    'renders the template with variables',
-    el.shadowRoot.querySelector('span').textContent === 'Hello world.'
-  );
-  it(
-    'has correct innerHTML',
-    el.shadowRoot.innerHTML.trim() === '<span>Hello world.</span>'
-  );
-  it(
-    'has override value after connected',
-    el.overrideProperty === 'overridden'
-  );
+  assert(el.shadowRoot instanceof DocumentFragment);
 });
 
-suite('x-element basic (Boolean)', ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
+it('renders the template with variables', () => {
   const el = document.createElement('test-element-basic');
-  ctx.body.appendChild(el);
+  document.body.appendChild(el);
+  assert(el.shadowRoot.querySelector('span').textContent === 'Hello world.');
+});
+
+it('has correct innerHTML', () => {
+  const el = document.createElement('test-element-basic');
+  document.body.appendChild(el);
+  assert(el.shadowRoot.innerHTML.trim() === '<span>Hello world.</span>');
+});
+
+it('has override value after connected', () => {
+  const el = document.createElement('test-element-basic');
+  document.body.appendChild(el);
+  assert(el.overrideProperty === 'overridden');
+});
+
+it('has expected boolean functionality', () => {
+  const el = document.createElement('test-element-basic');
+  document.body.appendChild(el);
   el.booleanProperty = true;
-  it('coerces to Boolean', el.booleanProperty === true);
+  assert(el.booleanProperty === true);
   el.booleanProperty = 1;
-  it('coerces to Boolean x 1', el.booleanProperty === true);
+  assert(el.booleanProperty === true);
   el.booleanProperty = 'ok';
-  it('coerces to Boolean x 2', el.booleanProperty === true);
+  assert(el.booleanProperty === true);
   el.removeAttribute('boolean-property');
-  it('removing attribute makes property false', el.booleanProperty === false);
+  assert(el.booleanProperty === false);
 });
