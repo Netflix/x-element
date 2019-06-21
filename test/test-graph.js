@@ -1,4 +1,4 @@
-import { suite, it } from './runner.js';
+import { it, assert } from '../../../x-test-js/x-test.js';
 import Graph from '../etc/graph.js';
 
 const graphsAreEqual = (a, b) => {
@@ -11,6 +11,7 @@ const graphsAreEqual = (a, b) => {
   );
 };
 
+// Note that Directed Acyclic Graphs can have multiple, correct solutions.
 const checkSolution = (solution, graph) => {
   // We have to have the same nodes in our solution as we do in the graph.
   if (
@@ -28,7 +29,7 @@ const checkSolution = (solution, graph) => {
   return true;
 };
 
-suite('Graph.createFromNodeMapping', () => {
+const getDependencyToDependents = () => {
   // It's easier to think about dependencies this way, so we compute the define
   // dependentToDependencies and compute dependencyToDependents.
   const dependentToDependencies = {
@@ -46,85 +47,97 @@ suite('Graph.createFromNodeMapping', () => {
       dependencyToDependents[dependency].push(dependent);
     }
   }
+  return dependencyToDependents;
+};
 
-  const actual1 = Graph.createFromNodeMapping('a', dependencyToDependents);
-  const expected1 = {
+it('createFromNodeMapping can create a graph for "a"', () => {
+  const dependencyToDependents = getDependencyToDependents();
+  const actual = Graph.createFromNodeMapping('a', dependencyToDependents);
+  const expected = {
     edges: [['a', 'b'], ['b', 'c'], ['c', 'd'], ['b', 'd'], ['a', 'c']],
     nodes: ['a', 'b', 'c', 'd'],
   };
-  it('can create a graph for "a"', graphsAreEqual(actual1, expected1));
+  assert(graphsAreEqual(actual, expected));
+});
 
-  const actual2 = Graph.createFromNodeMapping('b', dependencyToDependents);
-  const expected2 = {
+it('createFromNodeMapping can create a graph for "b"', () => {
+  const dependencyToDependents = getDependencyToDependents();
+  const actual = Graph.createFromNodeMapping('b', dependencyToDependents);
+  const expected = {
     edges: [['b', 'c'], ['c', 'd'], ['b', 'd']],
     nodes: ['b', 'c', 'd'],
   };
-  it('can create a graph for "b"', graphsAreEqual(actual2, expected2));
+  assert(graphsAreEqual(actual, expected));
+});
 
-  const actual3 = Graph.createFromNodeMapping('a', { a: ['a'] });
-  const expected3 = { edges: [['a', 'a']], nodes: ['a'] };
-  it('handles simple cycles', graphsAreEqual(actual3, expected3));
+it('createFromNodeMapping handles simple cycles', () => {
+  const actual = Graph.createFromNodeMapping('a', { a: ['a'] });
+  const expected = { edges: [['a', 'a']], nodes: ['a'] };
+  assert(graphsAreEqual(actual, expected));
+});
 
-  const actual4 = Graph.createFromNodeMapping('a', {
+it('createFromNodeMapping handles complex cycles', () => {
+  const actual = Graph.createFromNodeMapping('a', {
     a: ['b'],
     b: ['c'],
     c: ['a'],
   });
-  const expected4 = {
+  const expected = {
     edges: [['a', 'b'], ['b', 'c'], ['c', 'a']],
     nodes: ['a', 'b', 'c'],
   };
-  it('handles complex cycles', graphsAreEqual(actual4, expected4));
+  assert(graphsAreEqual(actual, expected));
 });
 
-// Note that Directed Acyclic Graphs can have multiple, correct solutions.
-suite('Graph.sort (for handling computed property dependencies)', () => {
-  const graph1 = new Graph(['c', 'b', 'a'], [['a', 'b'], ['b', 'c']]);
-  const actual1 = Graph.sort(graph1);
-  const expected1 = ['a', 'b', 'c'];
-  it(
-    'can solve a simple graph',
-    checkSolution(expected1, graph1) && checkSolution(actual1, graph1)
-  );
+it('can sort solve a simple graph', () => {
+  const graph = new Graph(['c', 'b', 'a'], [['a', 'b'], ['b', 'c']]);
+  const actual = Graph.sort(graph);
+  const expected = ['a', 'b', 'c'];
+  assert(checkSolution(expected, graph));
+  assert(checkSolution(actual, graph));
+});
 
-  const graph2 = new Graph(['a', 'b', 'c'], [['a', 'b']]);
-  const actual2 = Graph.sort(graph2);
-  const expected2 = ['c', 'a', 'b'];
-  it(
-    'can solve a disconnected graph',
-    checkSolution(expected2, graph2) && checkSolution(actual2, graph2)
-  );
+it('can sort solve a disconnected graph', () => {
+  const graph = new Graph(['a', 'b', 'c'], [['a', 'b']]);
+  const actual = Graph.sort(graph);
+  const expected = ['c', 'a', 'b'];
+  assert(checkSolution(expected, graph));
+  assert(checkSolution(actual, graph));
+});
 
-  const graph3 = new Graph(
+it('can sort solve a complex graph', () => {
+  const graph = new Graph(
     ['a', 'b', 'c', 'd'],
     [['a', 'b'], ['a', 'd'], ['b', 'd'], ['c', 'd']]
   );
-  const actual3 = Graph.sort(graph3);
-  const expected3 = ['c', 'a', 'b', 'd'];
-  it(
-    'can solve a complex graph',
-    checkSolution(expected3, graph3) && checkSolution(actual3, graph3)
-  );
+  const actual = Graph.sort(graph);
+  const expected = ['c', 'a', 'b', 'd'];
+  assert(checkSolution(expected, graph));
+  assert(checkSolution(actual, graph));
+});
 
-  const graph4 = new Graph(['a'], [['a', 'a']]);
-  const actual4 = Graph.sort(graph4);
-  it('can find simple cycles', actual4 === undefined);
+it('can find simple cycles', () => {
+  const graph = new Graph(['a'], [['a', 'a']]);
+  const actual = Graph.sort(graph);
+  assert(actual === undefined);
+});
 
-  const graph5 = new Graph(
+it('can find complex cycles', () => {
+  const graph = new Graph(
     ['a', 'b', 'c', 'd'],
     [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'b']]
   );
-  const actual5 = Graph.sort(graph5);
-  it('can find complex cycles', actual5 === undefined);
+  const actual = Graph.sort(graph);
+  assert(actual === undefined);
+});
 
-  const graph6 = new Graph(
+it('can have anything for node names', () => {
+  const graph = new Graph(
     ['prop1', 'prop2', 'prop3'],
     [['prop1', 'prop2'], ['prop1', 'prop3'], ['prop2', 'prop3']]
   );
-  const actual6 = Graph.sort(graph6);
-  const expected6 = ['prop1', 'prop2', 'prop3'];
-  it(
-    'can have anything for node names',
-    checkSolution(expected6, graph6) && checkSolution(actual6, graph6)
-  );
+  const actual = Graph.sort(graph);
+  const expected = ['prop1', 'prop2', 'prop3'];
+  assert(checkSolution(expected, graph));
+  assert(checkSolution(actual, graph));
 });

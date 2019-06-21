@@ -1,46 +1,53 @@
-import { suite, it } from './runner.js';
+import { it, assert } from '../../../x-test-js/x-test.js';
 import './fixture-element-attr-reflection.js';
 
-suite('x-element attribute reflection', async ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
+it('reflects initial value', () => {
   const el = document.createElement('test-element-attr-reflection');
-  ctx.body.appendChild(el);
-  it(
-    'reflects initial value',
-    el.getAttribute('camel-case-property') === 'reflectedCamel'
-  );
-  it(
-    'renders the template with the initial value',
-    el.shadowRoot.querySelector('span').textContent === 'reflectedCamel'
-  );
-  it(
-    'reflects initial value (Boolean, true)',
-    el.hasAttribute('boolean-property-true')
-  );
-  it(
-    'does not reflect initial value (Boolean, false)',
-    el.hasAttribute('boolean-property-false') === false
-  );
+  document.body.appendChild(el);
+  assert(el.getAttribute('camel-case-property') === 'reflectedCamel');
+});
+
+it('renders the template with the initial value', () => {
+  const el = document.createElement('test-element-attr-reflection');
+  document.body.appendChild(el);
+  assert(el.shadowRoot.querySelector('span').textContent === 'reflectedCamel');
+});
+
+it('reflects initial value (Boolean, true)', () => {
+  const el = document.createElement('test-element-attr-reflection');
+  document.body.appendChild(el);
+  assert(el.hasAttribute('boolean-property-true'));
+});
+
+it('does not reflect initial value (Boolean, false)', () => {
+  const el = document.createElement('test-element-attr-reflection');
+  document.body.appendChild(el);
+  assert(el.hasAttribute('boolean-property-false') === false);
+});
+
+it('reflects next value after a micro tick', async () => {
+  const el = document.createElement('test-element-attr-reflection');
+  document.body.appendChild(el);
   el.camelCaseProperty = 'dromedary';
-  it(
-    'reflects next value, but should not have rendered change yet',
+  assert(
     el.getAttribute('camel-case-property') === 'dromedary' &&
       el.shadowRoot.querySelector('span').textContent === 'reflectedCamel'
   );
-  await el;
-  it(
-    'renders the template with the next value',
-    el.shadowRoot.querySelector('span').textContent === 'dromedary'
-  );
-  it(
-    'has reflected override value after connected',
-    el.getAttribute('override-property') === 'overridden'
-  );
+  await true;
+  assert(el.shadowRoot.querySelector('span').textContent === 'dromedary');
+});
+
+it('has reflected override value after connected', () => {
+  const el = document.createElement('test-element-attr-reflection');
+  document.body.appendChild(el);
+  assert(el.getAttribute('override-property') === 'overridden');
+});
+
+it('does not reflect next false value (Boolean)', () => {
+  const el = document.createElement('test-element-attr-reflection');
+  document.body.appendChild(el);
+  el.booleanPropertyTrue = true;
+  assert(el.hasAttribute('boolean-property-true'));
   el.booleanPropertyTrue = false;
-  it(
-    'does not reflect next false value (Boolean)',
-    el.hasAttribute('boolean-property-true') === false
-  );
+  assert(el.hasAttribute('boolean-property-true') === false);
 });

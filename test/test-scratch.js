@@ -1,108 +1,116 @@
-import { suite, it } from './runner.js';
+import { assert, it } from '../../../x-test-js/x-test.js';
 import './fixture-element-scratch.js';
 
-suite('scratch', async ctx => {
+it('scratch', async () => {
   let errorsWhenReflectingUnserializableType = false;
 
-  document.onerror = evt => {
+  const el = document.createElement('test-element-scratch');
+  const onError = evt => {
     if (
       evt.error.message ===
       `Attempted to serialize "objPropReflect" and reflect, but it is not a Boolean, String, or Number type (Object).`
     ) {
+      evt.stopPropagation();
       errorsWhenReflectingUnserializableType = true;
-    } else {
-      console.error(evt.error);
+      el.removeEventListener('error', onError);
     }
   };
+  el.addEventListener('error', onError);
 
-  const el = document.createElement('test-element-scratch');
-  ctx.body.appendChild(el);
-
-  it(
-    'should error on unserializable reflection',
-    errorsWhenReflectingUnserializableType
+  document.body.appendChild(el);
+  assert(
+    errorsWhenReflectingUnserializableType,
+    'should error on unserializable reflection'
   );
 
   // Attribute reflection tests
-  it(
-    'should not reflect when initial value is unspecified',
-    el.hasAttribute('prop1') === false
-  );
-  el.prop1 = 'test';
-  it(
-    'should reflect when value changes from unspecified to a string',
-    el.getAttribute('prop1') === 'test'
-  );
-  el.prop1 = null;
-  it(
-    'should not reflect when value changes from a string to null',
-    el.hasAttribute('prop1') === false
+  assert(
+    el.hasAttribute('prop1') === false,
+    'should not reflect when initial value is unspecified'
   );
 
-  it(
-    'should not reflect when initial value is falsy (null)',
-    el.hasAttribute('prop2') === false
+  el.prop1 = 'test';
+  assert(
+    el.getAttribute('prop1') === 'test',
+    'should reflect when value changes from unspecified to a string'
   );
-  it(
-    'should not reflect when initial value is falsy (undefined)',
-    el.hasAttribute('prop3') === false
+
+  el.prop1 = null;
+  assert(
+    el.hasAttribute('prop1') === false,
+    'should not reflect when value changes from a string to null'
   );
-  it(
-    'should reflect when initial value is false',
-    el.getAttribute('prop4') === 'false'
+
+  assert(
+    el.hasAttribute('prop2') === false,
+    'should not reflect when initial value is falsy (null)'
   );
-  it(
-    'should reflect when initial value is a String',
-    el.getAttribute('prop5') === 'test'
+
+  assert(
+    el.hasAttribute('prop3') === false,
+    'should not reflect when initial value is falsy (undefined)'
+  );
+
+  assert(
+    el.getAttribute('prop4') === 'false',
+    'should reflect when initial value is false'
+  );
+
+  assert(
+    el.getAttribute('prop5') === 'test',
+    'should reflect when initial value is a String'
   );
 
   // Boolean attribute reflection tests
-  it('reflect boolean', el.hasAttribute('prop6') === false);
+  assert(el.hasAttribute('prop6') === false, 'reflect boolean');
   el.prop6 = 1;
-  it('boolean coerced', el.prop6 === true);
-  it(
-    'should not reflect when initial value is false',
-    el.hasAttribute('prop7') === false
+  assert(el.prop6 === true, 'boolean coerced');
+  assert(
+    el.hasAttribute('prop7') === false,
+    'should not reflect when initial value is false'
   );
-  it(
-    'should reflect when initial value is true',
-    el.getAttribute('prop8') === ''
+
+  assert(
+    el.getAttribute('prop8') === '',
+    'should reflect when initial value is true'
   );
-  it(
-    'should reflect when initial value is truthy',
-    el.getAttribute('prop9') === ''
+
+  assert(
+    el.getAttribute('prop9') === '',
+    'should reflect when initial value is truthy'
   );
-  it(
-    'should not reflect when initial value is falsy',
-    el.hasAttribute('prop10') === false
+
+  assert(
+    el.hasAttribute('prop10') === false,
+    'should not reflect when initial value is falsy'
   );
 
   // Async data binding
   el.prop1 = null;
   await el;
-  it(
-    'should update the DOM bindings',
-    el.shadowRoot.querySelector('span').textContent === ''
+  assert(
+    el.shadowRoot.querySelector('span').textContent === '',
+    'should update the DOM bindings'
   );
   el.prop1 = 'test2';
   await el;
-  it(
-    'should update the DOM bindings again',
-    el.shadowRoot.querySelector('span').textContent === 'test2'
+  assert(
+    el.shadowRoot.querySelector('span').textContent === 'test2',
+    'should update the DOM bindings again'
   );
 
   // complex properties
-  it(
-    'should allow Array types',
-    Array.isArray(el.arrayProp) && el.arrayProp[0] === 'foo'
+  assert(
+    Array.isArray(el.arrayProp) && el.arrayProp[0] === 'foo',
+    'should allow Array types'
   );
-  it('should allow Object types', el.objProp.foo === 'bar');
+  assert(el.objProp.foo === 'bar', 'should allow Object types');
 
-  it('should allow Date types', el.objDateProp.getFullYear() > 2017);
+  assert(el.objDateProp.getFullYear() > 2017, 'should allow Date types');
 
-  it('should allow Map types', el.objMapProp.has('foo') === false);
+  assert(el.objMapProp.has('foo') === false, 'should allow Map types');
 
   // lifecycle
-  ctx.body.removeChild(el);
-  ctx.body.appendChild(el);
+  document.body.removeChild(el);
+  document.body.appendChild(el);
 });

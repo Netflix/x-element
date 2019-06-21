@@ -1,16 +1,16 @@
-import { suite, it } from './runner.js';
+import { assert, it } from '../../../x-test-js/x-test.js';
 import './fixture-element-read-only-properties.js';
 
-suite('x-element readOnly properties', async ctx => {
-  document.onerror = evt => {
-    console.error(evt.error);
-  };
+it('x-element readOnly properties', async () => {
   const el = document.createElement('test-element-read-only-properties');
-  ctx.body.appendChild(el);
+  document.body.appendChild(el);
 
-  await el;
-  it('initialized as expected', el.readOnlyProperty === 'Ferus');
+  await true;
+  assert(el.readOnlyProperty === 'Ferus', 'initialized as expected');
 
   el.readOnlyProperty = 'Dromedary';
-  it('read-only properties cannot be changed', el.readOnlyProperty === 'Ferus');
+  assert(
+    el.readOnlyProperty === 'Ferus',
+    'read-only properties cannot be changed'
+  );
 });
