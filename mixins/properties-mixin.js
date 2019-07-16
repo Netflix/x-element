@@ -162,7 +162,7 @@ export default superclass =>
     }
 
     static deserializeAttribute(target, property, definition, value) {
-      if (definition.type.name === 'Boolean') {
+      if (definition.type && definition.type.name === 'Boolean') {
         // per HTML spec, every value other than null is considered true
         return Object.is(value, null) === false;
       }
@@ -177,6 +177,10 @@ export default superclass =>
       // undefined remains undefined
       if (value === undefined) {
         return undefined;
+      }
+      // don't apply any type if none was provided
+      if (!type) {
+        return value;
       }
       // only valid arrays (no coercion)
       if (type.name === 'Array') {

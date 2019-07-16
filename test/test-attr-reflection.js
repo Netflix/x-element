@@ -51,3 +51,20 @@ it('does not reflect next false value (Boolean)', () => {
   el.booleanPropertyTrue = false;
   assert(el.hasAttribute('boolean-property-true') === false);
 });
+
+it('throws when trying to reflect a typeless property', () => {
+  const el = document.createElement('test-element-attr-reflection');
+  document.body.appendChild(el);
+  const message =
+    'Attempted to serialize "typelessProperty" and reflect, but it is not a Boolean, String, or Number type (undefined).';
+  let errored = false;
+  el.addEventListener('error', evt => {
+    if (evt.error.message === message) {
+      errored = true;
+      evt.stopPropagation();
+    }
+  }, { once: true });
+  el.typelessProperty = 'foo';
+  assert(el.hasAttribute('typeless-property') === false);
+  assert(errored === true);
+});

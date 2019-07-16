@@ -177,7 +177,8 @@ export default superclass =>
     }
 
     static serializeProperty(target, property, definition, value) {
-      switch (definition.type.name) {
+      const typeName = definition.type && definition.type.name;
+      switch (typeName) {
         case 'Boolean':
           return value ? '' : undefined;
         case 'String':
@@ -186,7 +187,7 @@ export default superclass =>
         default:
           const message =
             `Attempted to serialize "${property}" and reflect, but it is not ` +
-            `a Boolean, String, or Number type (${definition.type.name}).`;
+            `a Boolean, String, or Number type (${typeName}).`;
           target.dispatchError(new Error(message));
       }
     }

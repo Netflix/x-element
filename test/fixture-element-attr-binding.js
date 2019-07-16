@@ -29,6 +29,7 @@ class TestElement extends XElementProperties {
         type: String,
         value: null,
       },
+      typelessProperty: {},
     };
   }
 
