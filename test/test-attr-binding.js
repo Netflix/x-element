@@ -43,7 +43,12 @@ it('property setter renders blank value', async () => {
 
 it('observes all dash-cased versions of declared properties', () => {
   const el = document.createElement('test-element-attr-binding');
-  const expected = ['camel-case-property', 'numeric-property', 'null-property'];
+  const expected = [
+    'camel-case-property',
+    'numeric-property',
+    'null-property',
+    'typeless-property',
+  ];
   const actual = el.constructor.observedAttributes;
   assert(expected.length === actual.length);
   assert(expected.every(attribute => actual.includes(attribute)));
@@ -77,4 +82,16 @@ it('coerces attributes to the specified type', async () => {
   document.body.appendChild(el);
   el.setAttribute('numeric-property', '-99');
   assert(el.numericProperty === -99);
+});
+
+it('allows properties without types', () => {
+  const el = document.createElement('test-element-attr-binding');
+  document.body.appendChild(el);
+  for (const value of [{}, 'foo', '5', [], 2]) {
+    el.typelessProperty = value;
+    assert(el.typelessProperty === value);
+  }
+  const attributeValue = 'attribute';
+  el.setAttribute('typeless-property', attributeValue);
+  assert(el.typelessProperty === attributeValue);
 });

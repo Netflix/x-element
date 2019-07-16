@@ -29,6 +29,9 @@ class TestElement extends XElementProperties {
         value: false,
         reflect: true,
       },
+      typelessProperty: {
+        reflect: true,
+      }
     };
   }
 
