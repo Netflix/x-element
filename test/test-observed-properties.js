@@ -15,14 +15,12 @@ const deepEqual = (a, b) => {
   );
 };
 
-it('x-element observed properties', () => {
+it('throws expected errors', () => {
   const unresolvedMessage = `Cannot resolve methodName "thisDNE".`;
 
   let unresolved = false;
 
-  const el = document.createElement('test-element-observed-properties');
-  el.a = 'oh';
-  el.b = 'hai';
+  const el = document.createElement('test-element-observed-properties-errors');
 
   const onError = evt => {
     if (evt.error.message === unresolvedMessage) {
@@ -35,22 +33,29 @@ it('x-element observed properties', () => {
 
   document.body.appendChild(el);
   assert(unresolved, 'should error for unresolved method names');
+});
+
+it('x-element observed properties', () => {
+  const el = document.createElement('test-element-observed-properties');
+  el.a = '11';
+  el.b = '22';
+  document.body.appendChild(el);
 
   assert(
     deepEqual(el.changes, [
       {
         property: 'a',
-        newValue: 'oh',
+        newValue: '11',
         oldValue: undefined,
       },
       {
         property: 'b',
-        newValue: 'hai',
+        newValue: '22',
         oldValue: undefined,
       },
       {
         property: 'c',
-        newValue: 'oh hai',
+        newValue: '11 22',
         oldValue: undefined,
       },
     ]),
@@ -62,28 +67,28 @@ it('x-element observed properties', () => {
     deepEqual(el.changes, [
       {
         property: 'a',
-        newValue: 'oh',
+        newValue: '11',
         oldValue: undefined,
       },
       {
         property: 'b',
-        newValue: 'hai',
+        newValue: '22',
         oldValue: undefined,
       },
       {
         property: 'c',
-        newValue: 'oh hai',
+        newValue: '11 22',
         oldValue: undefined,
       },
       {
         property: 'b',
         newValue: 'hey',
-        oldValue: 'hai',
+        oldValue: '22',
       },
       {
         property: 'c',
-        newValue: 'oh hey',
-        oldValue: 'oh hai',
+        newValue: '11 hey',
+        oldValue: '11 22',
       },
     ]),
     'observers are called when properties change'
@@ -94,31 +99,68 @@ it('x-element observed properties', () => {
     deepEqual(el.changes, [
       {
         property: 'a',
-        newValue: 'oh',
+        newValue: '11',
         oldValue: undefined,
       },
       {
         property: 'b',
-        newValue: 'hai',
+        newValue: '22',
         oldValue: undefined,
       },
       {
         property: 'c',
-        newValue: 'oh hai',
+        newValue: '11 22',
         oldValue: undefined,
       },
       {
         property: 'b',
         newValue: 'hey',
-        oldValue: 'hai',
+        oldValue: '22',
       },
       {
         property: 'c',
-        newValue: 'oh hey',
-        oldValue: 'oh hai',
+        newValue: '11 hey',
+        oldValue: '11 22',
       },
     ]),
     'observers are not called when set property is the same'
+  );
+
+  el.a = 11;
+  assert(
+    deepEqual(el.changes, [
+      {
+        property: 'a',
+        newValue: '11',
+        oldValue: undefined,
+      },
+      {
+        property: 'b',
+        newValue: '22',
+        oldValue: undefined,
+      },
+      {
+        property: 'c',
+        newValue: '11 22',
+        oldValue: undefined,
+      },
+      {
+        property: 'b',
+        newValue: 'hey',
+        oldValue: '22',
+      },
+      {
+        property: 'c',
+        newValue: '11 hey',
+        oldValue: '11 22',
+      },
+      {
+        property: 'a',
+        newValue: '11',
+        oldValue: '11',
+      },
+    ]),
+    'observers are not called when set property does not cause computed change'
   );
 
   el.popped = true;
@@ -127,28 +169,33 @@ it('x-element observed properties', () => {
     deepEqual(el.changes, [
       {
         property: 'a',
-        newValue: 'oh',
+        newValue: '11',
         oldValue: undefined,
       },
       {
         property: 'b',
-        newValue: 'hai',
+        newValue: '22',
         oldValue: undefined,
       },
       {
         property: 'c',
-        newValue: 'oh hai',
+        newValue: '11 22',
         oldValue: undefined,
       },
       {
         property: 'b',
         newValue: 'hey',
-        oldValue: 'hai',
+        oldValue: '22',
       },
       {
         property: 'c',
-        newValue: 'oh hey',
-        oldValue: 'oh hai',
+        newValue: '11 hey',
+        oldValue: '11 22',
+      },
+      {
+        property: 'a',
+        newValue: '11',
+        oldValue: '11',
       },
       {
         property: 'popped',
@@ -156,6 +203,6 @@ it('x-element observed properties', () => {
         oldValue: undefined,
       },
     ]),
-    'no re-entrance for observed, reflected properties',
+    'no re-entrance for observed, reflected properties'
   );
 });
