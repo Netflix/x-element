@@ -77,18 +77,8 @@ export default superclass =>
       const symbol = Symbol.for(property);
       const get = () => target[symbol];
       const set = rawValue => {
-        const oldRawValue = target[PROPERTY_VALUE_CACHE][property];
-        const propertyShouldChange = this.shouldPropertyChange(
-          target,
-          property,
-          definition,
-          rawValue,
-          oldRawValue
-        );
-        if (propertyShouldChange) {
-          target[PROPERTY_VALUE_CACHE][property] = rawValue;
-          const value = this.applyType(rawValue, definition.type);
-          this.changeProperty(target, property, definition, value);
+        if (this.shouldPropertyChange(target, property, definition, rawValue)) {
+          this.changeProperty(target, property, definition, rawValue);
         }
       };
       const configurable = false;
@@ -115,17 +105,18 @@ export default superclass =>
       target[PROPERTIES_INITIALIZED] = true;
     }
 
-    static shouldPropertyChange(
-      target,
-      property,
-      definition,
-      rawValue,
-      oldRawValue
-    ) {
+    static rawValuesAreEqual(a, b) {
+      return a === b || (Number.isNaN(a) && Number.isNaN(b));
+    }
+
+    static rawValueChanged(target, property, rawValue) {
+      const oldRawValue = target[PROPERTY_VALUE_CACHE][property];
+      return this.rawValuesAreEqual(oldRawValue, rawValue) === false;
+    }
+
+    static shouldPropertyChange(target, property, definition, rawValue) {
       return (
-        !definition.readOnly &&
-        rawValue !== oldRawValue &&
-        (rawValue === rawValue || oldRawValue === oldRawValue)
+        !definition.readOnly && this.rawValueChanged(target, property, rawValue)
       );
     }
 
@@ -137,8 +128,10 @@ export default superclass =>
       target.invalidate();
     }
 
-    static changeProperty(target, property, definition, value) {
+    static changeProperty(target, property, definition, rawValue) {
       // For internal use. Needed to set readOnly properties.
+      target[PROPERTY_VALUE_CACHE][property] = rawValue;
+      const value = this.applyType(rawValue, definition.type);
       const symbol = Symbol.for(property);
       this.propertyWillChange(target, property, definition, value);
       const oldValue = target[property];

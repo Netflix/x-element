@@ -49,8 +49,10 @@ export default superclass =>
           const definition = target.propertyDefinitions[property];
           const args = dependencies.map(dependency => target[dependency]);
           if (!skipIfUndefined || args.some(arg => arg !== undefined)) {
-            const value = this.applyType(method(...args), definition.type);
-            this.changeProperty(target, property, definition, value);
+            const rawValue = method(...args);
+            if (this.rawValueChanged(target, property, rawValue)) {
+              this.changeProperty(target, property, definition, rawValue);
+            }
           }
         };
       }
