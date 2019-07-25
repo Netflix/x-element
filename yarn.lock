@@ -32,6 +32,11 @@
   dependencies:
     node-static "^0.7.10"
 
+"@netflix/x-test@^1.0.0-rc.11":
+  version "1.0.0-rc.11"
+  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/@netflix/x-test/-/x-test-1.0.0-rc.11.tgz#b3b3bb9ea841afcbdd6186e145e2c5adc7410f50"
+  integrity sha1-s7O7nqhBr8vdYYbhReLFrcdBD1A=
+
 acorn-jsx@^5.0.0:
   version "5.0.1"
   resolved "https://artifacts.netflix.com/api/npm/npm-netflix/acorn-jsx/-/acorn-jsx-5.0.1.tgz#32a064fd925429216a09b141102bfdd185fae40e"
@@ -1060,11 +1065,6 @@ ws@^6.1.0:
   integrity sha1-RC/fCkftZPWbal2P8TD0dI7VJPs=
   dependencies:
     async-limiter "~1.0.0"
-
-x-test-js@^1.0.0-rc.1:
-  version "1.0.0-rc.1"
-  resolved "https://artifacts.netflix.com/api/npm/npm-netflix/x-test-js/-/x-test-js-1.0.0-rc.1.tgz#dfccee7dd923b597c9b0b1f83f22f34c47156083"
-  integrity sha1-38zufdkjtZfJsLH4PyLzTEcVYIM=
 
 yallist@^3.0.0:
   version "3.0.3"

@@ -1,4 +1,4 @@
-import { it, assert, todo } from '../../../x-test-js/x-test.js';
+import { it, assert, todo } from '../../../@netflix/x-test/x-test.js';
 import './fixture-element-computed-properties.js';
 
 const parsingTestCases = [

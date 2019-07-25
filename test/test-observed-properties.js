@@ -1,4 +1,4 @@
-import { assert, it } from '../../../x-test-js/x-test.js';
+import { assert, it } from '../../../@netflix/x-test/x-test.js';
 import './fixture-element-observed-properties.js';
 
 const isObject = obj => obj instanceof Object && obj !== null;

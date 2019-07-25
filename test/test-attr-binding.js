@@ -1,5 +1,5 @@
 import './fixture-element-attr-binding.js';
-import { assert, it } from '../../../x-test-js/x-test.js';
+import { assert, it } from '../../../@netflix/x-test/x-test.js';
 
 it('converts dash to camel case and back', () => {
   const el = document.createElement('test-element-attr-binding');
