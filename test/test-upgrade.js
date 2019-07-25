@@ -1,4 +1,4 @@
-import { assert, it } from '../../../x-test-js/x-test.js';
+import { assert, it } from '../../../@netflix/x-test/x-test.js';
 import TestElement from './fixture-element-upgrade.js';
 
 const setupEl = el => {

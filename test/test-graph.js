@@ -1,4 +1,4 @@
-import { it, assert } from '../../../x-test-js/x-test.js';
+import { it, assert } from '../../../@netflix/x-test/x-test.js';
 import Graph from '../etc/graph.js';
 
 const graphsAreEqual = (a, b) => {

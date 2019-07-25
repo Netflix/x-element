@@ -1,4 +1,4 @@
-import { test } from '../../../x-test-js/x-test.js';
+import { test } from '../../../@netflix/x-test/x-test.js';
 
 test('./test-upgrade.html');
 test('./test-basic.html');

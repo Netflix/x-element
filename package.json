@@ -30,9 +30,9 @@
   },
   "devDependencies": {
     "@netflix/element-server": "^1.0.9",
+    "@netflix/x-test": "^1.0.0-rc.11",
     "eslint": "^6.0.1",
     "puppeteer": "^1.11.0",
-    "tap-parser": "^9.0.0",
-    "x-test-js": "^1.0.0-rc.1"
+    "tap-parser": "^9.0.0"
   }
 }

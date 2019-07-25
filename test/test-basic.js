@@ -1,5 +1,5 @@
 import './fixture-element-basic.js';
-import { it, assert } from '../../../x-test-js/x-test.js';
+import { it, assert } from '../../../@netflix/x-test/x-test.js';
 
 it('upgrades the element with a shadowRoot', () => {
   const el = document.createElement('test-element-basic');
