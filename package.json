@@ -3,10 +3,13 @@
   "author": "Casey Klebba",
   "description": "Custom Element base class.",
   "version": "1.0.0-rc.37",
-  "license": "MIT",
-  "repository": "netflix/x-element",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": "https://github.com/Netflix/x-element",
   "main": "x-element.js",
   "module": "x-element.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "start": "element-server",
     "lint": "eslint --quiet .",
@@ -14,6 +17,7 @@
     "test": "set -o pipefail; node test.js | tap-parser -l"
   },
   "files": [
+    "LICENSE",
     "/x-element.js",
     "/x-element-basic.js",
     "/x-element-properties.js",
@@ -29,7 +33,7 @@
     "lit-html": "^1.1.1"
   },
   "devDependencies": {
-    "@netflix/element-server": "^1.0.9",
+    "@netflix/element-server": "^1.0.12",
     "@netflix/x-test": "^1.0.0-rc.11",
     "eslint": "^6.0.1",
     "puppeteer": "^1.11.0",
