@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/Netflix/x-element.svg?branch=master)](https://travis-ci.com/Netflix/x-element)
+
 # XElement
 
 A base class for creating Custom Elements. Adapted from https://github.com/kenchris/lit-element
