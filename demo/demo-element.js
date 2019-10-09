@@ -38,7 +38,7 @@ class DemoElement extends XElementBasic {
   }
 
   set booleanValue(value) {
-    if (Boolean(value)) {
+    if (value) {
       this.setAttribute('boolean-value', '');
     } else {
       this.removeAttribute('boolean-value');

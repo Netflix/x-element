@@ -28,6 +28,7 @@ export default superclass =>
       if (props) {
         return Object.keys(props).map(this.camelToDashCase);
       }
+      return undefined;
     }
 
     get propertyDefinitions() {
@@ -120,10 +121,12 @@ export default superclass =>
       );
     }
 
+    // eslint-disable-next-line no-unused-vars
     static propertyWillChange(target, property, definition, value, oldValue) {
       // Provided for symmetry with propertyDidChange.
     }
 
+    // eslint-disable-next-line no-unused-vars
     static propertyDidChange(target, property, definition, value, oldValue) {
       target.invalidate();
     }

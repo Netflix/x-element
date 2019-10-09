@@ -12,8 +12,8 @@
   },
   "scripts": {
     "start": "element-server",
-    "lint": "eslint --quiet .",
-    "lint-strict": "eslint .",
+    "lint": "eslint --max-warnings=0 .",
+    "lint-fix": "eslint --fix .",
     "test": "node test.js | tap-parser -l"
   },
   "files": [

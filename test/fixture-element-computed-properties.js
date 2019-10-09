@@ -133,10 +133,10 @@ class TestElementComputedPropertiesErrors extends XElementProperties {
       },
     };
   }
-  static computeMissing(notDeclared) {
+  static computeMissing() {
     return `this is just here to get past the unresolved method check`;
   }
-  static computeCyclic(zz, cyclic) {
+  static computeCyclic() {
     return `this is just here to get past the unresolved method check`;
   }
   static template() {

@@ -35,10 +35,12 @@ export default superclass =>
       target.attachShadow(this.shadowRootInit);
     }
 
+    // eslint-disable-next-line no-unused-vars
     static beforeInitialRender(target) {
       // Hook for subclasses.
     }
 
+    // eslint-disable-next-line no-unused-vars
     static afterInitialRender(target) {
       // Hook for subclasses.
     }
