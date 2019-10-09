@@ -31,7 +31,7 @@ class TestElement extends XElementProperties {
       },
       typelessProperty: {
         reflect: true,
-      }
+      },
     };
   }
 

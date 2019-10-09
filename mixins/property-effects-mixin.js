@@ -185,12 +185,15 @@ export default superclass =>
           return value ? '' : undefined;
         case 'String':
         case 'Number':
-          return value != null ? value.toString() : undefined;
-        default:
+          return value === null || value === undefined
+            ? undefined
+            : value.toString();
+        default: {
           const message =
             `Attempted to serialize "${property}" and reflect, but it is not ` +
             `a Boolean, String, or Number type (${typeName}).`;
           target.dispatchError(new Error(message));
+        }
       }
     }
 

@@ -92,6 +92,8 @@ it('scratch', async () => {
     el.shadowRoot.querySelector('span').textContent === '',
     'should update the DOM bindings'
   );
+  // TODO: https://github.com/eslint/eslint/issues/11899: False positive?
+  // eslint-disable-next-line require-atomic-updates
   el.prop1 = 'test2';
   await el;
   assert(

@@ -25,7 +25,7 @@ class TestElement extends XElementBasic {
   }
 
   set booleanProperty(value) {
-    if (Boolean(value)) {
+    if (value) {
       this.setAttribute('boolean-property', '');
     } else {
       this.removeAttribute('boolean-property');
