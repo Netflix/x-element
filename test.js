@@ -1,15 +1,17 @@
+/* eslint-env node */
 const puppeteer = require('puppeteer');
 
 (async () => {
   try {
-    const browser = await puppeteer.launch({ headless: false, timeout: 10000 });
+    const browser = await puppeteer.launch({ timeout: 10000 });
     const page = await browser.newPage();
 
     // Before navigation, start mapping browser logs to stdout.
+    // eslint-disable-next-line no-console
     page.on('console', message => console.log(message.text()));
 
     // Visit our test page.
-    await page.goto('http://localhost:8080/test/?x-test-no-reporter');
+    await page.goto('http://0.0.0.0:8080/node_modules/@netflix/x-element/test/?x-test-no-reporter');
 
     // Wait to be signaled about the end of the test. Because the test may have
     // not started, already started, or already ended, ping for status.
@@ -33,6 +35,7 @@ const puppeteer = require('puppeteer');
     await browser.close();
   } catch (err) {
     // Ensure we exit with a non-zero code if anything fails (e.g., timeout).
+    // eslint-disable-next-line no-console
     console.error(err);
     process.exit(1);
   }
