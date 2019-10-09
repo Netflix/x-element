@@ -14,7 +14,7 @@
     "start": "element-server",
     "lint": "eslint --quiet .",
     "lint-strict": "eslint .",
-    "test": "set -o pipefail; node test.js | tap-parser -l"
+    "test": "node test.js | tap-parser -l"
   },
   "files": [
     "LICENSE",

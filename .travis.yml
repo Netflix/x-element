@@ -2,7 +2,7 @@ language: node_js
 cache: yarn
 node_js:
 - node
-script: skip
+script: yarn start & yarn test
 deploy:
   provider: npm
   email: npm@netflix.com
