@@ -1,4 +1,4 @@
-import { render, html } from '../../../lit-html/lit-html.js';
+import { render, html, directive } from '../../../lit-html/lit-html.js';
 
 import { asyncAppend } from '../../../lit-html/directives/async-append.js';
 import { asyncReplace } from '../../../lit-html/directives/async-replace.js';
@@ -13,6 +13,7 @@ const directives = {
   asyncAppend,
   asyncReplace,
   cache,
+  directive,
   guard,
   ifDefined,
   repeat,
