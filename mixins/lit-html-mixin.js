@@ -1,3 +1,5 @@
+// Refer to https://github.com/Polymer/lit-html/issues/877
+// for how directive can be used to manage uncontrolled input elements
 import { render, html, directive } from '../../../lit-html/lit-html.js';
 
 import { asyncAppend } from '../../../lit-html/directives/async-append.js';
