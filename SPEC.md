@@ -21,7 +21,7 @@ to observe and `invalidate` on property changes to cause a re-render. The
 `properties` block allows you to declare the following via this mixin:
 
 - `type` [Function]: type associated with the property.
-- `value` [Funciton|Any Literal]: _initial_ value for the property or getter.
+- `value` [Function|Any Literal]: _initial_ value for the property or getter.
 - `readOnly` [Boolean]: prevent property updates via normal setter?
 
 ### `property-effects-mixin`
@@ -83,7 +83,7 @@ When properties update on an initialized element, the following should occur:
 The properties block allows you to define the following:
 
 - `type` [Function]: type associated with the property
-- `value` [Funciton|Any Literal]: _initial_ value for the property or getter
+- `value` [Function|Any Literal]: _initial_ value for the property or getter
 - `readOnly` [Boolean]: prevent property updates via normal setter?
 - `reflect` [Boolean]: reflect property to attribute?
 - `observer` [String]: DSL used to resolve an observer callback
