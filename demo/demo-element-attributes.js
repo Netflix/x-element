@@ -1,26 +1,6 @@
-import XElementProperties from '../x-element-properties.js';
+import XElement from '../x-element.js';
 
-class DemoAttributesElement extends XElementProperties {
-  static template() {
-    return ({ hyphenatedValue }) => `
-      <style>
-        :host {
-          display: block;
-          width: 200px;
-        }
-
-        :host([hyphenated-value]) {
-          background-color: magenta;
-        }
-
-        :host([boolean-value]) {
-          font-weight: bold;
-        }
-      </style>
-      <div id="demo">${hyphenatedValue}</div>
-    `;
-  }
-
+class DemoAttributesElement extends XElement {
   static get properties() {
     return {
       hyphenatedValue: {
@@ -29,6 +9,28 @@ class DemoAttributesElement extends XElementProperties {
       booleanValue: {
         type: Boolean,
       },
+    };
+  }
+
+  static template(html) {
+    return ({ hyphenatedValue }) => {
+      return html`
+        <style>
+          :host {
+            display: block;
+            width: 200px;
+          }
+          
+          :host([hyphenated-value]) {
+            background-color: magenta;
+          }
+          
+          :host([boolean-value]) {
+            font-weight: bold;
+          }
+        </style>
+        <div id="demo">${hyphenatedValue}</div>
+      `;
     };
   }
 }
