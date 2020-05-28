@@ -1,125 +1,361 @@
-# The `x-element` spec
+[![Build Status](https://travis-ci.com/Netflix/x-element.svg?branch=master)](https://travis-ci.com/Netflix/x-element)
 
-This describes the expected behavior of `x-element`.
+# XElement
 
-## Mixin hierarchy
+A base class for custom elements.
 
-The `x-element` code is organized in a set of progressively-enhancing mixins
-which are intended to be used in order. You can only omit mixins from the tail,
-not from the middle/head. The intent is to force the correct base hooks so that
-custom extension is supported.
+Define and register your element:
 
-### `element-mixin`
+```javascript
+import XElement from 'https://unpkg.com/@netflix/x-element/x-element.js';
 
-Provides base functionality for creating custom elements with shadow roots and
-hooks to re-render the element.
+class HelloWorld extends XElement {
+  template(html) {
+    return () => html`<span>Hello World!</span>`;
+  }
+}
 
-### `properties-mixin`
+customElements.define('hello-world', HelloWorld);
+```
 
-Allows you to declare the `properties` block. This leverages the `element-mixin`
-to observe and `invalidate` on property changes to cause a re-render. The
-`properties` block allows you to declare the following via this mixin:
+And use it in your markup:
 
-- `type` [Function]: type associated with the property.
-- `value` [Funciton|Any Literal]: _initial_ value for the property or getter.
-- `readOnly` [Boolean]: prevent property updates via normal setter?
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Hello World</title>
+    <script type="module" src="./hello-world.js"></script>
+  </head>
+  <body>
+    <hello-world></hello-world>
+  </body>
+</html>
+```
 
-### `property-effects-mixin`
+## Rendering
 
-Enhances the interface to properties block to handle _property effects_. I.e.,
-effects that can take place whenever a property updates. This adds the following
-configuration to the properties block:
+XElement uses [lit-html] to efficiently turn interpolated html markup into dom
+nodes.
 
-- `reflect` [Boolean]: reflect property to attribute?
-- `observer` [String]: DSL used to resolve an observer callback
-- `computed` [String]: DSL used to resolve computed callback and dependencies
+## Properties
 
-### `listeners-mixin`
+Properties and their related attributes are watched. When a property or related
+attribute is updated, a render is queued.
 
-Provides a declarative `listeners` block which adds bound listeners on connect
-and removes them on disconnect.
+Property definitions have the following options:
 
-### `lit-html-mixin`
+- `type` [Function]: associate properties with types.
+- `attribute` [String]: override default attribute for properties.
+- `input`: [StringArray]: declare names of watched properties for a computed property.
+- `compute` [Function]: compute property value when input changes.
+- `reflect` [Boolean]: reflect properties back to attributes.
+- `observe` [Function]: react when properties change.
+- `initial` [Function|Any]: provide initial, default values for nullish properties.
+- `default` [Function|Any]: provide recurring, default values for nullish properties.
+- `readOnly` [Boolean]: prevent setting properties on the host.
+- `internal` [Boolean]: prevent getting / setting properties on the host.
 
-This mixin simply makes an opinion to use `lit-html` as the templating engine.
+### Example
+
+```javascript
+class RightTriangle extends XElement {
+  static get properties() {
+    return {
+      base: {
+        type: Number,
+        initial: 3,
+      },
+      height: {
+        type: Number,
+        initial: 4,
+      },
+      hypotenuse: {
+        type: Number,
+        input: ['base', 'height'],
+        compute: Math.hypot,
+      },
+    };
+  }
+
+  static template(html) {
+    return ({ base, height, hypotenuse }) => html`
+      <code>Math.hypot(${base}, ${height}) = ${hypotenuse}<code>
+    `;
+  }
+}
+```
+
+## Reflected properties
+
+By default, property attributes are synced — i.e., updating the attribute will
+update the property. Bi-directional syncing only happens if you _reflect_ the
+property by setting `reflect: true`.
+
+## Read-only and internal properties
+
+Sometimes you want a property to be part of the public interface (either for
+attribute or property introspection), but you want to manage the value of that
+property internally. You can set `readOnly: true` to achieve this. Such a
+property can only be written to using `host.internal`.
+
+Other times, you don't want a property to be part of the public interface
+(common for computed properties). You can set `internal: true` to achieve this.
+Such a property can only be read from or written to using `host.internal`.
+
+### Example
+
+```javascript
+class MyElement extends XElement {
+  static get properties() {
+    return {
+      date: {
+        type: String,
+        readOnly: true,
+        initial: () => new Date().toISOString(),
+        reflect: true,
+      },
+      interval: {
+        internal: true,
+      },
+    };
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    clearInterval(this.internal.interval);
+    this.internal.interval = setInterval(() => this.tick(), 100);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearInterval(this.internal.interval);
+  }
+
+  tick() {
+    this.internal.date = new Date().toISOString();
+  }
+
+  static template(html) {
+    return ({ date }) => html`<span>${date}<span>`;
+  }
+}
+```
+
+## Computed properties
+
+Create a computed property by providing a list other property names as `input`
+and a `compute` callback to be invoked when the input changes. The `compute`
+callbacks are memoized and are expected to be pure.
+
+If the given function is defined on the constructor, the context (`this`) is
+guaranteed to be the constructor when called later.
+
+## Observed properties
+
+Create an observed property by providing an `observe` function. Whenever an
+observable change occurs, your function will be called with
+`host, value, oldValue`.
+
+If the given function is defined on the constructor, the context (`this`) is
+guaranteed to be the constructor when called later.
+
+## Listeners
+
+XElement supports declarative, delegated event handlers via a `listeners`
+block. Listeners are added during the `connectedCallback` and are removed during
+the `disconnectedCallback` in the element's lifecycle. Listeners defined in
+the `listeners` block are added to the render root.
+
+Because it's so common to want to introspect the `event` and call a function on
+the `host`, the provided arguments are `host, event`.
+
+If the given function is defined on the constructor, the context (`this`) is
+guaranteed to be the constructor when called later.
+
+### Example
+
+```javascript
+class MyElement extends XElement {
+  static get properties() {
+    return {
+      clicks: {
+        type: Number,
+        readOnly: true,
+        default: 0,
+      },
+    };
+  }
+
+  static get listeners() {
+    return { click: this.onClick };
+  }
+
+  static onClick(host, event) {
+    host.internal.clicks += event.detail;
+  }
+
+  static template(html) {
+    return ({ clicks }) => {
+      return html`<span>Clicks: ${clicks}</span>`;
+    }
+  }
+}
+```
+
+## Manually adding listeners
+
+If you need more fine-grain control over when listeners are added or removed,
+you can use the `listen` and `unlisten` functions.
+
+Because it's so common to want to introspect the `event` and call a function on
+the `host`, the provided arguments will always be `host, event`.
+
+If the given function is defined on the constructor, the context (`this`) is
+guaranteed to be the constructor when called later.
+
+### Example
+
+```javascript
+class MyElement extends XElement {
+  static get properties() {
+    return {
+      clicks: {
+        type: Number,
+        readOnly: true,
+        default: 0,
+      },
+    };
+  }
+
+  static onClick(host, event) {
+    host.internal.clicks += event.detail;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.listen(this.shadowRoot, 'click', this.constructor.onClick);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.unlisten(this.shadowRoot, 'click', this.constructor.onClick);
+  }
+
+  static template(html) {
+    return ({ clicks }) => {
+      return html`<span>Clicks: ${clicks}</span>`;
+    }
+  }
+}
+```
+
+## Render Root
+
+By default, XElement will create an open shadow root. However, you can change
+this behavior by overriding the `createRenderRoot` method. There are a few
+reasons why you might want to do this as shown below.
+
+### No Shadow Root
+
+```javascript
+class MyElement extends XElement {
+  static createRenderRoot(host) {
+    return host;
+  }
+}
+```
+
+### Focus Delegation
+
+```javascript
+class MyElement extends XElement {
+  static createRenderRoot(host) {
+    return host.attachShadowRoot({ mode: 'open', delegatesFocus: true });
+  }
+}
+```
 
 ## Lifecycle
 
-### Analysis
+### Constructor Analysis
 
-Analysis should take place once per class on first construction. This allows all
-future instances to share common setup work. The result of the analysis phase is
-made available again during initialization.
+Analysis takes place once per class. This allows all future instances to share
+common setup work. Halting errors are thrown here to assist in development.
 
-Note: work to truly cache analysis work per-class is ongoing. Right now, this
-happens per instance.
+### Instance Construction
 
-### Initialization
+Each instance undergoes one-time setup work in the `constructor` callback.
 
-Initialization should take place once per instance on first connection. This
-allows each class to leverage cached information in the analysis phase and
-leverage initialization work through disconnection and reconnection to the DOM.
-Initialization should work in the following order:
+### Instance Initialization
 
-- handle post-definition upgrade scenario
-- initialize render root
-- initialize property values
-- compute properties
-- render
-- enable property effects
-- reflect properties
-- observe properties
+Each instance is initialized once during the first `connectedCallback`.
 
 ### Update
 
 When properties update on an initialized element, the following should occur:
 
-- reflect property if needed
-- observe property if needed
-- compute dependent properties if needed, causes subsequent property changes
+- await a queued microtask (prevents unnecessary, synchronous work)
+- compute properties (this is implied and happens lazily)
+- reflect properties
+- render result
+- observe properties
 
-## Properties
+## Recipes
 
-The properties block allows you to define the following:
+### Observing multiple properties
 
-- `type` [Function]: type associated with the property
-- `value` [Funciton|Any Literal]: _initial_ value for the property or getter
-- `readOnly` [Boolean]: prevent property updates via normal setter?
-- `reflect` [Boolean]: reflect property to attribute?
-- `observer` [String]: DSL used to resolve an observer callback
-- `computed` [String]: DSL used to resolve computed callback and dependencies
+In certain cases, you may want to observe multiple properties at once. One way
+to achieve this is to compute a new object and observe that object.
 
-## References
+```javascript
+class MyElement extends XElement {
+  static get properties() {
+    return {
+      tag: {
+        type: String,
+        default: 'div',
+      },
+      text: {
+        type: String,
+        default: '',
+      },
+      element: {
+        type: HTMLElement,
+        internal: true,
+        input: ['tag'],
+        compute: tag => document.createElement(tag),
+        observe: (host, element) => {
+          const container = host.shadowRoot.getElementById('container');
+          container.innerHTML = '';
+          container.append(element);
+        }
+      },
+      update: {
+        type: Object,
+        internal: true,
+        input: ['element', 'text'],
+        compute: (element, text) => ({ element, text }),
+        observe: (host, { element, text }) => {
+          element.textContent = text;
+        },
+      },
+    };
+  }
 
-- [WHATWG Custom Elements Spec](https://html.spec.whatwg.org/multipage/custom-elements.html)
-
-
-## Computed properties and graphs
-
-Consider the following properties:
-
-```
-{
-  a: { type: Boolean },
-  b: { type: Boolean, computed: 'computeB(a)' },
-  c: { type: Boolean, computed: 'computeC(a, b)' }
+  static template(html) {
+    return () => {
+      return html`<div id="container"></span>`;
+    }
+  }
 }
 ```
 
-This properties block declares that `c` depends on `a` and `b` and that `b`
-depends on `a`. However, the _order_ in which we resolve `b` and `c` when `a`
-changes is important. In general, computed properties form a Directed, Acyclic
-Graph (DAG). The DAG looks like this:
+## References
 
-```
-      a
-   ↙     ↘
-b     →     c
-```
+- [WHATWG Custom Elements Spec]
+- [lit-html]
 
-DAGs can be solved using a topological sorting algorithm and this computation
-can be done at analysis-time to prevent repeating expensive work at runtime.
-
-Note that DAGs can have multiple solutions. For completeness, the solution for
-this DAG is `[a, b, c]`. This means that if `a` changes, you need to then update
-`b` and then update `c`--in that order.
+[WHATWG Custom Elements Spec]: https://html.spec.whatwg.org/multipage/custom-elements.html
+[lit-html]: https://lit-html.polymer-project.org/

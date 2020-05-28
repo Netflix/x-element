@@ -1,5 +1,44 @@
 import { assert, it } from '../../../@netflix/x-test/x-test.js';
-import TestElement from './fixture-element-upgrade.js';
+import XElement from '../x-element.js';
+
+export default class TestElement extends XElement {
+  constructor() {
+    super();
+    this._readOnlyProperty = 'didelphidae';
+    this._readOnlyKey = 'didelphimorphia';
+    Reflect.defineProperty(this, 'readOnlyDefinedProperty', {
+      value: 'phalangeriformes',
+      configurable: false,
+    });
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.shadowRoot.firstElementChild.textContent = this.readOnlyProperty;
+  }
+
+  static template(html) {
+    return () => {
+      return html`<div></div>`;
+    };
+  }
+
+  get readOnlyProperty() {
+    return this._readOnlyProperty;
+  }
+
+  get [Symbol.for('readOnlyKey')]() {
+    return this._readOnlyKey;
+  }
+
+  get reflectedProperty() {
+    return this.getAttribute('reflected-property');
+  }
+
+  set reflectedProperty(value) {
+    this.setAttribute('reflected-property', value);
+  }
+}
 
 const setupEl = el => {
   el.className = 'marsupialia';
@@ -36,7 +75,7 @@ const hasUpgraded = el => {
 };
 
 it('x-element upgrade lifecycle', () => {
-  const localName = 'test-element-upgrade';
+  const localName = 'test-element';
   assert(
     customElements.get(localName) === undefined,
     'localName is initially undefined'
@@ -45,7 +84,7 @@ it('x-element upgrade lifecycle', () => {
   const el1 = document.createElement(localName);
   el1.id = 'el1';
   setupEl(el1);
-  document.body.appendChild(el1);
+  document.body.append(el1);
 
   const el2 = document.createElement(localName);
   el2.id = 'el2';
@@ -89,13 +128,13 @@ it('x-element upgrade lifecycle', () => {
   );
 
   assert(hasNotUpgraded(el2), 'element out of document is still not upgraded');
-  document.body.appendChild(el2);
+  document.body.append(el2);
   assert(
     el2.shadowRoot.textContent === 'didelphidae',
     'element out of document upgrades/renders after being added'
   );
 
-  document.body.appendChild(el3);
+  document.body.append(el3);
   assert(
     el3.shadowRoot.textContent === 'didelphidae',
     'element created after definition upgrades/renders after being added'

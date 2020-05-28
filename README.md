@@ -2,8 +2,6 @@
 
 # XElement
 
-A base class for creating Custom Elements. Adapted from https://github.com/kenchris/lit-element
-
 ```
 yarn install && yarn start
 ```
