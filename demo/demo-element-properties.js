@@ -1,26 +1,6 @@
-import XElementProperties from '../x-element-properties.js';
+import XElement from '../x-element.js';
 
-class DemoPropertiesElement extends XElementProperties {
-  static template() {
-    return ({ reflected }) => `
-      <style>
-        :host {
-          display: block;
-          width: 200px;
-        }
-
-        :host([reflected]) {
-          background-color: cyan;
-        }
-
-        :host([boolean-value]) {
-          font-weight: bold;
-        }
-      </style>
-      <div id="demo">${reflected}</div>
-    `;
-  }
-
+class DemoPropertiesElement extends XElement {
   static get properties() {
     return {
       reflected: {
@@ -30,8 +10,30 @@ class DemoPropertiesElement extends XElementProperties {
       booleanValue: {
         type: Boolean,
         reflect: true,
-        value: true,
+        initial: true,
       },
+    };
+  }
+
+  static template(html) {
+    return ({ reflected }) => {
+      return html`
+        <style>
+          :host {
+            display: block;
+            width: 200px;
+          }
+          
+          :host([reflected]) {
+            background-color: cyan;
+          }
+          
+          :host([boolean-value]) {
+            font-weight: bold;
+          }
+        </style>
+        <div id="demo">${reflected}</div>
+      `;
     };
   }
 }
