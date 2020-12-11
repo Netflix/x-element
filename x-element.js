@@ -168,7 +168,7 @@ export default class XElement extends HTMLElement {
    * @param {HTMLElement} element - The element to which the listener will be added.
    * @param {string} type - The event type for which we're listening.
    * @param {function} callback - The handler callback.
-   * @param {object} options - Listener options (e.g., { useCapture: true }).
+   * @param {object} [options] - Listener options (e.g., { useCapture: true }).
    */
   listen(element, type, callback, options) {
     if (XElement.__typeIsWrong(EventTarget, element)) {
@@ -198,7 +198,7 @@ export default class XElement extends HTMLElement {
    * @param {HTMLElement} element - The element to which the listener will be added.
    * @param {string} type - The event type for which we're listening.
    * @param {function} callback - The handler callback.
-   * @param {object} options - Listener options (e.g., { useCapture: true }).
+   * @param {object} [options] - Listener options (e.g., { useCapture: true }).
    */
   unlisten(element, type, callback, options) {
     if (XElement.__typeIsWrong(EventTarget, element)) {
