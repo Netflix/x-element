@@ -62,8 +62,8 @@ it('properties should not shadow prototype chain interface', () => {
     'Unexpected key "TestElement.properties.title" has attribute "title" which is related to the inherited property "title", behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = error => { // eslint-disable-line no-console
-    messages.push(error.message);
+  console.warn = message => { // eslint-disable-line no-console
+    messages.push(message);
   };
   class TestElement extends XElement {
     static get properties() {
@@ -85,8 +85,8 @@ it('properties with related inherited, asymmetric attributes should not shadow',
     'Unexpected key "TestElement.properties.class" has attribute "class" which is related to the inherited property "className", behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = error => { // eslint-disable-line no-console
-    messages.push(error.message);
+  console.warn = message => { // eslint-disable-line no-console
+    messages.push(message);
   };
   class TestElement extends XElement {
     static get properties() {
@@ -111,8 +111,8 @@ it('properties with related inherited attributes should not shadow', () => {
     'Unexpected key "TestElement.properties.role" has attribute "role" which is inherited, behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = error => { // eslint-disable-line no-console
-    messages.push(error.message);
+  console.warn = message => { // eslint-disable-line no-console
+    messages.push(message);
   };
   class TestElement extends XElement {
     static get properties() {
@@ -133,8 +133,8 @@ it('properties should not shadow data-* attribute interface', () => {
     'Unexpected key "TestElement.properties.dataFoo" has attribute "data-foo" which shadows data-* attribute interface, behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = error => { // eslint-disable-line no-console
-    messages.push(error.message);
+  console.warn = message => { // eslint-disable-line no-console
+    messages.push(message);
   };
   class TestElement extends XElement {
     static get properties() {
@@ -159,8 +159,8 @@ it('properties should not shadow aria-* attribute interface', () => {
     'Unexpected key "TestElement.properties.ariaValueMin" has attribute "aria-value-min" which shadows aria-* attribute interface, behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = error => { // eslint-disable-line no-console
-    messages.push(error.message);
+  console.warn = message => { // eslint-disable-line no-console
+    messages.push(message);
   };
   class TestElement extends XElement {
     static get properties() {

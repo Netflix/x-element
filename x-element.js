@@ -304,20 +304,16 @@ export default class XElement extends HTMLElement {
         if (xElementPropertyName) {
           throw new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to an x-element property "${xElementPropertyName}".`);
         } else if (inheritedPropertyName) {
-          const error = new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to the inherited property "${inheritedPropertyName}", behavior not guaranteed.`);
-          console.warn(error); // eslint-disable-line no-console
+          console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to the inherited property "${inheritedPropertyName}", behavior not guaranteed.`); // eslint-disable-line no-console
         } else {
-          const error = new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is inherited, behavior not guaranteed.`);
-          console.warn(error); // eslint-disable-line no-console
+          console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is inherited, behavior not guaranteed.`); // eslint-disable-line no-console
         }
       }
       if (attribute.startsWith('aria-')) {
-        const error = new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows aria-* attribute interface, behavior not guaranteed.`);
-        console.warn(error); // eslint-disable-line no-console
+        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows aria-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
       }
       if (attribute.startsWith('data-')) {
-        const error = new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows data-* attribute interface, behavior not guaranteed.`);
-        console.warn(error); // eslint-disable-line no-console
+        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows data-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
       }
       attributes.add(attribute);
       if (Reflect.has(property, 'input')) {
@@ -347,11 +343,9 @@ export default class XElement extends HTMLElement {
       if (xElementPropertyName) {
         throw new Error(`Unexpected key "${path}" shadows in XElement.prototype interface.`);
       } else if (inheritedAttribute) {
-        const error = new Error(`Unexpected key "${path}" shadows related inherited attribute "${inheritedAttribute}", behavior not guaranteed.`);
-        console.warn(error); // eslint-disable-line no-console
+        console.warn(`Unexpected key "${path}" shadows related inherited attribute "${inheritedAttribute}", behavior not guaranteed.`); // eslint-disable-line no-console
       } else {
-        const error = new Error(`Unexpected key "${path}" shadows inherited interface, behavior not guaranteed.`);
-        console.warn(error); // eslint-disable-line no-console
+        console.warn(`Unexpected key "${path}" shadows inherited interface, behavior not guaranteed.`); // eslint-disable-line no-console
       }
     }
     for (const propertyKey of Object.keys(property)) {
