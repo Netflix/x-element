@@ -48,7 +48,7 @@ it('cannot be written to', () => {
   try {
     el.readOnlyProperty = `don't do it`;
   } catch (error) {
-    const expected = 'Property "TestElement.properties.readOnlyProperty" is read-only (internal.readOnlyProperty).';
+    const expected = 'Property "TestElement.properties.readOnlyProperty" is read-only.';
     message = error.message;
     passed = error.message === expected;
   }

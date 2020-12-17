@@ -47,34 +47,7 @@ it('errors are thrown in attributeChangedCallback for read-only properties', () 
   try {
     el.attributeChangedCallback('read-only-property', null, 'nope');
   } catch (error) {
-    const expected = 'Property "TestElement.properties.readOnlyProperty" is read-only (internal.readOnlyProperty).';
-    message = error.message;
-    passed = error.message === expected;
-  }
-  assert(passed, message);
-});
-
-it('errors are thrown in attributeChangedCallback for internal properties', () => {
-  // We cannot try-catch setAttribute, so we fake the attributeChangedCallback.
-  class TestElement extends XElement {
-    static get properties() {
-      return {
-        internalProperty: {
-          type: String,
-          internal: true,
-        },
-      };
-    }
-  }
-  customElements.define('test-element-3', TestElement);
-  const el = new TestElement();
-  el.connectedCallback();
-  let passed = false;
-  let message = 'no error was thrown';
-  try {
-    el.attributeChangedCallback('internal-property', null, 'nope');
-  } catch (error) {
-    const expected = 'Property "TestElement.properties.internalProperty" is internal (internal.internalProperty).';
+    const expected = 'Property "TestElement.properties.readOnlyProperty" is read-only.';
     message = error.message;
     passed = error.message === expected;
   }
@@ -94,7 +67,7 @@ it('errors are thrown in attributeChangedCallback for computed properties', () =
       };
     }
   }
-  customElements.define('test-element-4', TestElement);
+  customElements.define('test-element-3', TestElement);
   const el = new TestElement();
   el.connectedCallback();
   let passed = false;

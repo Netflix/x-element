@@ -47,34 +47,7 @@ it('errors are thrown in connectedCallback for initializing read-only properties
   try {
     el.connectedCallback();
   } catch (error) {
-    const expected = 'Property "TestElement.properties.readOnlyProperty" is read-only (internal.readOnlyProperty).';
-    message = error.message;
-    passed = error.message === expected;
-  }
-  assert(passed, message);
-});
-
-it('errors are thrown in connectedCallback for initializing internal properties', () => {
-  // We cannot try-catch append, so we fake the connectedCallback.
-  class TestElement extends XElement {
-    static get properties() {
-      return {
-        internalProperty: {
-          type: String,
-          internal: true,
-        },
-      };
-    }
-  }
-  customElements.define('test-element-2', TestElement);
-  const el = new TestElement();
-  el.internalProperty = 5;
-  let passed = false;
-  let message = 'no error was thrown';
-  try {
-    el.connectedCallback();
-  } catch (error) {
-    const expected = 'Property "TestElement.properties.internalProperty" is internal (internal.internalProperty).';
+    const expected = 'Property "TestElement.properties.readOnlyProperty" is read-only.';
     message = error.message;
     passed = error.message === expected;
   }
@@ -94,7 +67,7 @@ it('errors are thrown in connectedCallback for initializing computed properties'
       };
     }
   }
-  customElements.define('test-element-3', TestElement);
+  customElements.define('test-element-2', TestElement);
   const el = new TestElement();
   el.computed = 5;
   let passed = false;
@@ -126,14 +99,14 @@ it('errors are thrown in connectedCallback when template result fails to render'
       };
     }
   }
-  customElements.define('test-element-4', TestElement);
+  customElements.define('test-element-3', TestElement);
   const el = new TestElement();
   let passed = false;
   let message = 'no error was thrown';
   try {
     el.connectedCallback();
   } catch (error) {
-    const expected = ' — Invalid template for "TestElement" at path "test-element-4"';
+    const expected = ' — Invalid template for "TestElement" at path "test-element-3"';
     message = error.message;
     passed = error.message.endsWith(expected);
   }
@@ -157,7 +130,7 @@ it('errors are thrown in connectedCallback when template result fails to render 
       };
     }
   }
-  customElements.define('test-element-5', TestElement);
+  customElements.define('test-element-4', TestElement);
   const el = new TestElement();
   let passed = false;
   let message = 'no error was thrown';
@@ -169,7 +142,7 @@ it('errors are thrown in connectedCallback when template result fails to render 
   try {
     el.connectedCallback();
   } catch (error) {
-    const expected = ' — Invalid template for "TestElement" at path "test-element-5[id="testing"][class="foo bar"][boolean][variation="primary"]"';
+    const expected = ' — Invalid template for "TestElement" at path "test-element-4[id="testing"][class="foo bar"][boolean][variation="primary"]"';
     message = error.message;
     passed = error.message.endsWith(expected);
   }

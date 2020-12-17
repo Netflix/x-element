@@ -50,31 +50,18 @@ it('can use "ownKeys" api.', () => {
 it('cannot be read on host', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
-  let passed = false;
-  let message = 'no error was thrown';
-  try {
-    el.internalProperty;
-  } catch (error) {
-    const expected = 'Property "TestElement.properties.internalProperty" is internal (internal.internalProperty).';
-    message = error.message;
-    passed = error.message === expected;
-  }
-  assert(passed, message);
+  assert(el.internal.internalProperty === 'Ferus');
+  assert(el.internalProperty === undefined);
 });
 
 it('cannot be written to on host', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
-  let passed = false;
-  let message = 'no error was thrown';
-  try {
-    el.internalProperty = `don't do it`;
-  } catch (error) {
-    const expected = 'Property "TestElement.properties.internalProperty" is internal (internal.internalProperty).';
-    message = error.message;
-    passed = error.message === expected;
-  }
-  assert(passed, message);
+  assert(el.internal.internalProperty === 'Ferus');
+  assert(el.internalProperty === undefined);
+  el.internalProperty = 'ignored';
+  assert(el.internal.internalProperty === 'Ferus');
+  assert(el.internalProperty === 'ignored');
 });
 
 it('can be read from "internal"', () => {

@@ -89,7 +89,7 @@ it('property setter renders blank value', async () => {
   assert(el.shadowRoot.getElementById('camel').textContent === 'Bactrian');
 });
 
-it('observes all dash-cased versions of declared properties', () => {
+it('observes all dash-cased versions of public, declared properties', () => {
   const el = document.createElement('test-element');
   const expected = [
     'normal-property',
@@ -98,7 +98,6 @@ it('observes all dash-cased versions of declared properties', () => {
     'numeric-property',
     'null-property',
     'typeless-property',
-    'internal-property',
   ];
   const actual = el.constructor.observedAttributes;
   assert(expected.length === actual.length);
