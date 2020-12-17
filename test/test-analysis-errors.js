@@ -58,8 +58,8 @@ it('properties should not shadow XElement prototype interface', () => {
 it('properties should not shadow prototype chain interface', () => {
   const messages = [];
   const expectedMessages = [
-    'Unexpected key "TestElement.properties.title" shadows inherited interface, behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.title" has attribute "title" which is related to the inherited property "title", behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.title" shadows reserved interface, behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.title" has attribute "title" which is related to the reserved property "title", behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
   console.warn = message => { // eslint-disable-line no-console
@@ -78,11 +78,11 @@ it('properties should not shadow prototype chain interface', () => {
   }
 });
 
-it('properties with related inherited, asymmetric attributes should not shadow', () => {
+it('properties with related reserved, asymmetric attributes should not shadow', () => {
   const messages = [];
   const expectedMessages = [
-    'Unexpected key "TestElement.properties.class" shadows related inherited attribute "class", behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.class" has attribute "class" which is related to the inherited property "className", behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.class" shadows related reserved attribute "class", behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.class" has attribute "class" which is related to the reserved property "className", behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
   console.warn = message => { // eslint-disable-line no-console
@@ -103,12 +103,12 @@ it('properties with related inherited, asymmetric attributes should not shadow',
 
 // Depending on the browser, the errors might display slightly differently. It
 // should always complain though!
-it('properties with related inherited attributes should not shadow', () => {
+it('properties with related reserved attributes should not shadow', () => {
   const messages = [];
   const expectedMessages = [
-    'Unexpected key "TestElement.properties.role" shadows related inherited attribute "role", behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.role" has attribute "role" which is related to the inherited property "role", behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.role" has attribute "role" which is inherited, behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.role" shadows related reserved attribute "role", behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.role" has attribute "role" which is related to the reserved property "role", behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.role" has attribute "role" which is reserved, behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console
   console.warn = message => { // eslint-disable-line no-console
@@ -154,8 +154,8 @@ it('properties should not shadow data-* attribute interface', () => {
 it('properties should not shadow aria-* attribute interface', () => {
   const messages = [];
   const expectedMessages = [
-    'Unexpected key "TestElement.properties.ariaValueMin" shadows inherited interface, behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.ariaValueMin" has attribute "aria-value-min" which is related to the inherited property "ariaValueMin", behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.ariaValueMin" shadows reserved interface, behavior not guaranteed.',
+    'Unexpected key "TestElement.properties.ariaValueMin" has attribute "aria-value-min" which is related to the reserved property "ariaValueMin", behavior not guaranteed.',
     'Unexpected key "TestElement.properties.ariaValueMin" has attribute "aria-value-min" which shadows aria-* attribute interface, behavior not guaranteed.',
   ];
   const consoleWarn = console.warn; // eslint-disable-line no-console

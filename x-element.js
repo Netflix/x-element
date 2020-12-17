@@ -20,8 +20,7 @@ export default class XElement extends HTMLElement {
   /** Extends HTMLElement.observedAttributes to handle the properties block. */
   static get observedAttributes() {
     XElement.__analyzeConstructor(this);
-    const { attributeMap } = XElement.__constructors.get(this);
-    return [...attributeMap.keys()];
+    return [...XElement.__constructors.get(this).attributeMap.keys()];
   }
 
   /**
@@ -267,7 +266,9 @@ export default class XElement extends HTMLElement {
         internalTarget[key] = undefined;
       }
       propertiesTarget[key] = undefined;
-      attributeMap.set(property.attribute, property);
+      if (property.attribute) {
+        attributeMap.set(property.attribute, property);
+      }
     }
     const listenerMap = new Map(listenersEntries);
     XElement.__constructors.set(constructor, {
@@ -291,35 +292,18 @@ export default class XElement extends HTMLElement {
     const attributes = new Set();
     const inputMap = new Map();
     for (const [key, property] of entries) {
-      // Attribute names are case-insensitive — lowercase to properly check for duplicates.
-      const attribute = property.attribute || XElement.__camelToKebab(key);
-      if (attribute !== attribute.toLowerCase()) {
-        throw new Error(`${path}.${key} has non-standard attribute casing "${attribute}" (use lower-cased names).`);
-      }
-      if (attributes.has(attribute)) {
-        throw new Error(`${path}.${key} causes a duplicated attribute "${attribute}".`);
-      }
-      if (PROBLEMATIC_ATTRIBUTES.has(attribute)) {
-        const { xElementPropertyName, inheritedPropertyName } = PROBLEMATIC_ATTRIBUTES.get(attribute);
-        if (xElementPropertyName) {
-          throw new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to an x-element property "${xElementPropertyName}".`);
-        } else if (inheritedPropertyName) {
-          console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to the inherited property "${inheritedPropertyName}", behavior not guaranteed.`); // eslint-disable-line no-console
-        } else {
-          console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is inherited, behavior not guaranteed.`); // eslint-disable-line no-console
+      if (!property.internal) {
+        // Attribute names are case-insensitive — lowercase to properly check for duplicates.
+        const attribute = property.attribute ?? XElement.__camelToKebab(key);
+        XElement.__validatePropertyAttribute(constructor, key, property, attribute);
+        if (attributes.has(attribute)) {
+          throw new Error(`${path}.${key} causes a duplicated attribute "${attribute}".`);
         }
+        attributes.add(attribute);
       }
-      if (attribute.startsWith('aria-')) {
-        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows aria-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
-      }
-      if (attribute.startsWith('data-')) {
-        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows data-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
-      }
-      attributes.add(attribute);
-      if (Reflect.has(property, 'input')) {
-        const { input } = property;
-        inputMap.set(property, input.map(inputKey => properties[inputKey]));
-        for (const [index, inputKey] of Object.entries(input)) {
+      if (property.input) {
+        inputMap.set(property, property.input.map(inputKey => properties[inputKey]));
+        for (const [index, inputKey] of Object.entries(property.input)) {
           if (XElement.__typeIsWrong(Object, properties[inputKey])) {
             throw new Error(`${path}.${key}.input[${index}] has an unexpected item ("${inputKey}" has not been declared).`);
           }
@@ -337,16 +321,6 @@ export default class XElement extends HTMLElement {
     const path = `${constructor.name}.properties.${key}`;
     if (key.includes('-')) {
       throw new Error(`Unexpected key "${path}" contains "-" (property names should be camelCased).`);
-    }
-    if (PROBLEMATIC_PROPERTY_NAMES.has(key)) {
-      const { xElementPropertyName, inheritedAttribute } = PROBLEMATIC_PROPERTY_NAMES.get(key);
-      if (xElementPropertyName) {
-        throw new Error(`Unexpected key "${path}" shadows in XElement.prototype interface.`);
-      } else if (inheritedAttribute) {
-        console.warn(`Unexpected key "${path}" shadows related inherited attribute "${inheritedAttribute}", behavior not guaranteed.`); // eslint-disable-line no-console
-      } else {
-        console.warn(`Unexpected key "${path}" shadows inherited interface, behavior not guaranteed.`); // eslint-disable-line no-console
-      }
     }
     for (const propertyKey of Object.keys(property)) {
       if (XElement.__propertyKeys.has(propertyKey) === false) {
@@ -368,6 +342,16 @@ export default class XElement extends HTMLElement {
       if (Reflect.has(property, subKey) && XElement.__typeIsWrong(Boolean, property[subKey])) {
         const typeName = XElement.__getTypeName(property[subKey]);
         throw new Error(`Unexpected value for "${path}.${subKey}" (expected Boolean, got ${typeName}).`);
+      }
+    }
+    if (!internal && RESERVED_PROPERTY_NAMES.has(key)) {
+      const { xElementPropertyName, reservedAttribute } = RESERVED_PROPERTY_NAMES.get(key);
+      if (xElementPropertyName) {
+        throw new Error(`Unexpected key "${path}" shadows in XElement.prototype interface.`);
+      } else if (reservedAttribute) {
+        console.warn(`Unexpected key "${path}" shadows related reserved attribute "${reservedAttribute}", behavior not guaranteed.`); // eslint-disable-line no-console
+      } else {
+        console.warn(`Unexpected key "${path}" shadows reserved interface, behavior not guaranteed.`); // eslint-disable-line no-console
       }
     }
     if (Reflect.has(property, 'attribute') && XElement.__typeIsWrong(String, attribute)) {
@@ -429,6 +413,30 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  static __validatePropertyAttribute(constructor, key, property, attribute) {
+    const path = `${constructor.name}.properties`;
+    // Attribute names are case-insensitive — lowercase to properly check for duplicates.
+    if (attribute !== attribute.toLowerCase()) {
+      throw new Error(`${path}.${key} has non-standard attribute casing "${attribute}" (use lower-cased names).`);
+    }
+    if (RESERVED_ATTRIBUTES.has(attribute)) {
+      const { xElementPropertyName, reservedPropertyName } = RESERVED_ATTRIBUTES.get(attribute);
+      if (xElementPropertyName) {
+        throw new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to an x-element property "${xElementPropertyName}".`);
+      } else if (reservedPropertyName) {
+        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to the reserved property "${reservedPropertyName}", behavior not guaranteed.`); // eslint-disable-line no-console
+      } else {
+        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is reserved, behavior not guaranteed.`); // eslint-disable-line no-console
+      }
+    }
+    if (attribute.startsWith('aria-')) {
+      console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows aria-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
+    }
+    if (attribute.startsWith('data-')) {
+      console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows data-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
+    }
+  }
+
   // Determines if computed property inputs form a cycle.
   static __propertyIsCyclic(property, inputMap, seen = new Set()) {
     if (inputMap.has(property)) {
@@ -458,7 +466,7 @@ export default class XElement extends HTMLElement {
   // Called once per-property during constructor analysis.
   static __mutateProperty(constructor, propertyMap, key, property) {
     property.key = key;
-    property.attribute = property.attribute ?? XElement.__camelToKebab(key);
+    property.attribute = property.internal ? undefined : property.attribute ?? XElement.__camelToKebab(key);
     property.input = new Set((property.input ?? []).map(inputKey => propertyMap.get(inputKey)));
     property.output = property.output ?? new Set();
     for (const input of property.input) {
@@ -507,19 +515,21 @@ export default class XElement extends HTMLElement {
 
   // Wrapper to improve ergonomics of syncing attributes back to properties.
   static __addPropertySync(constructor, property) {
-    if (Reflect.has(property, 'type') && XElement.__serializableTypes.has(property.type) === false) {
-      property.sync = () => {
-        const path = `${constructor.name}.properties.${property.key}`;
-        throw new Error(`Unexpected deserialization for "${path}" (cannot deserialize into ${property.type.name}).`);
-      };
-    } else {
-      property.sync = (host, value, oldValue) => {
-        const { initialized, reflecting } = XElement.__hosts.get(host);
-        if (reflecting === false && initialized && value !== oldValue) {
-          const deserialization = XElement.__deserializeProperty(host, property, value);
-          host[property.key] = deserialization;
-        }
-      };
+    if (!property.internal) {
+      if (Reflect.has(property, 'type') && XElement.__serializableTypes.has(property.type) === false) {
+        property.sync = () => {
+          const path = `${constructor.name}.properties.${property.key}`;
+          throw new Error(`Unexpected deserialization for "${path}" (cannot deserialize into ${property.type.name}).`);
+        };
+      } else {
+        property.sync = (host, value, oldValue) => {
+          const { initialized, reflecting } = XElement.__hosts.get(host);
+          if (reflecting === false && initialized && value !== oldValue) {
+            const deserialization = XElement.__deserializeProperty(host, property, value);
+            host[property.key] = deserialization;
+          }
+        };
+      }
     }
   }
 
@@ -739,7 +749,7 @@ export default class XElement extends HTMLElement {
     if (Reflect.has(host, key)) {
       value = host[key];
       found = true;
-    } else if (host.hasAttribute(attribute)) {
+    } else if (attribute && host.hasAttribute(attribute)) {
       const attributeValue = host.getAttribute(attribute);
       value = XElement.__deserializeProperty(host, property, attributeValue);
       found = true;
@@ -748,25 +758,22 @@ export default class XElement extends HTMLElement {
   }
 
   static __initializeProperty(host, property) {
-    const { key, compute, readOnly, internal } = property;
-    const path = `${host.constructor.name}.properties.${key}`;
-    const get = internal
-      ? () => { throw new Error(`Property "${path}" is internal (internal.${key}).`); }
-      : () => XElement.__getPropertyValue(host, property);
-    const set = compute || readOnly || internal
-      ? () => {
-        if (compute && !internal) {
-          throw new Error(`Property "${path}" is computed (computed properties are read-only).`);
-        } else if (readOnly) {
-          throw new Error(`Property "${path}" is read-only (internal.${key}).`);
-        } else {
-          throw new Error(`Property "${path}" is internal (internal.${key}).`);
+    if (!property.internal) {
+      const { key, compute, readOnly } = property;
+      const path = `${host.constructor.name}.properties.${key}`;
+      const get = () => XElement.__getPropertyValue(host, property);
+      const set = compute || readOnly
+        ? () => {
+          if (compute) {
+            throw new Error(`Property "${path}" is computed (computed properties are read-only).`);
+          } else {
+            throw new Error(`Property "${path}" is read-only.`);
+          }
         }
-      }
-      : value => XElement.__setPropertyValue(host, property, value);
-    const enumerable = !internal;
-    Reflect.deleteProperty(host, key);
-    Reflect.defineProperty(host, key, { get, set, enumerable });
+        : value => XElement.__setPropertyValue(host, property, value);
+      Reflect.deleteProperty(host, key);
+      Reflect.defineProperty(host, key, { get, set, enumerable: true });
+    }
   }
 
   static __addListener(host, element, type, callback, options) {
@@ -937,33 +944,33 @@ XElement.__propertyKeys = new Set(['type', 'attribute', 'input', 'compute', 'obs
 XElement.__serializableTypes = new Set([Boolean, String, Number]);
 XElement.__caseMap = new Map();
 
-const PROBLEMATIC_PROPERTY_NAMES = new Map();
-const PROBLEMATIC_ATTRIBUTES = new Map();
+const RESERVED_PROPERTY_NAMES = new Map();
+const RESERVED_ATTRIBUTES = new Map();
 for (const propertyName of Object.getOwnPropertyNames(XElement.prototype)) {
-  if (PROBLEMATIC_PROPERTY_NAMES.has(propertyName) === false) {
-    PROBLEMATIC_PROPERTY_NAMES.set(propertyName, {});
+  if (RESERVED_PROPERTY_NAMES.has(propertyName) === false) {
+    RESERVED_PROPERTY_NAMES.set(propertyName, {});
   }
-  PROBLEMATIC_PROPERTY_NAMES.get(propertyName).xElementPropertyName = propertyName;
+  RESERVED_PROPERTY_NAMES.get(propertyName).xElementPropertyName = propertyName;
 
   const attribute = XElement.__camelToKebab(propertyName);
-  if (PROBLEMATIC_ATTRIBUTES.has(attribute) === false) {
-    PROBLEMATIC_ATTRIBUTES.set(attribute, {});
+  if (RESERVED_ATTRIBUTES.has(attribute) === false) {
+    RESERVED_ATTRIBUTES.set(attribute, {});
   }
-  PROBLEMATIC_ATTRIBUTES.get(attribute).xElementPropertyName = propertyName;
+  RESERVED_ATTRIBUTES.get(attribute).xElementPropertyName = propertyName;
 }
 
 let prototype = HTMLElement.prototype;
 while (prototype) {
   const propertyNames = Object.getOwnPropertyNames(prototype);
   for (const propertyName of propertyNames) {
-    if (PROBLEMATIC_PROPERTY_NAMES.has(propertyName) === false) {
-      PROBLEMATIC_PROPERTY_NAMES.set(propertyName, {});
+    if (RESERVED_PROPERTY_NAMES.has(propertyName) === false) {
+      RESERVED_PROPERTY_NAMES.set(propertyName, {});
     }
     const attribute = XElement.__camelToKebab(propertyName);
-    if (PROBLEMATIC_ATTRIBUTES.has(attribute) === false) {
-      PROBLEMATIC_ATTRIBUTES.set(attribute, {});
+    if (RESERVED_ATTRIBUTES.has(attribute) === false) {
+      RESERVED_ATTRIBUTES.set(attribute, {});
     }
-    PROBLEMATIC_ATTRIBUTES.get(attribute).inheritedPropertyName = propertyName;
+    RESERVED_ATTRIBUTES.get(attribute).reservedPropertyName = propertyName;
   }
   prototype = Object.getPrototypeOf(prototype);
 }
@@ -988,18 +995,18 @@ const ASYMMETRIC_ATTRIBUTE_MAP = new Map([
 ]);
 
 for (const [attribute, propertyName] of ASYMMETRIC_ATTRIBUTE_MAP.entries()) {
-  if (PROBLEMATIC_ATTRIBUTES.has(attribute) === false) {
-    PROBLEMATIC_ATTRIBUTES.set(attribute, {});
+  if (RESERVED_ATTRIBUTES.has(attribute) === false) {
+    RESERVED_ATTRIBUTES.set(attribute, {});
   }
   if (propertyName) {
-    PROBLEMATIC_ATTRIBUTES.get(attribute).inheritedPropertyName = propertyName;
-    if (PROBLEMATIC_PROPERTY_NAMES.has(propertyName) === false) {
-      PROBLEMATIC_PROPERTY_NAMES.set(propertyName, {});
+    RESERVED_ATTRIBUTES.get(attribute).reservedPropertyName = propertyName;
+    if (RESERVED_PROPERTY_NAMES.has(propertyName) === false) {
+      RESERVED_PROPERTY_NAMES.set(propertyName, {});
     }
-    PROBLEMATIC_PROPERTY_NAMES.get(propertyName).inheritedAttribute = attribute;
+    RESERVED_PROPERTY_NAMES.get(propertyName).reservedAttribute = attribute;
   }
-  if (PROBLEMATIC_PROPERTY_NAMES.has(attribute) === false) {
-    PROBLEMATIC_PROPERTY_NAMES.set(attribute, {});
+  if (RESERVED_PROPERTY_NAMES.has(attribute) === false) {
+    RESERVED_PROPERTY_NAMES.set(attribute, {});
   }
-  PROBLEMATIC_PROPERTY_NAMES.get(attribute).inheritedAttribute = attribute;
+  RESERVED_PROPERTY_NAMES.get(attribute).reservedAttribute = attribute;
 }
