@@ -25,7 +25,7 @@ it('property attributes should not have non-standard casing', () => {
   try {
     class TestElement extends XElement {
       static get properties() {
-        return { ok: { attribute: 'this-IS-not-OK'} };
+        return { ok: { type: String, attribute: 'this-IS-not-OK'} };
       }
     }
     customElements.define('test-element', TestElement);
@@ -53,126 +53,6 @@ it('properties should not shadow XElement prototype interface', () => {
     passed = error.message === expected;
   }
   assert(passed, message);
-});
-
-it('properties should not shadow prototype chain interface', () => {
-  const messages = [];
-  const expectedMessages = [
-    'Unexpected key "TestElement.properties.title" shadows reserved interface, behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.title" has attribute "title" which is related to the reserved property "title", behavior not guaranteed.',
-  ];
-  const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = message => { // eslint-disable-line no-console
-    messages.push(message);
-  };
-  class TestElement extends XElement {
-    static get properties() {
-      return { title: {} };
-    }
-  }
-  customElements.define('test-element-warning-0', TestElement);
-  console.warn = consoleWarn; // eslint-disable-line no-console
-  assert(messages.length === expectedMessages.length);
-  for (let index = 0; index < messages.length; index++) {
-    assert(messages[index] === expectedMessages[index], `${index}::${messages[index]}`);
-  }
-});
-
-it('properties with related reserved, asymmetric attributes should not shadow', () => {
-  const messages = [];
-  const expectedMessages = [
-    'Unexpected key "TestElement.properties.class" shadows related reserved attribute "class", behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.class" has attribute "class" which is related to the reserved property "className", behavior not guaranteed.',
-  ];
-  const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = message => { // eslint-disable-line no-console
-    messages.push(message);
-  };
-  class TestElement extends XElement {
-    static get properties() {
-      return { class: {} };
-    }
-  }
-  customElements.define('test-element-warning-1', TestElement);
-  console.warn = consoleWarn; // eslint-disable-line no-console
-  assert(messages.length === expectedMessages.length);
-  for (let index = 0; index < messages.length; index++) {
-    assert(messages[index] === expectedMessages[index], `${index}::${messages[index]}`);
-  }
-});
-
-// Depending on the browser, the errors might display slightly differently. It
-// should always complain though!
-it('properties with related reserved attributes should not shadow', () => {
-  const messages = [];
-  const expectedMessages = [
-    'Unexpected key "TestElement.properties.role" shadows related reserved attribute "role", behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.role" has attribute "role" which is related to the reserved property "role", behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.role" has attribute "role" which is reserved, behavior not guaranteed.',
-  ];
-  const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = message => { // eslint-disable-line no-console
-    messages.push(message);
-  };
-  class TestElement extends XElement {
-    static get properties() {
-      return { role: {} };
-    }
-  }
-  customElements.define('test-element-warning-2', TestElement);
-  console.warn = consoleWarn; // eslint-disable-line no-console
-  assert(messages.length > 0);
-  for (const message of messages) {
-    assert(expectedMessages.includes(message), message);
-  }
-});
-
-it('properties should not shadow data-* attribute interface', () => {
-  const messages = [];
-  const expectedMessages = [
-    'Unexpected key "TestElement.properties.dataFoo" has attribute "data-foo" which shadows data-* attribute interface, behavior not guaranteed.',
-  ];
-  const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = message => { // eslint-disable-line no-console
-    messages.push(message);
-  };
-  class TestElement extends XElement {
-    static get properties() {
-      return { dataFoo: {} };
-    }
-  }
-  customElements.define('test-element-warning-3', TestElement);
-  console.warn = consoleWarn; // eslint-disable-line no-console
-  assert(messages.length === expectedMessages.length);
-  for (let index = 0; index < messages.length; index++) {
-    assert(messages[index] === expectedMessages[index], `${index}::${messages[index]}`);
-  }
-});
-
-// Depending on the browser, the errors might display slightly differently. It
-// should always complain though!
-it('properties should not shadow aria-* attribute interface', () => {
-  const messages = [];
-  const expectedMessages = [
-    'Unexpected key "TestElement.properties.ariaValueMin" shadows reserved interface, behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.ariaValueMin" has attribute "aria-value-min" which is related to the reserved property "ariaValueMin", behavior not guaranteed.',
-    'Unexpected key "TestElement.properties.ariaValueMin" has attribute "aria-value-min" which shadows aria-* attribute interface, behavior not guaranteed.',
-  ];
-  const consoleWarn = console.warn; // eslint-disable-line no-console
-  console.warn = message => { // eslint-disable-line no-console
-    messages.push(message);
-  };
-  class TestElement extends XElement {
-    static get properties() {
-      return { ariaValueMin: {} };
-    }
-  }
-  customElements.define('test-element-warning-4', TestElement);
-  console.warn = consoleWarn; // eslint-disable-line no-console
-  assert(messages.length > 0);
-  for (const message of messages) {
-    assert(expectedMessages.includes(message), message);
-  }
 });
 
 it('property keys should only be from our known set', () => {
@@ -307,7 +187,7 @@ it('attributes cannot be duplicated', () => {
   try {
     class TestElement extends XElement {
       static get properties() {
-        return { attribute: {}, aliased: { attribute: 'attribute' } };
+        return { attribute: { type: String }, aliased: { type: String, attribute: 'attribute' } };
       }
     }
     customElements.define('test-element', TestElement);

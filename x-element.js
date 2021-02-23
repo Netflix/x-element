@@ -292,7 +292,7 @@ export default class XElement extends HTMLElement {
     const attributes = new Set();
     const inputMap = new Map();
     for (const [key, property] of entries) {
-      if (!property.internal) {
+      if (!property.internal && XElement.__serializableTypes.has(property.type)) {
         // Attribute names are case-insensitive — lowercase to properly check for duplicates.
         const attribute = property.attribute ?? XElement.__camelToKebab(key);
         XElement.__validatePropertyAttribute(constructor, key, property, attribute);
@@ -344,15 +344,8 @@ export default class XElement extends HTMLElement {
         throw new Error(`Unexpected value for "${path}.${subKey}" (expected Boolean, got ${typeName}).`);
       }
     }
-    if (!internal && RESERVED_PROPERTY_NAMES.has(key)) {
-      const { xElementPropertyName, reservedAttribute } = RESERVED_PROPERTY_NAMES.get(key);
-      if (xElementPropertyName) {
-        throw new Error(`Unexpected key "${path}" shadows in XElement.prototype interface.`);
-      } else if (reservedAttribute) {
-        console.warn(`Unexpected key "${path}" shadows related reserved attribute "${reservedAttribute}", behavior not guaranteed.`); // eslint-disable-line no-console
-      } else {
-        console.warn(`Unexpected key "${path}" shadows reserved interface, behavior not guaranteed.`); // eslint-disable-line no-console
-      }
+    if (!internal && XElement.__prototypeInterface.has(key)) {
+      throw new Error(`Unexpected key "${path}" shadows in XElement.prototype interface.`);
     }
     if (Reflect.has(property, 'attribute') && XElement.__typeIsWrong(String, attribute)) {
       const typeName = XElement.__getTypeName(attribute);
@@ -386,8 +379,12 @@ export default class XElement extends HTMLElement {
         }
       }
     }
-    if (reflect && (Reflect.has(property, 'type') === false || XElement.__serializableTypes.has(property.type) === false)) {
-      const typeName = property.type?.prototype && property.type?.name ? property.type.name : XElement.__getTypeName(property.type);
+    const unserializable = XElement.__serializableTypes.has(property.type) === false;
+    const typeName = property.type?.prototype && property.type?.name ? property.type.name : XElement.__getTypeName(property.type);
+    if (attribute && unserializable) {
+      throw new Error(`Found unserializable "${path}.type" (${typeName}) but "${path}.attribute" is defined.`);
+    }
+    if (reflect && unserializable) {
       throw new Error(`Found unserializable "${path}.type" (${typeName}) but "${path}.reflect" is true.`);
     }
     if (compute && !input) {
@@ -418,22 +415,6 @@ export default class XElement extends HTMLElement {
     // Attribute names are case-insensitive — lowercase to properly check for duplicates.
     if (attribute !== attribute.toLowerCase()) {
       throw new Error(`${path}.${key} has non-standard attribute casing "${attribute}" (use lower-cased names).`);
-    }
-    if (RESERVED_ATTRIBUTES.has(attribute)) {
-      const { xElementPropertyName, reservedPropertyName } = RESERVED_ATTRIBUTES.get(attribute);
-      if (xElementPropertyName) {
-        throw new Error(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to an x-element property "${xElementPropertyName}".`);
-      } else if (reservedPropertyName) {
-        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is related to the reserved property "${reservedPropertyName}", behavior not guaranteed.`); // eslint-disable-line no-console
-      } else {
-        console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which is reserved, behavior not guaranteed.`); // eslint-disable-line no-console
-      }
-    }
-    if (attribute.startsWith('aria-')) {
-      console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows aria-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
-    }
-    if (attribute.startsWith('data-')) {
-      console.warn(`Unexpected key "${path}.${key}" has attribute "${attribute}" which shadows data-* attribute interface, behavior not guaranteed.`); // eslint-disable-line no-console
     }
   }
 
@@ -466,7 +447,9 @@ export default class XElement extends HTMLElement {
   // Called once per-property during constructor analysis.
   static __mutateProperty(constructor, propertyMap, key, property) {
     property.key = key;
-    property.attribute = property.internal ? undefined : property.attribute ?? XElement.__camelToKebab(key);
+    property.attribute = !property.internal && XElement.__serializableTypes.has(property.type)
+      ? property.attribute ?? XElement.__camelToKebab(key)
+      : undefined;
     property.input = new Set((property.input ?? []).map(inputKey => propertyMap.get(inputKey)));
     property.output = property.output ?? new Set();
     for (const input of property.input) {
@@ -517,21 +500,14 @@ export default class XElement extends HTMLElement {
 
   // Wrapper to improve ergonomics of syncing attributes back to properties.
   static __addPropertySync(constructor, property) {
-    if (!property.internal) {
-      if (Reflect.has(property, 'type') && XElement.__serializableTypes.has(property.type) === false) {
-        property.sync = () => {
-          const path = `${constructor.name}.properties.${property.key}`;
-          throw new Error(`Unexpected deserialization for "${path}" (cannot deserialize into ${property.type.name}).`);
-        };
-      } else {
-        property.sync = (host, value, oldValue) => {
-          const { initialized, reflecting } = XElement.__hosts.get(host);
-          if (reflecting === false && initialized && value !== oldValue) {
-            const deserialization = XElement.__deserializeProperty(host, property, value);
-            host[property.key] = deserialization;
-          }
-        };
-      }
+    if (!property.internal && XElement.__serializableTypes.has(property.type)) {
+      property.sync = (host, value, oldValue) => {
+        const { initialized, reflecting } = XElement.__hosts.get(host);
+        if (reflecting === false && initialized && value !== oldValue) {
+          const deserialization = XElement.__deserializeProperty(host, property, value);
+          host[property.key] = deserialization;
+        }
+      };
     }
   }
 
@@ -899,19 +875,15 @@ export default class XElement extends HTMLElement {
   }
 
   static __deserializeProperty(host, property, value) {
-    if (property.type) {
-      if (property.type === Boolean) {
-        // Per HTML spec, every value other than null is considered true.
-        return value !== null;
-      } else if (value === null) {
-        // Null as an attribute is really "undefined" as a property.
-        return undefined;
-      } else {
-        // Coerce type as needed.
-        return property.type(value);
-      }
+    if (property.type === Boolean) {
+      // Per HTML spec, every value other than null is considered true.
+      return value !== null;
+    } else if (value === null) {
+      // Null as an attribute is really "undefined" as a property.
+      return undefined;
     } else {
-      return value;
+      // Coerce type as needed.
+      return property.type(value);
     }
   }
 
@@ -946,70 +918,4 @@ XElement.__hosts = new WeakMap();
 XElement.__propertyKeys = new Set(['type', 'attribute', 'input', 'compute', 'observe', 'reflect', 'internal', 'readOnly', 'initial', 'default']);
 XElement.__serializableTypes = new Set([Boolean, String, Number]);
 XElement.__caseMap = new Map();
-
-const RESERVED_PROPERTY_NAMES = new Map();
-const RESERVED_ATTRIBUTES = new Map();
-for (const propertyName of Object.getOwnPropertyNames(XElement.prototype)) {
-  if (RESERVED_PROPERTY_NAMES.has(propertyName) === false) {
-    RESERVED_PROPERTY_NAMES.set(propertyName, {});
-  }
-  RESERVED_PROPERTY_NAMES.get(propertyName).xElementPropertyName = propertyName;
-
-  const attribute = XElement.__camelToKebab(propertyName);
-  if (RESERVED_ATTRIBUTES.has(attribute) === false) {
-    RESERVED_ATTRIBUTES.set(attribute, {});
-  }
-  RESERVED_ATTRIBUTES.get(attribute).xElementPropertyName = propertyName;
-}
-
-let prototype = HTMLElement.prototype;
-while (prototype) {
-  const propertyNames = Object.getOwnPropertyNames(prototype);
-  for (const propertyName of propertyNames) {
-    if (RESERVED_PROPERTY_NAMES.has(propertyName) === false) {
-      RESERVED_PROPERTY_NAMES.set(propertyName, {});
-    }
-    const attribute = XElement.__camelToKebab(propertyName);
-    if (RESERVED_ATTRIBUTES.has(attribute) === false) {
-      RESERVED_ATTRIBUTES.set(attribute, {});
-    }
-    RESERVED_ATTRIBUTES.get(attribute).reservedPropertyName = propertyName;
-  }
-  prototype = Object.getPrototypeOf(prototype);
-}
-
-// The following list is comprised of "global" attributes which do not reflect
-// symmetrically from their associated properties. E.g., "className" >> "class".
-// See https://html.spec.whatwg.org/multipage/dom.html#global-attributes.
-const ASYMMETRIC_ATTRIBUTE_MAP = new Map([
-  ['accesskey', 'accessKey'],
-  ['class', 'className'],
-  ['contenteditable', 'contentEditable'],
-  ['enterkeyhint', 'enterKeyHint'],
-  ['inputmode', 'inputMode'],
-  ['tabindex', 'tabIndex'],
-  ['itemref', undefined],
-  ['itemid', undefined],
-  ['itemscope', undefined],
-  ['itemprop', undefined],
-  ['itemtype', undefined],
-  ['is', undefined],
-  ['role', undefined],
-]);
-
-for (const [attribute, propertyName] of ASYMMETRIC_ATTRIBUTE_MAP.entries()) {
-  if (RESERVED_ATTRIBUTES.has(attribute) === false) {
-    RESERVED_ATTRIBUTES.set(attribute, {});
-  }
-  if (propertyName) {
-    RESERVED_ATTRIBUTES.get(attribute).reservedPropertyName = propertyName;
-    if (RESERVED_PROPERTY_NAMES.has(propertyName) === false) {
-      RESERVED_PROPERTY_NAMES.set(propertyName, {});
-    }
-    RESERVED_PROPERTY_NAMES.get(propertyName).reservedAttribute = attribute;
-  }
-  if (RESERVED_PROPERTY_NAMES.has(attribute) === false) {
-    RESERVED_PROPERTY_NAMES.set(attribute, {});
-  }
-  RESERVED_PROPERTY_NAMES.get(attribute).reservedAttribute = attribute;
-}
+XElement.__prototypeInterface = new Set(Object.getOwnPropertyNames(XElement.prototype));
