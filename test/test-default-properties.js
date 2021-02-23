@@ -26,18 +26,14 @@ class TestElementAnonymous extends XElement {
         default: (() => 'one')(),
       },
       two: {
-        type: String,
-        default: () => 'two',
-      },
-      three: {
-        type: String,
-        default: () => () => 'three',
+        type: Object,
+        default: () => ({ two: 'two' }),
       },
     };
   }
   static template(html) {
-    return ({ one, two, three }) => {
-      return html`<div>${one}, ${two}, ${three}</div>`;
+    return ({ one, two }) => {
+      return html`<div>${one}, ${two.two}</div>`;
     };
   }
 }
@@ -51,19 +47,10 @@ class TestElementStatic extends XElement {
     return this.one;
   }
   static get two() {
-    return 'two';
+    return { two: 'two' };
   }
   static getTwo() {
     return this.two;
-  }
-  static get three() {
-    return 'three';
-  }
-  static getThree() {
-    return this.three;
-  }
-  static getThreeWrapper() {
-    return this.getThree;
   }
   static get properties() {
     return {
@@ -72,18 +59,14 @@ class TestElementStatic extends XElement {
         default: this.getOne(),
       },
       two: {
-        type: String,
+        type: Object,
         default: this.getTwo,
-      },
-      wrappedFunctionInitial: {
-        type: String,
-        default: this.getThree,
       },
     };
   }
   static template(html) {
-    return ({ one, two, three }) => {
-      return html`<div>${one}, ${two}, ${three}</div>`;
+    return ({ one, two }) => {
+      return html`<div>${one}, ${two.two}</div>`;
     };
   }
 }
@@ -98,9 +81,9 @@ class TestElementEdge extends XElement {
         default: 'one',
       },
       two: {
-        type: String,
+        type: Object,
         initial: null,
-        default: 'two',
+        default: () => ({ two: 'two' }),
       },
       three: {
         type: String,
@@ -112,7 +95,7 @@ class TestElementEdge extends XElement {
   }
   static template(html) {
     return ({ one, two, three }) => {
-      return html`<div>${one}, ${two}, ${three}</div>`;
+      return html`<div>${one}, ${two.two}, ${three}</div>`;
     };
   }
 }
@@ -175,49 +158,68 @@ it('basic default properties (predefined attributes)', () => {
 it('anonymous default properties', () => {
   const el = document.createElement('test-element-anonymous');
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'one, two, three');
+  assert(el.shadowRoot.textContent === 'one, two');
 });
 
 it('anonymous default properties (predefined undefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = undefined;
   el.two = undefined;
-  el.three = undefined;
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'one, two, three');
+  assert(el.shadowRoot.textContent === 'one, two');
 });
 
 it('anonymous default properties (predefined null properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = null;
   el.two = null;
-  el.three = null;
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'one, two, three');
+  assert(el.shadowRoot.textContent === 'one, two');
 });
 
 it('anonymous default properties (predefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = 'ONE';
-  el.two = 'TWO';
-  el.three = 'THREE';
+  el.two = { two: 'TWO' };
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'ONE, TWO, THREE');
+  assert(el.shadowRoot.textContent === 'ONE, TWO');
 });
 
 it('anonymous default properties (predefined attributes)', () => {
   const el = document.createElement('test-element-anonymous');
   el.setAttribute('one', 'ONE');
-  el.setAttribute('two', 'TWO');
-  el.setAttribute('three', 'THREE');
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'ONE, TWO, THREE');
+  assert(el.shadowRoot.textContent === 'ONE, two');
 });
 
 it('initial + default & computed + default properties', () => {
   const el = document.createElement('test-element-edge');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one, two, three');
+});
+
+it('default values from functions are unique per instance', () => {
+  const el1 = document.createElement('test-element-edge');
+  const el2 = document.createElement('test-element-edge');
+  document.body.append(el1, el2);
+  assert(el1.shadowRoot.textContent === 'one, two, three');
+  assert(el2.shadowRoot.textContent === 'one, two, three');
+  assert(el1.two !== el2.two);
+});
+
+it('default values from functions persist per instance', async () => {
+  const el = document.createElement('test-element-edge');
+  document.body.append(el);
+  assert(el.shadowRoot.textContent === 'one, two, three');
+  const defaultTwo = el.two;
+  el.two = { two: 'TWO' };
+  await Promise.resolve();
+  assert(el.shadowRoot.textContent === 'one, TWO, three');
+  assert(el.two !== defaultTwo);
+  el.two = undefined;
+  await Promise.resolve();
+  assert(el.shadowRoot.textContent === 'one, two, three');
+  assert(el.two === defaultTwo);
 });
 
 it('cannot set default to a bad type', () => {
