@@ -29,15 +29,11 @@ class TestElementAnonymous extends XElement {
         type: String,
         initial: () => 'two',
       },
-      three: {
-        type: String,
-        initial: () => () => 'three',
-      },
     };
   }
   static template(html) {
-    return ({ one, two, three }) => {
-      return html`<div>${one}, ${two}, ${three}</div>`;
+    return ({ one, two }) => {
+      return html`<div>${one}, ${two}</div>`;
     };
   }
 }
@@ -56,15 +52,6 @@ class TestElementStatic extends XElement {
   static getTwo() {
     return this.two;
   }
-  static get three() {
-    return 'three';
-  }
-  static getThree() {
-    return this.three;
-  }
-  static getThreeWrapper() {
-    return this.getThree;
-  }
   static get properties() {
     return {
       one: {
@@ -75,15 +62,11 @@ class TestElementStatic extends XElement {
         type: String,
         initial: this.getTwo,
       },
-      wrappedFunctionInitial: {
-        type: String,
-        initial: this.getThree,
-      },
     };
   }
   static template(html) {
-    return ({ one, two, three }) => {
-      return html`<div>${one}, ${two}, ${three}</div>`;
+    return ({ one, two }) => {
+      return html`<div>${one}, ${two}</div>`;
     };
   }
 }
@@ -126,43 +109,39 @@ it('basic initial properties (predefined attributes)', () => {
 it('anonymous initial properties', () => {
   const el = document.createElement('test-element-anonymous');
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'one, two, three');
+  assert(el.shadowRoot.textContent === 'one, two');
 });
 
 it('anonymous initial properties (predefined undefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = undefined;
   el.two = undefined;
-  el.three = undefined;
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'one, two, three');
+  assert(el.shadowRoot.textContent === 'one, two');
 });
 
 it('anonymous initial properties (predefined null properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = null;
   el.two = null;
-  el.three = null;
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'one, two, three');
+  assert(el.shadowRoot.textContent === 'one, two');
 });
 
 it('anonymous initial properties (predefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = 'ONE';
   el.two = 'TWO';
-  el.three = 'THREE';
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'ONE, TWO, THREE');
+  assert(el.shadowRoot.textContent === 'ONE, TWO');
 });
 
 it('anonymous initial properties (predefined attributes)', () => {
   const el = document.createElement('test-element-anonymous');
   el.setAttribute('one', 'ONE');
   el.setAttribute('two', 'TWO');
-  el.setAttribute('three', 'THREE');
   document.body.append(el);
-  assert(el.shadowRoot.textContent === 'ONE, TWO, THREE');
+  assert(el.shadowRoot.textContent === 'ONE, TWO');
 });
 
 it('cannot set initial to a bad type', () => {

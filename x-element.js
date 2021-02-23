@@ -485,13 +485,10 @@ export default class XElement extends HTMLElement {
   static __addPropertyInitial(constructor, property) {
     // Should take `value` in and spit the initial or value out.
     if (Reflect.has(property, 'initial')) {
-      const initialValue = XElement.__typeIsWrong(Function, property.initial)
-        ? property.initial
-        : property.initial.call(constructor);
+      const initialValue = property.initial;
       const isFunction = XElement.__typeIsWrong(Function, initialValue) === false;
-      property.initial = value => {
-        return value ?? (isFunction ? initialValue.call(constructor) : initialValue);
-      };
+      property.initial = value =>
+        value ?? (isFunction ? initialValue.call(constructor) : initialValue);
     } else {
       property.initial = value => value;
     }
@@ -501,15 +498,20 @@ export default class XElement extends HTMLElement {
   static __addPropertyDefault(constructor, property) {
     // Should take `value` in and spit the default or value out.
     if (Reflect.has(property, 'default')) {
-      const defaultValue = XElement.__typeIsWrong(Function, property.default)
-        ? property.default
-        : property.default.call(constructor);
+      const { key, default: defaultValue } = property;
       const isFunction = XElement.__typeIsWrong(Function, defaultValue) === false;
-      property.default = value => {
-        return value ?? (isFunction ? defaultValue.call(constructor) : defaultValue);
+      const getOrCreateDefault = host => {
+        const { defaultMap } = XElement.__hosts.get(host);
+        if (!defaultMap.has(key)) {
+          const value = isFunction ? defaultValue.call(constructor) : defaultValue;
+          defaultMap.set(key, value);
+          return value;
+        }
+        return defaultMap.get(key);
       };
+      property.default = (host, value) => value ?? getOrCreateDefault(host);
     } else {
-      property.default = value => value;
+      property.default = (host, value) => value;
     }
   }
 
@@ -562,7 +564,7 @@ export default class XElement extends HTMLElement {
             args.push(XElement.__getPropertyValue(host, input));
           }
           if (saved.args === undefined || args.some((arg, index) => arg !== saved.args[index])) {
-            const value = property.default(compute.call(constructor, ...args));
+            const value = property.default(host, compute.call(constructor, ...args));
             XElement.__validatePropertyValue(host, property, value);
             valueMap.set(property, value);
             saved.args = args;
@@ -608,6 +610,7 @@ export default class XElement extends HTMLElement {
     const internal = XElement.__createInternal(host);
     const computeMap = new Map();
     const observeMap = new Map();
+    const defaultMap = new Map();
     const { propertyMap } = XElement.__constructors.get(host.constructor);
     for (const property of propertyMap.values()) {
       if (property.compute) {
@@ -620,7 +623,7 @@ export default class XElement extends HTMLElement {
     XElement.__hosts.set(host, {
       initialized: false, reflecting: false, invalidProperties, listenerMap,
       renderRoot, template, properties, internal, computeMap, observeMap,
-      valueMap,
+      defaultMap, valueMap,
     });
   }
 
@@ -717,10 +720,10 @@ export default class XElement extends HTMLElement {
         const { value, found } = XElement.__getPreUpgradePropertyValue(host, property);
         XElement.__initializeProperty(host, property);
         if (found) {
-          host[property.key] = property.default(property.initial(value));
+          host[property.key] = property.default(host, property.initial(value));
         } else if (!property.compute) {
           // Set to a nullish value so that it coalesces to the default.
-          XElement.__setPropertyValue(host, property, property.default(property.initial()));
+          XElement.__setPropertyValue(host, property, property.default(host, property.initial()));
         }
         invalidProperties.add(property);
       }
@@ -879,7 +882,7 @@ export default class XElement extends HTMLElement {
   static __setPropertyValue(host, property, value) {
     const { valueMap } = XElement.__hosts.get(host);
     if (Object.is(value, valueMap.get(property)) === false) {
-      value = property.default(value);
+      value = property.default(host, value);
       XElement.__validatePropertyValue(host, property, value);
       valueMap.set(property, value);
       XElement.__invalidateProperty(host, property);
