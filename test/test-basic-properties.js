@@ -89,15 +89,13 @@ it('property setter renders blank value', async () => {
   assert(el.shadowRoot.getElementById('camel').textContent === 'Bactrian');
 });
 
-it('observes all dash-cased versions of public, declared properties', () => {
+it('observes all dash-cased versions of public, serializable, and declared properties', () => {
   const el = document.createElement('test-element');
   const expected = [
     'normal-property',
-    'object-property',
     'camel-case-property',
     'numeric-property',
     'null-property',
-    'typeless-property',
   ];
   const actual = el.constructor.observedAttributes;
   assert(expected.length === actual.length);
@@ -147,9 +145,6 @@ it('allows properties without types', () => {
     el.typelessProperty = value;
     assert(el.typelessProperty === value);
   }
-  const attributeValue = 'attribute';
-  el.setAttribute('typeless-property', attributeValue);
-  assert(el.typelessProperty === attributeValue);
 });
 
 it('initializes from attributes on connect', () => {
