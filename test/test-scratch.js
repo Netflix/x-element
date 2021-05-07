@@ -78,6 +78,10 @@ class TestElement extends XElement {
     };
   }
 
+  static get observedAttributes() {
+    return [...super.observedAttributes, 'custom-observed-attribute'];
+  }
+
   static template(html) {
     return ({ prop1 }) => {
       return html`<span>${prop1}</span>`;
@@ -86,6 +90,13 @@ class TestElement extends XElement {
 
   static computeComputedProp(prop1, prop2) {
     return `${prop1} ${prop2}`;
+  }
+
+  attributeChangedCallback(attribute, oldValue, value) {
+    super.attributeChangedCallback(attribute, oldValue, value);
+    if (attribute === 'custom-observed-attribute') {
+      this.customObservedAttributeChange = true;
+    }
   }
 
   adoptedCallback() {
@@ -222,4 +233,11 @@ it('test dispatchError', () => {
   iframe.ownerDocument.adoptNode(el);
   iframe.contentDocument.body.append(el);
   assert(el.adopted);
+});
+
+it('authors can extend observed attributes', () => {
+  const el = document.createElement('test-element');
+  assert(!el.customObservedAttributeChange);
+  el.setAttribute('custom-observed-attribute', '');
+  assert(el.customObservedAttributeChange);
 });
