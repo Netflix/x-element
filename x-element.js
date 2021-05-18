@@ -126,7 +126,7 @@ export default class XElement extends HTMLElement {
   /** Extends HTMLElement.prototype.attributeChangedCallback. */
   attributeChangedCallback(attribute, oldValue, value) {
     const { attributeMap } = XElement.__constructors.get(this.constructor);
-    attributeMap.get(attribute).sync(this, value, oldValue);
+    attributeMap.get(attribute)?.sync(this, value, oldValue);
   }
 
   /** Extends HTMLElement.prototype.adoptedCallback. */
