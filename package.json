@@ -22,7 +22,7 @@
     "/etc"
   ],
   "dependencies": {
-    "lit-html": "^1.2.1"
+    "lit-html": "^2.0.0-rc.1"
   },
   "devDependencies": {
     "@netflix/element-server": "^1.0.12",
