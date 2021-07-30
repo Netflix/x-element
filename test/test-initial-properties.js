@@ -72,6 +72,29 @@ class TestElementStatic extends XElement {
 }
 customElements.define('test-element-static', TestElementStatic);
 
+class Compound {
+  get foo() {
+    return 'foo';
+  }
+}
+
+class TestElementCompound extends XElement {
+  static get properties() {
+    return {
+      compound: {
+        type: Compound,
+        initial: () => new Compound(),
+      },
+    };
+  }
+  static template(html) {
+    return ({ compound }) => {
+      return html`<div>${compound.foo}</div>`;
+    };
+  }
+}
+customElements.define('test-element-compound', TestElementCompound);
+
 it('basic initial properties', () => {
   const el = document.createElement('test-element-basic');
   document.body.append(el);
@@ -142,6 +165,15 @@ it('anonymous initial properties (predefined attributes)', () => {
   el.setAttribute('two', 'TWO');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'ONE, TWO');
+});
+
+it('compound initial properties are not shared accross element instances', () => {
+  const el1 = document.createElement('test-element-compound');
+  const el2 = document.createElement('test-element-compound');
+  document.body.append(el1, el2);
+  assert(el1.shadowRoot.textContent === 'foo');
+  assert(el2.shadowRoot.textContent === 'foo');
+  assert(el1.compound !== el2.compound);
 });
 
 it('cannot set initial to a bad type', () => {
