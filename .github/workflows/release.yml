@@ -18,4 +18,6 @@ jobs:
       - run: yarn start &
       - run: sleep 2
       - run: yarn test
-      - run: echo releasing because the tests passed
+      - run: yarn publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
