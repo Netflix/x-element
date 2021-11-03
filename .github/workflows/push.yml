@@ -1,0 +1,18 @@
+name: Push
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14.x'
+          registry-url: 'https://npm.pkg.github.com'
+      - run: yarn install
+      - run: yarn lint
+      - run: yarn start &
+      - run: sleep 2
+      - run: yarn test
