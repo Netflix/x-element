@@ -295,7 +295,7 @@ export default class XElement extends HTMLElement {
     const attributes = new Set();
     const inputMap = new Map();
     for (const [key, property] of entries) {
-      if (!property.internal && XElement.__serializableTypes.has(property.type)) {
+      if (XElement.__propertyHasAttribute(property)) {
         // Attribute names are case-insensitive — lowercase to properly check for duplicates.
         const attribute = property.attribute ?? XElement.__camelToKebab(key);
         XElement.__validatePropertyAttribute(constructor, key, property, attribute);
@@ -384,7 +384,7 @@ export default class XElement extends HTMLElement {
     }
     const unserializable = XElement.__serializableTypes.has(property.type) === false;
     const typeName = property.type?.prototype && property.type?.name ? property.type.name : XElement.__getTypeName(property.type);
-    if (attribute && unserializable) {
+    if (attribute && type && unserializable) {
       throw new Error(`Found unserializable "${path}.type" (${typeName}) but "${path}.attribute" is defined.`);
     }
     if (reflect && unserializable) {
@@ -450,7 +450,7 @@ export default class XElement extends HTMLElement {
   // Called once per-property during constructor analysis.
   static __mutateProperty(constructor, propertyMap, key, property) {
     property.key = key;
-    property.attribute = !property.internal && XElement.__serializableTypes.has(property.type)
+    property.attribute = XElement.__propertyHasAttribute(property)
       ? property.attribute ?? XElement.__camelToKebab(key)
       : undefined;
     property.input = new Set((property.input ?? []).map(inputKey => propertyMap.get(inputKey)));
@@ -503,7 +503,7 @@ export default class XElement extends HTMLElement {
 
   // Wrapper to improve ergonomics of syncing attributes back to properties.
   static __addPropertySync(constructor, property) {
-    if (!property.internal && XElement.__serializableTypes.has(property.type)) {
+    if (XElement.__propertyHasAttribute(property)) {
       property.sync = (host, value, oldValue) => {
         const { initialized, reflecting } = XElement.__hosts.get(host);
         if (reflecting === false && initialized && value !== oldValue) {
@@ -884,10 +884,18 @@ export default class XElement extends HTMLElement {
     } else if (value === null) {
       // Null as an attribute is really "undefined" as a property.
       return undefined;
+    } else if (!property.type) {
+      // Property doesn't have a type, leave it as a string.
+      return value;
     } else {
       // Coerce type as needed.
       return property.type(value);
     }
+  }
+
+  // Public properties which are serializable or typeless have attributes.
+  static __propertyHasAttribute(property) {
+    return !property.internal && (XElement.__serializableTypes.has(property.type) || !property.type);
   }
 
   static __getTypeName(value) {

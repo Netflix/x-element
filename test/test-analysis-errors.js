@@ -181,13 +181,31 @@ it('attribute should be a non-empty string', () => {
   assert(passed, message);
 });
 
-it('attributes cannot be duplicated', () => {
+it('attributes cannot be duplicated (1)', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
     class TestElement extends XElement {
       static get properties() {
         return { attribute: { type: String }, aliased: { type: String, attribute: 'attribute' } };
+      }
+    }
+    customElements.define('test-element', TestElement);
+  } catch (error) {
+    const expected = 'TestElement.properties.aliased causes a duplicated attribute "attribute".';
+    message = error.message;
+    passed = error.message === expected;
+  }
+  assert(passed, message);
+});
+
+it('attributes cannot be duplicated (2)', () => {
+  let passed = false;
+  let message = 'no error was thrown';
+  try {
+    class TestElement extends XElement {
+      static get properties() {
+        return { attribute: {}, aliased: { attribute: 'attribute' } };
       }
     }
     customElements.define('test-element', TestElement);
