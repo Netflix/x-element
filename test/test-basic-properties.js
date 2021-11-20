@@ -24,6 +24,9 @@ class TestElement extends XElement {
         default: null,
       },
       typelessProperty: {},
+      typelessPropertyWithCustomAttribute: {
+        attribute: 'custom-attribute-typeless',
+      },
       internalProperty: {
         internal: true,
       },
@@ -89,13 +92,15 @@ it('property setter renders blank value', async () => {
   assert(el.shadowRoot.getElementById('camel').textContent === 'Bactrian');
 });
 
-it('observes all dash-cased versions of public, serializable, and declared properties', () => {
+it('observes all dash-cased versions of public, typeless, serializable, and declared properties', () => {
   const el = document.createElement('test-element');
   const expected = [
     'normal-property',
     'camel-case-property',
     'numeric-property',
     'null-property',
+    'typeless-property',
+    'custom-attribute-typeless',
   ];
   const actual = el.constructor.observedAttributes;
   assert(expected.length === actual.length);
@@ -145,6 +150,14 @@ it('allows properties without types', () => {
     el.typelessProperty = value;
     assert(el.typelessProperty === value);
   }
+});
+
+it('syncs attributes to properties without types', () => {
+  const el = document.createElement('test-element');
+  document.body.append(el);
+  const value = '123';
+  el.setAttribute('typeless-property', value);
+  assert(el.typelessProperty === value);
 });
 
 it('initializes from attributes on connect', () => {
