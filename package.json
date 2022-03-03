@@ -19,7 +19,8 @@
   },
   "files": [
     "/x-element.js",
-    "/x-element-bundle.js",
+    "/demo",
+    "/test",
     "/etc"
   ],
   "dependencies": {
