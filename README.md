@@ -55,7 +55,3 @@ Then...
 * http://localhost:8080/demo
 * http://localhost:8080/demo/react
 * http://localhost:8080/test
-
----
-
-[![Build Status](https://travis-ci.com/Netflix/x-element.svg?branch=master)](https://travis-ci.com/Netflix/x-element)
