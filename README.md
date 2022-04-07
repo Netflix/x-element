@@ -11,7 +11,7 @@
 A dead simple starting point for custom elements. It provides the following functionality:
 
 - Efficient element generation and data binding via [lit-html](https://lit.dev)
-- Automatic `.property` to `[attribute]` refection (opt-in)
+- Automatic `.property` to `[attribute]` reflection (opt-in)
 - Automatic `[attribute]` to `.property` synchronization (one-directional, on connected)
 - Simple and efficient property observation and computation
 - Simple delegated event handling
