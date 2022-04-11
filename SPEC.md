@@ -8,7 +8,7 @@ Define and register your element:
 import XElement from 'https://unpkg.com/@netflix/x-element/x-element.js';
 
 class HelloWorld extends XElement {
-  template(html) {
+  static template(html) {
     return () => html`<span>Hello World!</span>`;
   }
 }
