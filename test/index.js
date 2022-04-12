@@ -22,3 +22,4 @@ test('./test-computed-properties.html');
 test('./test-observed-properties.html');
 test('./test-listeners.html');
 test('./test-scratch.html');
+test('./test-custom-elements-everywhere.html');
