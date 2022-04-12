@@ -29,7 +29,7 @@
   "devDependencies": {
     "@netflix/element-server": "^1.0.12",
     "@netflix/x-test": "^1.0.0-rc.16",
-    "eslint": "^7.5.0",
+    "eslint": "^8.13.0",
     "puppeteer": "^13.4.0",
     "tap-parser": "^10.0.1"
   }

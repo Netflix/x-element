@@ -14,14 +14,12 @@ import { unsafeHTML } from '../../lit-html/directives/unsafe-html.js';
 import { unsafeSVG } from '../../lit-html/directives/unsafe-svg.js';
 import { until } from '../../lit-html/directives/until.js';
 
-// TODO: #63: replace "__ >> #" when private fields are supported.
-
 /** Base element class for creating custom elements. */
 export default class XElement extends HTMLElement {
   /** Extends HTMLElement.observedAttributes to handle the properties block. */
   static get observedAttributes() {
-    XElement.__analyzeConstructor(this);
-    return [...XElement.__constructors.get(this).attributeMap.keys()];
+    XElement.#analyzeConstructor(this);
+    return [...XElement.#constructors.get(this).attributeMap.keys()];
   }
 
   /**
@@ -115,18 +113,18 @@ export default class XElement extends HTMLElement {
   /** Standard instance constructor. */
   constructor() {
     super();
-    XElement.__constructHost(this);
+    XElement.#constructHost(this);
   }
 
   /** Extends HTMLElement.prototype.connectedCallback. */
   connectedCallback() {
-    XElement.__initializeHost(this);
-    XElement.__addListeners(this);
+    XElement.#initializeHost(this);
+    XElement.#addListeners(this);
   }
 
   /** Extends HTMLElement.prototype.attributeChangedCallback. */
   attributeChangedCallback(attribute, oldValue, value) {
-    const { attributeMap } = XElement.__constructors.get(this.constructor);
+    const { attributeMap } = XElement.#constructors.get(this.constructor);
     // Authors may extend "observedAttributes". Optionally chain to account for
     // attributes which we don't know about.
     attributeMap.get(attribute)?.sync(this, value, oldValue);
@@ -137,7 +135,7 @@ export default class XElement extends HTMLElement {
 
   /** Extends HTMLElement.prototype.disconnectedCallback. */
   disconnectedCallback() {
-    XElement.__removeListeners(this);
+    XElement.#removeListeners(this);
   }
 
   /**
@@ -151,12 +149,12 @@ export default class XElement extends HTMLElement {
    * debugging such issues.
    */
   render() {
-    const { template, properties, renderRoot } = XElement.__hosts.get(this);
+    const { template, properties, renderRoot } = XElement.#hosts.get(this);
     const result = template(properties, this);
     try {
       render(result, renderRoot);
     } catch (error) {
-      const pathString = XElement.__toPathString(this);
+      const pathString = XElement.#toPathString(this);
       error.message = `${error.message} — Invalid template for "${this.constructor.name}" at path "${pathString}"`;
       throw error;
     }
@@ -173,23 +171,23 @@ export default class XElement extends HTMLElement {
    * @param {object} [options] - Listener options (e.g., { useCapture: true }).
    */
   listen(element, type, callback, options) {
-    if (XElement.__typeIsWrong(EventTarget, element)) {
-      const typeName = XElement.__getTypeName(element);
+    if (XElement.#typeIsWrong(EventTarget, element)) {
+      const typeName = XElement.#getTypeName(element);
       throw new Error(`Unexpected element passed to listen (expected EventTarget, got ${typeName}).`);
     }
-    if (XElement.__typeIsWrong(String, type)) {
-      const typeName = XElement.__getTypeName(type);
+    if (XElement.#typeIsWrong(String, type)) {
+      const typeName = XElement.#getTypeName(type);
       throw new Error(`Unexpected type passed to listen (expected String, got ${typeName}).`);
     }
-    if (XElement.__typeIsWrong(Function, callback)) {
-      const typeName = XElement.__getTypeName(callback);
+    if (XElement.#typeIsWrong(Function, callback)) {
+      const typeName = XElement.#getTypeName(callback);
       throw new Error(`Unexpected callback passed to listen (expected Function, got ${typeName}).`);
     }
-    if (XElement.__notNullish(options) && XElement.__typeIsWrong(Object, options)) {
-      const typeName = XElement.__getTypeName(options);
+    if (XElement.#notNullish(options) && XElement.#typeIsWrong(Object, options)) {
+      const typeName = XElement.#getTypeName(options);
       throw new Error(`Unexpected options passed to listen (expected Object, got ${typeName}).`);
     }
-    XElement.__addListener(this, element, type, callback, options);
+    XElement.#addListener(this, element, type, callback, options);
   }
 
   /**
@@ -203,23 +201,23 @@ export default class XElement extends HTMLElement {
    * @param {object} [options] - Listener options (e.g., { useCapture: true }).
    */
   unlisten(element, type, callback, options) {
-    if (XElement.__typeIsWrong(EventTarget, element)) {
-      const typeName = XElement.__getTypeName(element);
+    if (XElement.#typeIsWrong(EventTarget, element)) {
+      const typeName = XElement.#getTypeName(element);
       throw new Error(`Unexpected element passed to unlisten (expected EventTarget, got ${typeName}).`);
     }
-    if (XElement.__typeIsWrong(String, type)) {
-      const typeName = XElement.__getTypeName(type);
+    if (XElement.#typeIsWrong(String, type)) {
+      const typeName = XElement.#getTypeName(type);
       throw new Error(`Unexpected type passed to unlisten (expected String, got ${typeName}).`);
     }
-    if (XElement.__typeIsWrong(Function, callback)) {
-      const typeName = XElement.__getTypeName(callback);
+    if (XElement.#typeIsWrong(Function, callback)) {
+      const typeName = XElement.#getTypeName(callback);
       throw new Error(`Unexpected callback passed to unlisten (expected Function, got ${typeName}).`);
     }
-    if (XElement.__notNullish(options) && XElement.__typeIsWrong(Object, options)) {
-      const typeName = XElement.__getTypeName(options);
+    if (XElement.#notNullish(options) && XElement.#typeIsWrong(Object, options)) {
+      const typeName = XElement.#getTypeName(options);
       throw new Error(`Unexpected options passed to unlisten (expected Object, got ${typeName}).`);
     }
-    XElement.__removeListener(this, element, type, callback, options);
+    XElement.#removeListener(this, element, type, callback, options);
   }
 
   /**
@@ -245,16 +243,16 @@ export default class XElement extends HTMLElement {
    * @returns {object.<string, *>}
    */
   get internal() {
-    return XElement.__hosts.get(this).internal;
+    return XElement.#hosts.get(this).internal;
   }
 
   // Called once per class — kicked off from "static get observedAttributes".
-  static __analyzeConstructor(constructor) {
+  static #analyzeConstructor(constructor) {
     const { properties, listeners } = constructor;
     const propertiesEntries = Object.entries(properties);
     const listenersEntries = Object.entries(listeners);
-    XElement.__validateProperties(constructor, properties, propertiesEntries);
-    XElement.__validateListeners(constructor, listeners, listenersEntries);
+    XElement.#validateProperties(constructor, properties, propertiesEntries);
+    XElement.#validateListeners(constructor, listeners, listenersEntries);
     const propertyMap = new Map(propertiesEntries);
     const internalPropertyMap = new Map();
     // Use a normal object for better autocomplete when debugging in console.
@@ -263,7 +261,7 @@ export default class XElement extends HTMLElement {
     const attributeMap = new Map();
     for (const [key, property] of propertyMap) {
       // We mutate (vs copy) to allow cross-referencing property objects.
-      XElement.__mutateProperty(constructor, propertyMap, key, property);
+      XElement.#mutateProperty(constructor, propertyMap, key, property);
       if (property.internal || property.readOnly) {
         internalPropertyMap.set(key, property);
         internalTarget[key] = undefined;
@@ -274,31 +272,31 @@ export default class XElement extends HTMLElement {
       }
     }
     const listenerMap = new Map(listenersEntries);
-    XElement.__constructors.set(constructor, {
+    XElement.#constructors.set(constructor, {
       propertyMap, internalPropertyMap, attributeMap, listenerMap,
       propertiesTarget, internalTarget,
     });
   }
 
   // Called during constructor analysis.
-  static __validateProperties(constructor, properties, entries) {
+  static #validateProperties(constructor, properties, entries) {
     const path = `${constructor.name}.properties`;
     for (const [key, property] of entries) {
-      if (XElement.__typeIsWrong(Object, property)) {
-        const typeName = XElement.__getTypeName(property);
+      if (XElement.#typeIsWrong(Object, property)) {
+        const typeName = XElement.#getTypeName(property);
         throw new Error(`${path}.${key} has an unexpected value (expected Object, got ${typeName}).`);
       }
     }
     for (const [key, property] of entries) {
-      XElement.__validateProperty(constructor, key, property);
+      XElement.#validateProperty(constructor, key, property);
     }
     const attributes = new Set();
     const inputMap = new Map();
     for (const [key, property] of entries) {
-      if (XElement.__propertyHasAttribute(property)) {
+      if (XElement.#propertyHasAttribute(property)) {
         // Attribute names are case-insensitive — lowercase to properly check for duplicates.
-        const attribute = property.attribute ?? XElement.__camelToKebab(key);
-        XElement.__validatePropertyAttribute(constructor, key, property, attribute);
+        const attribute = property.attribute ?? XElement.#camelToKebab(key);
+        XElement.#validatePropertyAttribute(constructor, key, property, attribute);
         if (attributes.has(attribute)) {
           throw new Error(`${path}.${key} causes a duplicated attribute "${attribute}".`);
         }
@@ -307,51 +305,51 @@ export default class XElement extends HTMLElement {
       if (property.input) {
         inputMap.set(property, property.input.map(inputKey => properties[inputKey]));
         for (const [index, inputKey] of Object.entries(property.input)) {
-          if (XElement.__typeIsWrong(Object, properties[inputKey])) {
+          if (XElement.#typeIsWrong(Object, properties[inputKey])) {
             throw new Error(`${path}.${key}.input[${index}] has an unexpected item ("${inputKey}" has not been declared).`);
           }
         }
       }
     }
     for (const [key, property] of entries) {
-      if (XElement.__propertyIsCyclic(property, inputMap)) {
+      if (XElement.#propertyIsCyclic(property, inputMap)) {
         throw new Error(`${path}.${key}.input is cyclic.`);
       }
     }
   }
 
-  static __validateProperty(constructor, key, property) {
+  static #validateProperty(constructor, key, property) {
     const path = `${constructor.name}.properties.${key}`;
     if (key.includes('-')) {
       throw new Error(`Unexpected key "${path}" contains "-" (property names should be camelCased).`);
     }
     for (const propertyKey of Object.keys(property)) {
-      if (XElement.__propertyKeys.has(propertyKey) === false) {
+      if (XElement.#propertyKeys.has(propertyKey) === false) {
         throw new Error(`Unexpected key "${path}.${propertyKey}".`);
       }
     }
     const { type, attribute, compute, input, reflect, internal, readOnly } = property;
-    if (Reflect.has(property, 'type') && XElement.__typeIsWrong(Function, type)) {
-      const typeName = XElement.__getTypeName(type);
+    if (Reflect.has(property, 'type') && XElement.#typeIsWrong(Function, type)) {
+      const typeName = XElement.#getTypeName(type);
       throw new Error(`Unexpected value for "${path}.type" (expected constructor Function, got ${typeName}).`);
     }
     for (const subKey of ['compute', 'observe']) {
-      if (Reflect.has(property, subKey) && XElement.__typeIsWrong(Function, property[subKey])) {
-        const typeName = XElement.__getTypeName(property[subKey]);
+      if (Reflect.has(property, subKey) && XElement.#typeIsWrong(Function, property[subKey])) {
+        const typeName = XElement.#getTypeName(property[subKey]);
         throw new Error(`Unexpected value for "${path}.${subKey}" (expected Function, got ${typeName}).`);
       }
     }
     for (const subKey of ['reflect', 'internal', 'readOnly']) {
-      if (Reflect.has(property, subKey) && XElement.__typeIsWrong(Boolean, property[subKey])) {
-        const typeName = XElement.__getTypeName(property[subKey]);
+      if (Reflect.has(property, subKey) && XElement.#typeIsWrong(Boolean, property[subKey])) {
+        const typeName = XElement.#getTypeName(property[subKey]);
         throw new Error(`Unexpected value for "${path}.${subKey}" (expected Boolean, got ${typeName}).`);
       }
     }
-    if (!internal && XElement.__prototypeInterface.has(key)) {
+    if (!internal && XElement.#prototypeInterface.has(key)) {
       throw new Error(`Unexpected key "${path}" shadows in XElement.prototype interface.`);
     }
-    if (Reflect.has(property, 'attribute') && XElement.__typeIsWrong(String, attribute)) {
-      const typeName = XElement.__getTypeName(attribute);
+    if (Reflect.has(property, 'attribute') && XElement.#typeIsWrong(String, attribute)) {
+      const typeName = XElement.#getTypeName(attribute);
       throw new Error(`Unexpected value for "${path}.attribute" (expected String, got ${typeName}).`);
     }
     if (Reflect.has(property, 'attribute') && attribute === '') {
@@ -360,30 +358,30 @@ export default class XElement extends HTMLElement {
     for (const subKey of ['initial', 'default']) {
       const value = Reflect.get(property, subKey);
       if (
-        XElement.__notNullish(value) &&
-        XElement.__typeIsWrong(Boolean, value) &&
-        XElement.__typeIsWrong(String, value) &&
-        XElement.__typeIsWrong(Number, value) &&
-        XElement.__typeIsWrong(Function, value)
+        XElement.#notNullish(value) &&
+        XElement.#typeIsWrong(Boolean, value) &&
+        XElement.#typeIsWrong(String, value) &&
+        XElement.#typeIsWrong(Number, value) &&
+        XElement.#typeIsWrong(Function, value)
       ) {
-        const typeName = XElement.__getTypeName(value);
+        const typeName = XElement.#getTypeName(value);
         throw new Error(`Unexpected value for "${path}.${subKey}" (expected Boolean, String, Number, or Function, got ${typeName}).`);
       }
     }
-    if (Reflect.has(property, 'input') && XElement.__typeIsWrong(Array, input)) {
-      const typeName = XElement.__getTypeName(input);
+    if (Reflect.has(property, 'input') && XElement.#typeIsWrong(Array, input)) {
+      const typeName = XElement.#getTypeName(input);
       throw new Error(`Unexpected value for "${path}.input" (expected Array, got ${typeName}).`);
     }
     if (Reflect.has(property, 'input')) {
       for (const [index, inputKey] of Object.entries(input)) {
-        if (XElement.__typeIsWrong(String, inputKey)) {
-          const typeName = XElement.__getTypeName(inputKey);
+        if (XElement.#typeIsWrong(String, inputKey)) {
+          const typeName = XElement.#getTypeName(inputKey);
           throw new Error(`Unexpected value for "${path}.input[${index}]" (expected String, got ${typeName}).`);
         }
       }
     }
-    const unserializable = XElement.__serializableTypes.has(property.type) === false;
-    const typeName = property.type?.prototype && property.type?.name ? property.type.name : XElement.__getTypeName(property.type);
+    const unserializable = XElement.#serializableTypes.has(property.type) === false;
+    const typeName = property.type?.prototype && property.type?.name ? property.type.name : XElement.#getTypeName(property.type);
     if (attribute && type && unserializable) {
       throw new Error(`Found unserializable "${path}.type" (${typeName}) but "${path}.attribute" is defined.`);
     }
@@ -413,7 +411,7 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  static __validatePropertyAttribute(constructor, key, property, attribute) {
+  static #validatePropertyAttribute(constructor, key, property, attribute) {
     const path = `${constructor.name}.properties`;
     // Attribute names are case-insensitive — lowercase to properly check for duplicates.
     if (attribute !== attribute.toLowerCase()) {
@@ -422,14 +420,14 @@ export default class XElement extends HTMLElement {
   }
 
   // Determines if computed property inputs form a cycle.
-  static __propertyIsCyclic(property, inputMap, seen = new Set()) {
+  static #propertyIsCyclic(property, inputMap, seen = new Set()) {
     if (inputMap.has(property)) {
       for (const input of inputMap.get(property)) {
         const nextSeen = new Set([...seen, property]);
         if (
           input === property ||
           seen.has(input) ||
-          XElement.__propertyIsCyclic(input, inputMap, nextSeen)
+          XElement.#propertyIsCyclic(input, inputMap, nextSeen)
         ) {
           return true;
         }
@@ -437,21 +435,21 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  static __validateListeners(constructor, listeners, entries) {
+  static #validateListeners(constructor, listeners, entries) {
     const path = `${constructor.name}.listeners`;
     for (const [type, listener] of entries) {
-      if (XElement.__typeIsWrong(Function, listener)) {
-        const typeName = XElement.__getTypeName(listener);
+      if (XElement.#typeIsWrong(Function, listener)) {
+        const typeName = XElement.#getTypeName(listener);
         throw new Error(`${path}.${type} has unexpected value (expected Function, got ${typeName}).`);
       }
     }
   }
 
   // Called once per-property during constructor analysis.
-  static __mutateProperty(constructor, propertyMap, key, property) {
+  static #mutateProperty(constructor, propertyMap, key, property) {
     property.key = key;
-    property.attribute = XElement.__propertyHasAttribute(property)
-      ? property.attribute ?? XElement.__camelToKebab(key)
+    property.attribute = XElement.#propertyHasAttribute(property)
+      ? property.attribute ?? XElement.#camelToKebab(key)
       : undefined;
     property.input = new Set((property.input ?? []).map(inputKey => propertyMap.get(inputKey)));
     property.output = property.output ?? new Set();
@@ -459,20 +457,20 @@ export default class XElement extends HTMLElement {
       input.output = input.output ?? new Set();
       input.output.add(property);
     }
-    XElement.__addPropertyInitial(constructor, property);
-    XElement.__addPropertyDefault(constructor, property);
-    XElement.__addPropertySync(constructor, property);
-    XElement.__addPropertyCompute(constructor, property);
-    XElement.__addPropertyReflect(constructor, property);
-    XElement.__addPropertyObserve(constructor, property);
+    XElement.#addPropertyInitial(constructor, property);
+    XElement.#addPropertyDefault(constructor, property);
+    XElement.#addPropertySync(constructor, property);
+    XElement.#addPropertyCompute(constructor, property);
+    XElement.#addPropertyReflect(constructor, property);
+    XElement.#addPropertyObserve(constructor, property);
   }
 
   // Wrapper to improve ergonomics of coalescing nullish, initial value.
-  static __addPropertyInitial(constructor, property) {
+  static #addPropertyInitial(constructor, property) {
     // Should take `value` in and spit the initial or value out.
     if (Reflect.has(property, 'initial')) {
       const initialValue = property.initial;
-      const isFunction = XElement.__typeIsWrong(Function, initialValue) === false;
+      const isFunction = XElement.#typeIsWrong(Function, initialValue) === false;
       property.initial = value =>
         value ?? (isFunction ? initialValue.call(constructor) : initialValue);
     } else {
@@ -481,13 +479,13 @@ export default class XElement extends HTMLElement {
   }
 
   // Wrapper to improve ergonomics of coalescing nullish, default value.
-  static __addPropertyDefault(constructor, property) {
+  static #addPropertyDefault(constructor, property) {
     // Should take `value` in and spit the default or value out.
     if (Reflect.has(property, 'default')) {
       const { key, default: defaultValue } = property;
-      const isFunction = XElement.__typeIsWrong(Function, defaultValue) === false;
+      const isFunction = XElement.#typeIsWrong(Function, defaultValue) === false;
       const getOrCreateDefault = host => {
-        const { defaultMap } = XElement.__hosts.get(host);
+        const { defaultMap } = XElement.#hosts.get(host);
         if (!defaultMap.has(key)) {
           const value = isFunction ? defaultValue.call(constructor) : defaultValue;
           defaultMap.set(key, value);
@@ -502,12 +500,12 @@ export default class XElement extends HTMLElement {
   }
 
   // Wrapper to improve ergonomics of syncing attributes back to properties.
-  static __addPropertySync(constructor, property) {
-    if (XElement.__propertyHasAttribute(property)) {
+  static #addPropertySync(constructor, property) {
+    if (XElement.#propertyHasAttribute(property)) {
       property.sync = (host, value, oldValue) => {
-        const { initialized, reflecting } = XElement.__hosts.get(host);
+        const { initialized, reflecting } = XElement.#hosts.get(host);
         if (reflecting === false && initialized && value !== oldValue) {
-          const deserialization = XElement.__deserializeProperty(host, property, value);
+          const deserialization = XElement.#deserializeProperty(host, property, value);
           host[property.key] = deserialization;
         }
       };
@@ -515,12 +513,12 @@ export default class XElement extends HTMLElement {
   }
 
   // Wrapper to centralize logic needed to perform reflection.
-  static __addPropertyReflect(constructor, property) {
+  static #addPropertyReflect(constructor, property) {
     if (property.reflect) {
       property.reflect = host => {
-        const value = XElement.__getPropertyValue(host, property);
-        const serialization = XElement.__serializeProperty(host, property, value);
-        const hostInfo = XElement.__hosts.get(host);
+        const value = XElement.#getPropertyValue(host, property);
+        const serialization = XElement.#serializeProperty(host, property, value);
+        const hostInfo = XElement.#hosts.get(host);
         hostInfo.reflecting = true;
         serialization === undefined
           ? host.removeAttribute(property.attribute)
@@ -531,20 +529,20 @@ export default class XElement extends HTMLElement {
   }
 
   // Wrapper to prevent repeated compute callbacks.
-  static __addPropertyCompute(constructor, property) {
+  static #addPropertyCompute(constructor, property) {
     const { compute } = property;
     if (compute) {
       property.compute = host => {
-        const { computeMap, valueMap } = XElement.__hosts.get(host);
+        const { computeMap, valueMap } = XElement.#hosts.get(host);
         const saved = computeMap.get(property);
         if (saved.valid === false) {
           const args = [];
           for (const input of property.input) {
-            args.push(XElement.__getPropertyValue(host, input));
+            args.push(XElement.#getPropertyValue(host, input));
           }
           if (saved.args === undefined || args.some((arg, index) => arg !== saved.args[index])) {
             const value = property.default(host, compute.call(constructor, ...args));
-            XElement.__validatePropertyValue(host, property, value);
+            XElement.#validatePropertyValue(host, property, value);
             valueMap.set(property, value);
             saved.args = args;
           }
@@ -556,12 +554,12 @@ export default class XElement extends HTMLElement {
   }
 
   // Wrapper to provide last value to observe callbacks.
-  static __addPropertyObserve(constructor, property) {
+  static #addPropertyObserve(constructor, property) {
     const { observe } = property;
     if (observe) {
       property.observe = host => {
-        const saved = XElement.__hosts.get(host).observeMap.get(property);
-        const value = XElement.__getPropertyValue(host, property);
+        const saved = XElement.#hosts.get(host).observeMap.get(property);
+        const value = XElement.#getPropertyValue(host, property);
         if (Object.is(value, saved.value) === false) {
           observe.call(constructor, host, value, saved.value);
         }
@@ -571,7 +569,7 @@ export default class XElement extends HTMLElement {
   }
 
   // Called once per-host during construction.
-  static __constructHost(host) {
+  static #constructHost(host) {
     const invalidProperties = new Set();
     // The weak map prevents memory leaks. E.g., adding anonymous listeners.
     const listenerMap = new WeakMap();
@@ -585,12 +583,12 @@ export default class XElement extends HTMLElement {
       ifDefined, live, repeat, styleMap, svg, templateContent, unsafeHTML,
       unsafeSVG, until,
     }).bind(host.constructor);
-    const properties = XElement.__createProperties(host);
-    const internal = XElement.__createInternal(host);
+    const properties = XElement.#createProperties(host);
+    const internal = XElement.#createInternal(host);
     const computeMap = new Map();
     const observeMap = new Map();
     const defaultMap = new Map();
-    const { propertyMap } = XElement.__constructors.get(host.constructor);
+    const { propertyMap } = XElement.#constructors.get(host.constructor);
     for (const property of propertyMap.values()) {
       if (property.compute) {
         computeMap.set(property, { valid: false, args: undefined });
@@ -599,7 +597,7 @@ export default class XElement extends HTMLElement {
         observeMap.set(property, { value: undefined });
       }
     }
-    XElement.__hosts.set(host, {
+    XElement.#hosts.set(host, {
       initialized: false, reflecting: false, invalidProperties, listenerMap,
       renderRoot, template, properties, internal, computeMap, observeMap,
       defaultMap, valueMap,
@@ -607,15 +605,15 @@ export default class XElement extends HTMLElement {
   }
 
   // Called during host construction.
-  static __createInternal(host) {
-    const { propertyMap, internalPropertyMap, internalTarget } =  XElement.__constructors.get(host.constructor);
+  static #createInternal(host) {
+    const { propertyMap, internalPropertyMap, internalTarget } =  XElement.#constructors.get(host.constructor);
     // Everything but "get", "set", "has", and "ownKeys" are considered invalid.
     // Note that impossible traps like "apply" or "construct" are not guarded.
     const invalid = () => { throw new Error('Invalid use of internal proxy.'); };
     const get = (target, key) => {
       const internalProperty = internalPropertyMap.get(key);
       if (internalProperty?.internal) {
-        return XElement.__getPropertyValue(host, internalProperty);
+        return XElement.#getPropertyValue(host, internalProperty);
       } else {
         const path = `${host.constructor.name}.properties.${key}`;
         const property = propertyMap.get(key);
@@ -629,7 +627,7 @@ export default class XElement extends HTMLElement {
     const set = (target, key, value) => {
       const internalProperty = internalPropertyMap.get(key);
       if (internalProperty && Reflect.has(internalProperty, 'compute') === false) {
-        XElement.__setPropertyValue(host, internalProperty, value);
+        XElement.#setPropertyValue(host, internalProperty, value);
         return true;
       } else {
         const path = `${host.constructor.name}.properties.${key}`;
@@ -656,13 +654,13 @@ export default class XElement extends HTMLElement {
 
   // Only available in template callback. Provides getter for all properties.
   // Called during host construction.
-  static __createProperties(host) {
-    const { propertyMap, propertiesTarget } =  XElement.__constructors.get(host.constructor);
+  static #createProperties(host) {
+    const { propertyMap, propertiesTarget } =  XElement.#constructors.get(host.constructor);
     // Everything but "get", "set", "has", and "ownKeys" are considered invalid.
     const invalid = () => { throw new Error('Invalid use of properties proxy.'); };
     const get = (target, key) => {
       if (propertyMap.has(key)) {
-        return XElement.__getPropertyValue(host, propertyMap.get(key));
+        return XElement.#getPropertyValue(host, propertyMap.get(key));
       } else {
         const path = `${host.constructor.name}.properties.${key}`;
         throw new Error(`Property "${path}" does not exist.`);
@@ -688,31 +686,31 @@ export default class XElement extends HTMLElement {
   }
 
   // Called once per-host from initial "connectedCallback".
-  static __initializeHost(host) {
-    const hostInfo = XElement.__hosts.get(host);
+  static #initializeHost(host) {
+    const hostInfo = XElement.#hosts.get(host);
     const { initialized, invalidProperties } = hostInfo;
     if (initialized === false) {
-      XElement.__upgradeOwnProperties(host);
+      XElement.#upgradeOwnProperties(host);
       // Only reflect attributes when the element is connected.
-      const { propertyMap } = XElement.__constructors.get(host.constructor);
+      const { propertyMap } = XElement.#constructors.get(host.constructor);
       for (const property of propertyMap.values()) {
-        const { value, found } = XElement.__getPreUpgradePropertyValue(host, property);
-        XElement.__initializeProperty(host, property);
+        const { value, found } = XElement.#getPreUpgradePropertyValue(host, property);
+        XElement.#initializeProperty(host, property);
         if (found) {
           host[property.key] = property.default(host, property.initial(value));
         } else if (!property.compute) {
           // Set to a nullish value so that it coalesces to the default.
-          XElement.__setPropertyValue(host, property, property.default(host, property.initial()));
+          XElement.#setPropertyValue(host, property, property.default(host, property.initial()));
         }
         invalidProperties.add(property);
       }
       hostInfo.initialized = true;
-      XElement.__updateHost(host);
+      XElement.#updateHost(host);
     }
   }
 
   // Prevent shadowing from properties added to element instance pre-upgrade.
-  static __upgradeOwnProperties(host) {
+  static #upgradeOwnProperties(host) {
     for (const key of Reflect.ownKeys(host)) {
       const value = Reflect.get(host, key);
       Reflect.deleteProperty(host, key);
@@ -721,7 +719,7 @@ export default class XElement extends HTMLElement {
   }
 
   // Called during host initialization.
-  static __getPreUpgradePropertyValue(host, property) {
+  static #getPreUpgradePropertyValue(host, property) {
     // Process possible sources of initial state, with this priority:
     // 1. imperative, e.g. `element.prop = 'value';`
     // 2. declarative, e.g. `<element prop="value"></element>`
@@ -733,17 +731,17 @@ export default class XElement extends HTMLElement {
       found = true;
     } else if (attribute && host.hasAttribute(attribute)) {
       const attributeValue = host.getAttribute(attribute);
-      value = XElement.__deserializeProperty(host, property, attributeValue);
+      value = XElement.#deserializeProperty(host, property, attributeValue);
       found = true;
     }
     return { value, found };
   }
 
-  static __initializeProperty(host, property) {
+  static #initializeProperty(host, property) {
     if (!property.internal) {
       const { key, compute, readOnly } = property;
       const path = `${host.constructor.name}.properties.${key}`;
-      const get = () => XElement.__getPropertyValue(host, property);
+      const get = () => XElement.#getPropertyValue(host, property);
       const set = compute || readOnly
         ? () => {
           if (compute) {
@@ -752,49 +750,49 @@ export default class XElement extends HTMLElement {
             throw new Error(`Property "${path}" is read-only.`);
           }
         }
-        : value => XElement.__setPropertyValue(host, property, value);
+        : value => XElement.#setPropertyValue(host, property, value);
       Reflect.deleteProperty(host, key);
       Reflect.defineProperty(host, key, { get, set, enumerable: true });
     }
   }
 
-  static __addListener(host, element, type, callback, options) {
-    callback = XElement.__getListener(host, callback);
+  static #addListener(host, element, type, callback, options) {
+    callback = XElement.#getListener(host, callback);
     element.addEventListener(type, callback, options);
   }
 
-  static __addListeners(host) {
-    const { listenerMap } = XElement.__constructors.get(host.constructor);
-    const { renderRoot } = XElement.__hosts.get(host);
+  static #addListeners(host) {
+    const { listenerMap } = XElement.#constructors.get(host.constructor);
+    const { renderRoot } = XElement.#hosts.get(host);
     for (const [type, listener] of listenerMap) {
-      XElement.__addListener(host, renderRoot, type, listener);
+      XElement.#addListener(host, renderRoot, type, listener);
     }
   }
 
-  static __removeListener(host, element, type, callback, options) {
-    callback = XElement.__getListener(host, callback);
+  static #removeListener(host, element, type, callback, options) {
+    callback = XElement.#getListener(host, callback);
     element.removeEventListener(type, callback, options);
   }
 
-  static __removeListeners(host) {
-    const { listenerMap } = XElement.__constructors.get(host.constructor);
-    const { renderRoot } = XElement.__hosts.get(host);
+  static #removeListeners(host) {
+    const { listenerMap } = XElement.#constructors.get(host.constructor);
+    const { renderRoot } = XElement.#hosts.get(host);
     for (const [type, listener] of listenerMap) {
-      XElement.__removeListener(host, renderRoot, type, listener);
+      XElement.#removeListener(host, renderRoot, type, listener);
     }
   }
 
-  static __getListener(host, listener) {
-    const { listenerMap } = XElement.__hosts.get(host);
+  static #getListener(host, listener) {
+    const { listenerMap } = XElement.#hosts.get(host);
     if (listenerMap.has(listener) === false) {
       listenerMap.set(listener, listener.bind(host.constructor, host));
     }
     return listenerMap.get(listener);
   }
 
-  static __updateHost(host) {
+  static #updateHost(host) {
     // Order of operations: compute, reflect, render, then observe.
-    const { invalidProperties } = XElement.__hosts.get(host);
+    const { invalidProperties } = XElement.#hosts.get(host);
     const invalidPropertiesCopy = new Set(invalidProperties);
     invalidProperties.clear();
     for (const property of invalidPropertiesCopy) {
@@ -807,7 +805,7 @@ export default class XElement extends HTMLElement {
   }
 
   // Used to improve error messaging by appending DOM path information.
-  static __toPathString(host) {
+  static #toPathString(host) {
     const path = [];
     let reference = host;
     while (reference) {
@@ -824,11 +822,11 @@ export default class XElement extends HTMLElement {
       .join(' < ');
   }
 
-  static async __invalidateProperty(host, property) {
-    const { initialized, invalidProperties, computeMap } = XElement.__hosts.get(host);
+  static async #invalidateProperty(host, property) {
+    const { initialized, invalidProperties, computeMap } = XElement.#hosts.get(host);
     if (initialized) {
       for (const output of property.output) {
-        XElement.__invalidateProperty(host, output);
+        XElement.#invalidateProperty(host, output);
       }
       const queueUpdate = invalidProperties.size === 0;
       invalidProperties.add(property);
@@ -838,38 +836,38 @@ export default class XElement extends HTMLElement {
       if (queueUpdate) {
         // Queue a microtask. Allows multiple, synchronous changes.
         await Promise.resolve();
-        XElement.__updateHost(host);
+        XElement.#updateHost(host);
       }
     }
   }
 
-  static __getPropertyValue(host, property) {
-    const { valueMap } = XElement.__hosts.get(host);
+  static #getPropertyValue(host, property) {
+    const { valueMap } = XElement.#hosts.get(host);
     return property.compute?.(host) ?? valueMap.get(property);
   }
 
-  static __validatePropertyValue(host, property, value) {
-    if (property.type && XElement.__notNullish(value)) {
-      if (XElement.__typeIsWrong(property.type, value)) {
+  static #validatePropertyValue(host, property, value) {
+    if (property.type && XElement.#notNullish(value)) {
+      if (XElement.#typeIsWrong(property.type, value)) {
         const path = `${host.constructor.name}.properties.${property.key}`;
-        const typeName = XElement.__getTypeName(value);
+        const typeName = XElement.#getTypeName(value);
         throw new Error(`Unexpected value for "${path}" (expected ${property.type.name}, got ${typeName}).`);
       }
     }
   }
 
-  static __setPropertyValue(host, property, value) {
-    const { valueMap } = XElement.__hosts.get(host);
+  static #setPropertyValue(host, property, value) {
+    const { valueMap } = XElement.#hosts.get(host);
     if (Object.is(value, valueMap.get(property)) === false) {
       value = property.default(host, value);
-      XElement.__validatePropertyValue(host, property, value);
+      XElement.#validatePropertyValue(host, property, value);
       valueMap.set(property, value);
-      XElement.__invalidateProperty(host, property);
+      XElement.#invalidateProperty(host, property);
     }
   }
 
-  static __serializeProperty(host, property, value) {
-    if (XElement.__notNullish(value)) {
+  static #serializeProperty(host, property, value) {
+    if (XElement.#notNullish(value)) {
       if (property.type === Boolean) {
         return value ? '' : undefined;
       }
@@ -877,7 +875,7 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  static __deserializeProperty(host, property, value) {
+  static #deserializeProperty(host, property, value) {
     if (property.type === Boolean) {
       // Per HTML spec, every value other than null is considered true.
       return value !== null;
@@ -894,39 +892,38 @@ export default class XElement extends HTMLElement {
   }
 
   // Public properties which are serializable or typeless have attributes.
-  static __propertyHasAttribute(property) {
-    return !property.internal && (XElement.__serializableTypes.has(property.type) || !property.type);
+  static #propertyHasAttribute(property) {
+    return !property.internal && (XElement.#serializableTypes.has(property.type) || !property.type);
   }
 
-  static __getTypeName(value) {
+  static #getTypeName(value) {
     return Object.prototype.toString.call(value).slice(8, -1);
   }
 
-  static __notNullish(value) {
+  static #notNullish(value) {
     return value !== undefined && value !== null;
   }
 
-  static __typeIsWrong(type, value) {
+  static #typeIsWrong(type, value) {
     // Because `instanceof` fails on primitives (`'' instanceof String === false`)
     // and `Object.prototype.toString` cannot handle inheritance, we use both.
     return (
-      XElement.__notNullish(value) === false ||
-      (!(value instanceof type) && XElement.__getTypeName(value) !== type.name)
+      XElement.#notNullish(value) === false ||
+      (!(value instanceof type) && XElement.#getTypeName(value) !== type.name)
     );
   }
 
-  static __camelToKebab(camel) {
-    if (XElement.__caseMap.has(camel) === false) {
-      XElement.__caseMap.set(camel, camel.replace(/([A-Z])/g, '-$1').toLowerCase());
+  static #camelToKebab(camel) {
+    if (XElement.#caseMap.has(camel) === false) {
+      XElement.#caseMap.set(camel, camel.replace(/([A-Z])/g, '-$1').toLowerCase());
     }
-    return XElement.__caseMap.get(camel);
+    return XElement.#caseMap.get(camel);
   }
-}
 
-// TODO: #63: define as private class fields inside the constructor when supported.
-XElement.__constructors = new WeakMap();
-XElement.__hosts = new WeakMap();
-XElement.__propertyKeys = new Set(['type', 'attribute', 'input', 'compute', 'observe', 'reflect', 'internal', 'readOnly', 'initial', 'default']);
-XElement.__serializableTypes = new Set([Boolean, String, Number]);
-XElement.__caseMap = new Map();
-XElement.__prototypeInterface = new Set(Object.getOwnPropertyNames(XElement.prototype));
+  static #constructors = new WeakMap();
+  static #hosts = new WeakMap();
+  static #propertyKeys = new Set(['type', 'attribute', 'input', 'compute', 'observe', 'reflect', 'internal', 'readOnly', 'initial', 'default']);
+  static #serializableTypes = new Set([Boolean, String, Number]);
+  static #caseMap = new Map();
+  static #prototypeInterface = new Set(Object.getOwnPropertyNames(XElement.prototype));
+}
