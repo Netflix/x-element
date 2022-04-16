@@ -1,5 +1,5 @@
 import XElement from '../x-element.js';
-import { assert, it } from '../../../@netflix/x-test/x-test.js';
+import { assert, it } from './x-test.js';
 
 it('errors are thrown in attributeChangedCallback for read-only properties', () => {
   // We cannot try-catch setAttribute, so we fake the attributeChangedCallback.

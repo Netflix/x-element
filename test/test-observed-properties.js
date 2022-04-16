@@ -1,5 +1,5 @@
 import XElement from '../x-element.js';
-import { assert, it } from '../../../@netflix/x-test/x-test.js';
+import { assert, it } from './x-test.js';
 
 class TestElement extends XElement {
   static get properties() {
@@ -80,13 +80,13 @@ class TestElement extends XElement {
         <div id="container">
           <div>Changes:</div>
           <ul>
-            ${(changes || []).map(({ property, oldValue, value }) => {
+            ${(changes || []).map((({ property, oldValue, value }) => {
               return html`
                 <li>
                   <code>${property}</code>: "${oldValue}" &#x2192; "${value}"
                 </li>
               `;
-            })}
+            }))}
           </ul>
         </div>
       `;

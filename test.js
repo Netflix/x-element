@@ -14,7 +14,7 @@ const puppeteer = require('puppeteer');
     page.on('console', message => console.log(message.text())); // eslint-disable-line no-console
 
     // Visit our test page.
-    await page.goto('http://0.0.0.0:8080/node_modules/@netflix/x-element/test/?x-test-cover');
+    await page.goto('http://127.0.0.1:8080/test/?x-test-cover');
 
     // Wait to be signaled about the end of the test. Because the test may have
     // not started, already started, or already ended, ping for status.
