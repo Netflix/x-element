@@ -1,5 +1,5 @@
 import XElement from '../x-element.js';
-import { assert, it } from '../../../@netflix/x-test/x-test.js';
+import { assert, it } from './x-test.js';
 
 class TestElementBasic extends XElement {
   static get properties() {

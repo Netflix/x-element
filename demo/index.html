@@ -2,16 +2,23 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <script type="module" src="demo-element.js"></script>
-    <script type="module" src="demo-element-properties.js"></script>
-    <script type="module" src="demo-element-attributes.js"></script>
-    <script type="module" src="right-triangle.js"></script>
+    <link rel="stylesheet" href="index.css">
+    <script type="module" src="index.js"></script>
   </head>
   <body>
-    <demo-element></demo-element>
-    <demo-element-properties></demo-element-properties>
-    <demo-element-attributes hyphenated-value="ok" boolean-value></demo-element-attributes>
-    <right-triangle></right-triangle>
-    <script src="index.js"></script>
+    <div id="content">
+      <h1 id="title"><a id="title-link" href="../x-element.js">x-element</a></h1>
+      <h2 id="tagline">A dead simple starting point for custom elements.</h2>
+      <p id="label">Examples</p>
+      <ul id="list">
+        <li><a href="./chess">chess piece</a></li>
+        <li><a href="./lit-html">using lit-html</a></li>
+        <li><a href="./uhtml">using µhtml</a></li>
+        <li><a href="./react">wrapping in react</a></li>
+        <li><a href="../test">run tests</a></li>
+        <li><a href="./performance">performance</a></li>
+      </ul>
+    </div>
+    <hello-world id="x"></hello-world>
   </body>
 </html>

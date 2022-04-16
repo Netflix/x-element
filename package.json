@@ -7,12 +7,13 @@
   "repository": "https://github.com/Netflix/x-element",
   "main": "x-element.js",
   "module": "x-element.js",
+  "types": "x-element.d.ts",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "start": "element-server",
+    "start": "http-server -o demo -c-1",
     "lint": "eslint --max-warnings=0 .",
     "lint-fix": "eslint --fix .",
     "test": "node test.js | tap-parser -l"
@@ -23,13 +24,10 @@
     "/test",
     "/etc"
   ],
-  "dependencies": {
-    "lit-html": "^2.2.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@netflix/element-server": "^1.0.12",
-    "@netflix/x-test": "^1.0.0-rc.16",
-    "eslint": "^8.13.0",
+    "eslint": "^8.35.0",
+    "http-server": "^14.1.1",
     "puppeteer": "^13.4.0",
     "tap-parser": "^10.0.1"
   }

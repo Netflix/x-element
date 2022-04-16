@@ -1,5 +1,5 @@
 import XElement from '../x-element.js';
-import { assert, it } from '../../../@netflix/x-test/x-test.js';
+import { assert, it } from './x-test.js';
 
 it('properties should not have hyphens (conflicts with attribute names)', () => {
   let passed = false;
@@ -388,6 +388,24 @@ it('input cannot be cyclic (complex)', () => {
   assert(passed, message);
 });
 
+it('attribute cannot be declared on unserializable types', () => {
+  let passed = false;
+  let message = 'no error was thrown';
+  try {
+    class TestElement extends XElement {
+      static get properties() {
+        return { unserializable: { type: Function, attribute: 'nope' } };
+      }
+    }
+    customElements.define('test-element', TestElement);
+  } catch (error) {
+    const expected = 'Found unserializable "TestElement.properties.unserializable.type" (Function) but "TestElement.properties.unserializable.attribute" is defined.';
+    message = error.message;
+    passed = error.message === expected;
+  }
+  assert(passed, message);
+});
+
 it('input cannot be declared without a compute callback', () => {
   let passed = false;
   let message = 'no error was thrown';
@@ -400,6 +418,24 @@ it('input cannot be declared without a compute callback', () => {
     customElements.define('test-element', TestElement);
   } catch (error) {
     const expected = 'Found "TestElement.properties.missingCompute.input" without "TestElement.properties.missingCompute.compute" (computed properties require a compute callback).';
+    message = error.message;
+    passed = error.message === expected;
+  }
+  assert(passed, message);
+});
+
+it('compute cannot be declared without an input callback', () => {
+  let passed = false;
+  let message = 'no error was thrown';
+  try {
+    class TestElement extends XElement {
+      static get properties() {
+        return { missingInput: { compute: () => {} } };
+      }
+    }
+    customElements.define('test-element', TestElement);
+  } catch (error) {
+    const expected = 'Found "TestElement.properties.missingInput.compute" without "TestElement.properties.missingInput.input" (computed properties require input).';
     message = error.message;
     passed = error.message === expected;
   }

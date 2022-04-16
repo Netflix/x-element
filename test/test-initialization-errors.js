@@ -1,5 +1,5 @@
 import XElement from '../x-element.js';
-import { assert, it } from '../../../@netflix/x-test/x-test.js';
+import { assert, it } from './x-test.js';
 
 it('errors are thrown in connectedCallback for initializing values with bad types', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
@@ -92,10 +92,10 @@ it('errors are thrown in connectedCallback when template result fails to render'
         strings: {},
       };
     }
-    static template(html, { repeat }) {
+    static template(html, { map }) {
       return ({ strings }) => {
-        // In this case, "repeat" will fail if "strings" is not an array.
-        return html`${repeat(strings, string => html`${string}`)}`;
+        // In this case, "map" will fail if "strings" is not an array.
+        return html`${map(strings, () => {}, string => html`${string}`)}`;
       };
     }
   }
@@ -123,10 +123,10 @@ it('errors are thrown in connectedCallback when template result fails to render 
         strings: {},
       };
     }
-    static template(html, { repeat }) {
+    static template(html, { map }) {
       return ({ strings }) => {
-        // In this case, "repeat" will fail if "strings" is not an array.
-        return html`${repeat(strings, string => html`${string}`)}`;
+        // In this case, "map" will fail if "strings" is not an array.
+        return html`${map(strings, () => {}, string => html`${string}`)}`;
       };
     }
   }

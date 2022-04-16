@@ -1,4 +1,4 @@
-import { test, cover } from '../../../@netflix/x-test/x-test.js';
+import { test, cover } from './x-test.js';
 
 // We import this here so we can see code coverage.
 import '../x-element.js';
@@ -10,6 +10,7 @@ test('./test-analysis-errors.html');
 test('./test-initialization-errors.html');
 test('./test-attribute-changed-errors.html');
 test('./test-element-upgrade.html');
+test('./test-template-engine.html');
 test('./test-render.html');
 test('./test-render-root.html');
 test('./test-basic-properties.html');

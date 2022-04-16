@@ -1,19 +1,3 @@
-import { asyncAppend } from '../../lit-html/directives/async-append.js';
-import { asyncReplace } from '../../lit-html/directives/async-replace.js';
-import { cache } from '../../lit-html/directives/cache.js';
-import { classMap } from '../../lit-html/directives/class-map.js';
-import { directive } from '../../lit-html/directive.js';
-import { guard } from '../../lit-html/directives/guard.js';
-import { html, render, svg } from '../../lit-html/lit-html.js';
-import { ifDefined } from '../../lit-html/directives/if-defined.js';
-import { live } from '../../lit-html/directives/live.js';
-import { repeat } from '../../lit-html/directives/repeat.js';
-import { styleMap } from '../../lit-html/directives/style-map.js';
-import { templateContent } from '../../lit-html/directives/template-content.js';
-import { unsafeHTML } from '../../lit-html/directives/unsafe-html.js';
-import { unsafeSVG } from '../../lit-html/directives/unsafe-svg.js';
-import { until } from '../../lit-html/directives/until.js';
-
 /** Base element class for creating custom elements. */
 export default class XElement extends HTMLElement {
   /** Extends HTMLElement.observedAttributes to handle the properties block. */
@@ -22,22 +6,23 @@ export default class XElement extends HTMLElement {
     return [...XElement.#constructors.get(this).attributeMap.keys()];
   }
 
-  /**
-   * @typedef {object} PropertyDefinition
-   * @property {object} [type] - Associate property with a type  (e.g., "String").
-   * @property {string} [attribute] - Customize related property's attribute.
-   * @property {string[]} [input] - Array of property names on which a computed property depends.
-   * @property {function} [compute] - Callback function to compute property value. Called with "input" values.
-   * @property {boolean} [reflect] - Should setting the property update its attribute?
-   * @property {function} [observe] - Callback function to observe property value changes. Called with "(host, value, oldValue)".
-   * @property {function|*} [initial] - Initial callback or primitive value used to coalesce nullish properties.
-   * @property {function|*} [default] - Callback or primitive value used to coalesce nullish properties.
-   * @property {boolean} [readOnly] - Prevent setting property value on the host?
-   * @property {boolean} [internal] - Prevent getting and setting property value on the host?
+  /** Default templating engine. Use "templateEngine" to override. */
+  static get defaultTemplateEngine() {
+    return TemplateEngine.interface;
+  }
+
+  /** Configured templating engine. Defaults to "defaultTemplateEngine".
+   *
+   * Override this as needed if x-element's default template engine does not
+   * meet your needs. A "render" method is the only required field. An "html"
+   * tagged template literal is expected, but not strictly required.
    */
+  static get templateEngine() {
+    return XElement.defaultTemplateEngine;
+  }
 
   /**
-   * Statically declare watched properties (and related attributes) on an element.
+   * Declare watched properties (and related attributes) on an element.
    *
    *   static get properties() {
    *     return {
@@ -54,15 +39,13 @@ export default class XElement extends HTMLElement {
    *       }
    *     };
    *   }
-   *
-   * @returns {object.<string, PropertyDefinition>}
    */
   static get properties() {
     return {};
   }
 
   /**
-   * Statically declare event handlers on an element.
+   * Declare event handlers on an element.
    *
    *   static get listeners() {
    *     return {
@@ -74,8 +57,6 @@ export default class XElement extends HTMLElement {
    * added during "connectedCallback" and removed during "disconnectedCallback".
    *
    * The arguments passed to your callback are always "(host, event)".
-   *
-   * @returns {Object.<string, function>}
    */
   static get listeners() {
     return {};
@@ -85,9 +66,6 @@ export default class XElement extends HTMLElement {
    * Customize shadow root initialization and optionally forgo encapsulation.
    *
    * E.g., setup focus delegation or return host instead of host.shadowRoot.
-   *
-   * @param {XElement} host - An instance of you custom element constructor class.
-   * @returns {ShadowRoot|XElement} - Template results will get stamped into this value.
    */
   static createRenderRoot(host) {
     return host.attachShadow({ mode: 'open' });
@@ -96,17 +74,13 @@ export default class XElement extends HTMLElement {
   /**
    * Setup template callback to update DOM when properties change.
    *
-   *   static template(html, { ifDefined }) {
+   *   static template(html, { nullish }) {
    *     return (href) => {
-   *       return html`<a href=${ifDefined(href)}>click me</a>`;
+   *       return html`<a href=${nullish(href)}>click me</a>`;
    *     }
    *   }
-   *
-   * @param {function} html - See [lit-html]{@link https://lit-html.polymer-project.org/}.
-   * @param {object.<string, function>} engine - Directives and template functions from lit-html.
-   * @returns {function} - Callback which is called when properties change.
    */
-  static template(html, engine) { // eslint-disable-line no-unused-vars, no-shadow
+  static template(html, engine) { // eslint-disable-line no-unused-vars
     return (properties, host) => {}; // eslint-disable-line no-unused-vars
   }
 
@@ -141,17 +115,12 @@ export default class XElement extends HTMLElement {
    * Uses the result of your template callback to update your render root.
    *
    * This is called when properties update, but is exposed for advanced use cases.
-   *
-   * It's common for the template to produce a result that will fail when
-   * rendered. When this happens, the stack trace may not show the actual
-   * template that produced the result. We append information for ease of
-   * debugging such issues.
    */
   render() {
-    const { template, properties, renderRoot } = XElement.#hosts.get(this);
+    const { template, properties, renderRoot, render } = XElement.#hosts.get(this);
     const result = template(properties, this);
     try {
-      render(result, renderRoot);
+      render(renderRoot, result);
     } catch (error) {
       const pathString = XElement.#toPathString(this);
       error.message = `${error.message} — Invalid template for "${this.constructor.name}" at path "${pathString}"`;
@@ -163,11 +132,6 @@ export default class XElement extends HTMLElement {
    * Wrapper around HTMLElement.addEventListener.
    *
    * Advanced — use this only if declaring listeners statically is not possible.
-   *
-   * @param {HTMLElement} element - The element to which the listener will be added.
-   * @param {string} type - The event type for which we're listening.
-   * @param {function} callback - The handler callback.
-   * @param {object} [options] - Listener options (e.g., { useCapture: true }).
    */
   listen(element, type, callback, options) {
     if (XElement.#typeIsWrong(EventTarget, element)) {
@@ -193,11 +157,6 @@ export default class XElement extends HTMLElement {
    * Wrapper around HTMLElement.removeEventListener.
    *
    * Inverse of "listen".
-   *
-   * @param {HTMLElement} element - The element to which the listener will be added.
-   * @param {string} type - The event type for which we're listening.
-   * @param {function} callback - The handler callback.
-   * @param {object} [options] - Listener options (e.g., { useCapture: true }).
    */
   unlisten(element, type, callback, options) {
     if (XElement.#typeIsWrong(EventTarget, element)) {
@@ -219,11 +178,7 @@ export default class XElement extends HTMLElement {
     XElement.#removeListener(this, element, type, callback, options);
   }
 
-  /**
-   * Helper method to dispatch an "ErrorEvent" on the element.
-   *
-   * @param {Error} error - An error instance to dispatch.
-   */
+  /** Helper method to dispatch an "ErrorEvent" on the element. */
   dispatchError(error) {
     const { message } = error;
     const eventData = { error, message, bubbles: true, composed: true };
@@ -235,11 +190,6 @@ export default class XElement extends HTMLElement {
    *
    * Note that you can set read-only properties from host.internal. However, you
    * must get read-only properties directly from the host.
-   *
-   * @see PropertyDefinition.internal
-   * @see PropertyDefinition.readOnly
-   *
-   * @returns {object.<string, *>}
    */
   get internal() {
     return XElement.#hosts.get(this).internal;
@@ -577,11 +527,8 @@ export default class XElement extends HTMLElement {
     if (!renderRoot || renderRoot !== host && renderRoot !== host.shadowRoot) {
       throw new Error('Unexpected render root returned. Expected "host" or "host.shadowRoot".');
     }
-    const template = host.constructor.template(html, {
-      asyncAppend, asyncReplace, cache, classMap, directive, guard, html,
-      ifDefined, live, repeat, styleMap, svg, templateContent, unsafeHTML,
-      unsafeSVG, until,
-    }).bind(host.constructor);
+    const { render, html, ...engine } = host.constructor.templateEngine;
+    const template = host.constructor.template(html, { html, ...engine }).bind(host.constructor);
     const properties = XElement.#createProperties(host);
     const internal = XElement.#createInternal(host);
     const computeMap = new Map();
@@ -598,8 +545,8 @@ export default class XElement extends HTMLElement {
     }
     XElement.#hosts.set(host, {
       initialized: false, reflecting: false, invalidProperties, listenerMap,
-      renderRoot, template, properties, internal, computeMap, observeMap,
-      defaultMap, valueMap,
+      renderRoot, render, template, properties, internal, computeMap,
+      observeMap, defaultMap, valueMap,
     });
   }
 
@@ -941,4 +888,751 @@ export default class XElement extends HTMLElement {
   static #serializableTypes = new Set([Boolean, String, Number]);
   static #caseMap = new Map();
   static #prototypeInterface = new Set(Object.getOwnPropertyNames(XElement.prototype));
+}
+
+/** Wrapper to document public interface to the default templating engine. */
+class TemplateEngine {
+  static #interface = null;
+
+  /**
+   * Declare HTML markup to be interpolated.
+   *   html`<div attr="${obj.attr}" .prop="${obj.prop}">${obj.content}</div>`;
+   */
+  static html(strings, ...values) {
+    return Template.html(strings, ...values);
+  }
+
+  /**
+   * Declare SVG markup to be interpolated.
+   *
+   *   svg`<circle r="${obj.r}" cx="${obj.cx}" cy="${obj.cy}"></div>`;
+   */
+  static svg(strings, ...values) {
+    return Template.svg(strings, ...values);
+  }
+
+  /**
+   * Core rendering entry point for x-element template engine.
+   *
+   * Accepts a "container" element and renders the given "result" into it.
+   */
+  static render(container, result) {
+    Template.render(container, result);
+  }
+
+  /**
+   * Updater to manage an attribute which may be undefined.
+   *
+   * In the following example, the "ifDefined" updater will remove the
+   * attribute if it's undefined. Else, it sets the key-value pair.
+   *
+   *  html`<a href="${ifDefined(obj.href)}"></div>`;
+   */
+  static ifDefined(value) {
+    return Template.ifDefined(value);
+  }
+
+  /**
+   * Updater to manage an attribute which may not exist.
+   *
+   * In the following example, the "nullish" updater will remove the
+   * attribute if it's nullish. Else, it sets the key-value pair.
+   *
+   *  html`<a href="${nullish(obj.href)}"></div>`;
+   */
+  static nullish(value) {
+    return Template.nullish(value);
+  }
+
+  /**
+   * Updater to manage a property which may change outside the templating engine.
+   *
+   * Typically, properties are declaratively managed from state and efficient
+   * value checking is used (i.e., "value !== lastValue"). However, if DOM state
+   * is expected to change, the "live" updater can be used to essentially change
+   * this check to "value !== node[property]".
+   *
+   *  html`<input .value="${live(obj.value)}"/>`;
+   */
+  static live(value) {
+    return Template.live(value);
+  }
+
+  /**
+   * Updater to inject trusted HTML into the DOM.
+   *
+   * Use with caution. The "unsafeHTML" updater allows arbitrary input to be
+   * parsed as HTML and injected into the DOM.
+   *
+   *  html`<div>${unsafeHTML(obj.trustedMarkup)}</div>`;
+   */
+  static unsafeHTML(value) {
+    return Template.unsafeHTML(value);
+  }
+
+  /**
+   * Updater to inject trusted SVG into the DOM.
+   *
+   * Use with caution. The "unsafeSVG" updater allows arbitrary input to be
+   * parsed as SVG and injected into the DOM.
+   *
+   *  html`
+   *    <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+   *      ${unsafeSVG(obj.trustedMarkup)}
+   *    </svg>
+   *  `;
+   */
+  static unsafeSVG(value) {
+    return Template.unsafeSVG(value);
+  }
+
+  /**
+   * Updater to manage a keyed array of templates (allows for DOM reuse).
+   *
+   *  html`
+   *    <ul>
+   *      ${map(items, item => item.id, item => html`<li>${item.value}</li>`)}
+   *    </div>
+   *  `;
+   */
+  static map(items, identify, callback) {
+    if (typeof identify !== 'function') {
+      throw new Error(`Unexpected map identify "${identify}" provided, expected a function.`);
+    }
+    if (typeof callback !== 'function') {
+      throw new Error(`Unexpected map callback "${callback}" provided, expected a function.`);
+    }
+    return Template.map(items, identify, callback, 'map');
+  }
+
+  /** Shim for prior "repeat" function. Use "map". */
+  static repeat(value, identify, callback) {
+    if (arguments.length === 2) {
+      callback = identify;
+      identify = null;
+    }
+    if (arguments.length !== 2 && typeof identify !== 'function') {
+      throw new Error(`Unexpected repeat identify "${identify}" provided, expected a function.`);
+    } else if (typeof callback !== 'function') {
+      throw new Error(`Unexpected repeat callback "${callback}" provided, expected a function.`);
+    }
+    return Template.map(value, identify, callback, 'repeat');
+  }
+
+  static get interface() {
+    if (!TemplateEngine.#interface) {
+      TemplateEngine.#interface = Object.freeze({
+        render: TemplateEngine.render,
+        html: TemplateEngine.html,
+        svg: TemplateEngine.svg,
+        map: TemplateEngine.map,
+        nullish: TemplateEngine.nullish,
+
+        // Help folks migrate from prior interface or plug it back in.
+        live: TemplateEngine.live, // Kept as-is for now.
+        unsafeHTML: TemplateEngine.unsafeHTML, // Kept as-is for now.
+        unsafeSVG: TemplateEngine.unsafeSVG, // Kept as-is for now.
+        ifDefined: TemplateEngine.ifDefined, // Kept as-is for now.
+        repeat: TemplateEngine.repeat, // Wrapper around "map". We may deprecate these soon.
+        asyncAppend: TemplateEngine.#removed('asyncAppend'), // Removed.
+        asyncReplace: TemplateEngine.#removed('asyncReplace'), // Removed.
+        cache: TemplateEngine.#removed('cache'), // Removed.
+        classMap: TemplateEngine.#removed('classMap'), // Removed.
+        directive: TemplateEngine.#removed('directive'), // Removed.
+        guard: TemplateEngine.#removed('guard'), // Removed.
+        styleMap: TemplateEngine.#removed('styleMap'), // Removed.
+        templateContent: TemplateEngine.#removed('templateContent'), // Removed.
+        until: TemplateEngine.#removed('until'), // Removed.
+      });
+    }
+    return TemplateEngine.#interface;
+  }
+
+  // Throw an error for removed parts of the interface to make migration easier.
+  static #removed (name) {
+    return () => {
+      throw new Error(`Removed "${name}" from default templating engine interface. Import and plug-in "lit-html" as your element's templating engine if you want this functionality.`);
+    };
+  }
+}
+
+/** Internal implementation details for templating and updating. */
+class Template {
+  static #internals = new WeakMap();
+  static #templates = new WeakMap();
+  static #templateResults = new WeakMap();
+  static #updaters = new WeakMap();
+  static #ATTRIBUTE = /<[a-zA-Z0-9-]+[^/<>]* ([a-z][a-z-]*)="$/;
+  static #BOOLEAN_ATTRIBUTE = /<[a-zA-Z0-9-]+[^/<>]* \?([a-z][a-z-]*)="$/;
+  static #PROPERTY = /<[a-zA-Z0-9-]+[^/<>]* \.([a-z][a-zA-Z0-9_]*)="$/;
+
+  #type = null;
+  #strings = null;
+  #analysis = null;
+
+  constructor(type, strings) {
+    this.#type = type;
+    this.#strings = strings;
+  }
+
+  inject(node, options) {
+    if (!this.#analysis) {
+      let string = '';
+      for (const [key, value] of Object.entries(this.#strings)) {
+        string += value;
+        const attributeMatch = string.match(Template.#ATTRIBUTE);
+        const booleanAttributeMatch = !attributeMatch ? string.match(Template.#BOOLEAN_ATTRIBUTE) : null;
+        const propertyMatch = !attributeMatch && !booleanAttributeMatch ? string.match(Template.#PROPERTY) : null;
+        if (attributeMatch) {
+          // We found a match like this: html`<div title="${value}"></div>`.
+          const name = attributeMatch[1];
+          string = string.slice(0, -2 - name.length) + `x-element-attribute-$${key}="${name}`;
+        } else if (booleanAttributeMatch) {
+          // We found a match like this: html`<div ?hidden="${!!value}"></div>`.
+          const name = booleanAttributeMatch[1];
+          string = string.slice(0, -3 - name.length) + `x-element-boolean-attribute-$${key}="${name}`;
+        } else if (propertyMatch) {
+          // We found a match like this: html`<div .title="${value}"></div>`.
+          const name = propertyMatch[1];
+          string = string.slice(0, -3 - name.length) + `x-element-property-$${key}="${name}`;
+        } else if (Number(key) < this.#strings.length - 1) {
+          // Assume it's a match like this: html`<div>${value}</div>`.
+          string += `<!--x-element-content-$${key}-->`;
+        }
+      }
+      if (this.#type === 'svg') {
+        string = `<svg xmlns="http://www.w3.org/2000/svg">${string}</svg>`;
+      }
+      const element = document.createElement('template');
+      element.innerHTML = string;
+      const blueprint = Template.#evaluate(element.content); // mutates element.
+      this.#analysis = { element, blueprint };
+    }
+    const { element, blueprint } = this.#analysis;
+    const clone = element.cloneNode(true);
+    const mapping = Template.#instrument(blueprint, clone.content); // mutates clone.
+    const content = clone.content;
+    options?.before
+      ? this.#type === 'svg'
+        ? Template.#insertAllBefore(content.firstChild.childNodes, node)
+        : Template.#insertAllBefore(content.childNodes, node)
+      : this.#type === 'svg'
+        ? node.append(...content.firstChild.childNodes)
+        : node.append(content);
+    return { element: clone, mapping };
+  }
+
+  commit(mapping, values, lastValues) {
+    Template.#commit(mapping, values, lastValues);
+  }
+
+  static html(strings, ...values) {
+    const template = Template.#setIfMissing(Template.#templates, strings, () => new Template('html', strings));
+    const reference = Template.#createWeakMapReference();
+    Template.#templateResults.set(reference, new TemplateResult(template, values));
+    return reference;
+  }
+
+  static svg(strings, ...values) {
+    const template = Template.#setIfMissing(Template.#templates, strings, () => new Template('svg', strings));
+    const reference = Template.#createWeakMapReference();
+    Template.#templateResults.set(reference, new TemplateResult(template, values));
+    return reference;
+  }
+
+  static render(container, reference) {
+    const internals = Template.#setIfMissing(Template.#internals, container, () => ({}));
+    if (reference) {
+      const templateResult = Template.#templateResults.get(reference);
+      if (internals.templateResult?.template !== templateResult.template) {
+        Template.#removeWithin(container);
+        internals.templateResult = templateResult;
+        templateResult.inject(container);
+      } else {
+        internals.templateResult.assign(templateResult);
+      }
+      internals.templateResult.commit();
+    } else {
+      Template.#clearObject(internals);
+      Template.#removeWithin(container);
+    }
+  }
+
+  static ifDefined(value) {
+    const reference = Template.#createWeakMapReference();
+    const updater = (type, lastValue, details) => Template.#ifDefined(type, value, lastValue, details);
+    updater.value = value;
+    Template.#updaters.set(reference, updater);
+    return reference;
+  }
+
+  static nullish(value) {
+    const reference = Template.#createWeakMapReference();
+    const updater = (type, lastValue, details) => Template.#nullish(type, value, lastValue, details);
+    updater.value = value;
+    Template.#updaters.set(reference, updater);
+    return reference;
+  }
+
+  static live(value) {
+    const reference = Template.#createWeakMapReference();
+    const updater = (type, lastValue, details) => Template.#live(type, value, lastValue, details);
+    updater.value = value;
+    Template.#updaters.set(reference, updater);
+    return reference;
+  }
+
+  static unsafeHTML(value) {
+    const reference = Template.#createWeakMapReference();
+    const updater = (type, lastValue, details) => Template.#unsafeHTML(type, value, lastValue, details);
+    updater.value = value;
+    Template.#updaters.set(reference, updater);
+    return reference;
+  }
+
+  static unsafeSVG(value) {
+    const reference = Template.#createWeakMapReference();
+    const updater = (type, lastValue, details) => Template.#unsafeSVG(type, value, lastValue, details);
+    updater.value = value;
+    Template.#updaters.set(reference, updater);
+    return reference;
+  }
+
+  static map(value, identify, callback, name) {
+    const reference = Template.#createWeakMapReference();
+    const context = { identify, callback };
+    const updater = (type, lastValue, details) => Template.#map(type, value, lastValue, details, context, name);
+    updater.value = value;
+    Template.#updaters.set(reference, updater);
+    return reference;
+  }
+
+  static #evaluate(node, path) {
+    path = path ?? [];
+    const items = [];
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      for (const attribute of [...node.attributes]) {
+        const attributeMatch = attribute.name.match(/^x-element-attribute-\$(\d+)$/);
+        const booleanAttributeMatch = !attributeMatch ? attribute.name.match(/^x-element-boolean-attribute-\$(\d+)$/) : null;
+        const propertyMatch = !attributeMatch && !booleanAttributeMatch ? attribute.name.match(/^x-element-property-\$(\d+)$/) : null;
+        if (attributeMatch) {
+          node.removeAttribute(attributeMatch[0]);
+          items.push({ path, key: attributeMatch[1], type: 'attribute', name: attribute.value });
+        } else if (booleanAttributeMatch) {
+          node.removeAttribute(booleanAttributeMatch[0]);
+          items.push({ path, key: booleanAttributeMatch[1], type: 'boolean-attribute', name: attribute.value });
+        } else if (propertyMatch) {
+          node.removeAttribute(propertyMatch[0]);
+          items.push({ path, key: propertyMatch[1], type: 'property', name: attribute.value });
+        }
+      }
+      // Special case to handle elements which only allow text content (no comments).
+      if (node.localName.match(/^plaintext|script|style|textarea|title$/)) {
+        const contentMatch = node.textContent.match(/x-element-content-\$(\d+)/);
+        if (contentMatch) {
+          if (node.localName.match(/^plaintext|textarea|title$/)) {
+            node.textContent = '';
+            items.push({ path, key: contentMatch[1], type: 'text-content' });
+          } else {
+            node.textContent = '/* x-element: Interpolation is not allowed here. */';
+          }
+        }
+      }
+    } else if (node.nodeType === Node.COMMENT_NODE) {
+      const contentMatch = node.textContent.match(/x-element-content-\$(\d+)/);
+      if (contentMatch) {
+        node.textContent = '';
+        const startNode = document.createComment('');
+        node.parentNode.insertBefore(startNode, node);
+        path[path.length - 1] = path[path.length - 1] + 1;
+        items.push({ path, key: contentMatch[1], type: 'content' });
+      }
+    }
+    let iii = 0;
+    for (const childNode of node.childNodes) {
+      items.push(...Template.#evaluate(childNode, [...path, iii++]));
+    }
+    return items;
+  }
+
+  static #instrument(blueprint, content) {
+    const nextItems = [];
+    const lookup = new Map();
+    const find = path => {
+      let node = content;
+      for (const index of path) {
+        node = Template.#setIfMissing(lookup, node, () => node.childNodes)[index];
+      }
+      return node;
+    };
+    for (const item of blueprint) {
+      const node = find(item.path);
+      switch (item.type) {
+        case 'attribute':
+        case 'boolean-attribute':
+        case 'property': {
+          nextItems.push({ key: item.key, type: item.type, name: item.name, node });
+          break;
+        }
+        case 'content': {
+          const startNode = node.previousSibling;
+          const nextItem = { key: item.key, type: item.type, node, startNode };
+          nextItems.push(nextItem);
+          break;
+        }
+        case 'text-content': {
+          const nextItem = { key: item.key, type: item.type, node };
+          nextItems.push(nextItem);
+          break;
+        }
+      }
+    }
+    return nextItems;
+  }
+
+  static #commit(mapping, values, lastValues) {
+    for (const { key, type, node, startNode, name } of mapping) {
+      const lastUpdater = Template.#updaters.get(lastValues[key]);
+      const lastValue = lastUpdater ? lastUpdater.value : lastValues[key];
+      const updater = Template.#updaters.get(values[key]);
+      switch (type) {
+        case 'attribute':
+          updater
+            ? updater(type, lastValue, { node, name })
+            : Template.#attribute(type, values[key], lastValue, { node, name });
+          break;
+        case 'boolean-attribute':
+          updater
+            ? updater(type, lastValue, { node, name })
+            : Template.#booleanAttribute(type, values[key], lastValue, { node, name });
+          break;
+        case 'property':
+          updater
+            ? updater(type, lastValue, { node, name })
+            : Template.#property(type, values[key], lastValue, { node, name });
+          break;
+        case 'content':
+          updater
+            ? updater(type, lastValue, { node, startNode })
+            : Template.#content(type, values[key], lastValue, { node, startNode });
+          break;
+        case 'text-content':
+          updater
+            ? updater(type, lastValue, { node })
+            : Template.#textContent(type, values[key], lastValue, { node });
+          break;
+      }
+    }
+  }
+
+  static #attribute(type, value, lastValue, { node, name }) {
+    if (value !== lastValue) {
+      node.setAttribute(name, value);
+    }
+  }
+
+  static #booleanAttribute(type, value, lastValue, { node, name }) {
+    if (value !== lastValue) {
+      value
+        ? node.setAttribute(name, '')
+        : node.removeAttribute(name);
+    }
+  }
+
+  static #property(type, value, lastValue, { node, name }) {
+    if (value !== lastValue) {
+      node[name] = value;
+    }
+  }
+
+  static #textContent(type, value, lastValue, { node }) {
+    if (value !== lastValue) {
+      node.textContent = value;
+    }
+  }
+
+  static #content(type, value, lastValue, { node, startNode }) {
+    if (value !== lastValue) {
+      const internals = Template.#setIfMissing(Template.#internals, startNode, () => ({}));
+      if (Template.#templateResults.has(value)) {
+        const templateResult = Template.#templateResults.get(value);
+        if (internals.templateResult?.template !== templateResult.template) {
+          Template.#removeBetween(startNode, node);
+          Template.#clearObject(internals);
+          internals.templateResult = templateResult;
+          templateResult.inject(node, { before: true });
+        } else {
+          internals.templateResult.assign(templateResult);
+        }
+        internals.templateResult.commit();
+      } else if (Array.isArray(value)) {
+        Template.#mapInner(internals, node, startNode, null, null, value, 'array');
+      } else {
+        if (internals.templateResult) {
+          Template.#removeBetween(startNode, node);
+          Template.#clearObject(internals);
+        }
+        const previousSibling = node.previousSibling;
+        if (previousSibling === startNode) {
+          const textNode = document.createTextNode(value ?? '');
+          node.parentNode.insertBefore(textNode, node);
+        } else {
+          previousSibling.textContent = value ?? '';
+        }
+      }
+    }
+  }
+
+  static #ifDefined(type, value, lastValue, { node, name }) {
+    if (type === 'attribute') {
+      if (value !== lastValue) {
+        value !== undefined
+          ? node.setAttribute(name, value)
+          : node.removeAttribute(name);
+      }
+    } else {
+      throw new Error(`The ifDefined update must be used on ${Template.#getTypeText('attribute')}, not on ${Template.#getTypeText(type)}.`);
+    }
+  }
+
+  static #nullish(type, value, lastValue, { node, name }) {
+    if (type === 'attribute') {
+      if (value !== lastValue) {
+        value !== undefined && value !== null
+          ? node.setAttribute(name, value)
+          : node.removeAttribute(name);
+      }
+    } else {
+      throw new Error(`The nullish update must be used on ${Template.#getTypeText('attribute')}, not on ${Template.#getTypeText(type)}.`);
+    }
+  }
+
+  static #live(type, value, lastValue, { node, name }) {
+    if (type === 'property') {
+      if (node[name] !== value) {
+        node[name] = value;
+      }
+    } else {
+      throw new Error(`The live update must be used on ${Template.#getTypeText('property')}, not on ${Template.#getTypeText(type)}.`);
+    }
+  }
+
+  static #unsafeHTML(type, value, lastValue, { node, startNode }) {
+    if (type === 'content') {
+      if (value !== lastValue) {
+        if (typeof value === 'string') {
+          const template = document.createElement('template');
+          template.innerHTML = value;
+          Template.#removeBetween(startNode, node);
+          Template.#insertAllBefore(template.content.childNodes, node);
+        } else {
+          throw new Error(`Unexpected unsafeHTML value "${value}".`);
+        }
+      }
+    } else {
+      throw new Error(`The unsafeHTML update must be used on ${Template.#getTypeText('content')}, not on ${Template.#getTypeText(type)}.`);
+    }
+  }
+
+  static #unsafeSVG(type, value, lastValue, { node, startNode }) {
+    if (type === 'content') {
+      if (value !== lastValue) {
+        if (typeof value === 'string') {
+          const template = document.createElement('template');
+          template.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${value}</svg>`;
+          Template.#removeBetween(startNode, node);
+          Template.#insertAllBefore(template.content.firstChild.childNodes, node);
+        } else {
+          throw new Error(`Unexpected unsafeSVG value "${value}".`);
+        }
+      }
+    } else {
+      throw new Error(`The unsafeSVG update must be used on ${Template.#getTypeText('content')}, not on ${Template.#getTypeText(type)}.`);
+    }
+  }
+
+  static #mapInner(internals, node, startNode, identify, callback, inputs, name) {
+    if (!internals.map) {
+      Template.#clearObject(internals);
+      internals.map = new Map;
+      let index = 0;
+      for (const input of inputs) {
+        const reference = callback ? callback(input, index) : input;
+        const templateResult = Template.#templateResults.get(reference);
+        if (templateResult) {
+          const id = identify ? identify(input, index) : String(index);
+          internals.map.set(id, { id, ...Template.#createItem(templateResult, node) });
+          templateResult.commit();
+        } else {
+          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
+        }
+        index++;
+      }
+    } else {
+      let lastItem;
+      const ids = new Set();
+      let index = 0;
+      for (const input of inputs) {
+        const reference = callback ? callback(input, index) : input;
+        const templateResult = Template.#templateResults.get(reference);
+        if (templateResult) {
+          const id = identify ? identify(input, index) : String(index);
+          if (internals.map.has(id)) {
+            const item = internals.map.get(id);
+            if (item.templateResult?.template !== templateResult.template) {
+              const itemClone = { ...item };
+              Object.assign(item, Template.#createItem(templateResult, itemClone.startNode));
+              Template.#removeThrough(itemClone.startNode, itemClone.node);
+            } else {
+              item.templateResult.assign(templateResult);
+            }
+          } else {
+            const item = { id, ...Template.#createItem(templateResult, node) };
+            internals.map.set(id, item);
+          }
+          const item = internals.map.get(id);
+          const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
+          if (referenceNode !== item.startNode) {
+            const nodesToMove = [item.startNode];
+            while (nodesToMove[nodesToMove.length - 1] !== item.node) {
+              nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
+            }
+            Template.#insertAllBefore(nodesToMove, referenceNode);
+          }
+          item.templateResult.commit();
+          ids.add(item.id);
+          lastItem = item;
+        } else {
+          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
+        }
+        index++;
+      }
+      for (const [id, item] of internals.map.entries()) {
+        if (!ids.has(id)) {
+          Template.#removeThrough(item.startNode, item.node);
+          internals.map.delete(id);
+        }
+      }
+    }
+  }
+
+  static #map(type, value, lastValue, { node, startNode }, { identify, callback }, name) {
+    if (type === 'content') {
+      if (value !== lastValue) {
+        if (Array.isArray(value)) {
+          const internals = Template.#setIfMissing(Template.#internals, startNode, () => ({}));
+          Template.#mapInner(internals, node, startNode, identify, callback, value, name);
+        } else {
+          throw new Error(`Unexpected ${name} value "${value}".`);
+        }
+      }
+    } else {
+      throw new Error(`The ${name} update must be used on ${Template.#getTypeText('content')}, not on ${Template.#getTypeText(type)}.`);
+    }
+  }
+
+  static #createItem(templateResult, referenceNode) {
+    const startNode = document.createComment('');
+    const node = document.createComment('');
+    referenceNode.parentNode.insertBefore(startNode, referenceNode);
+    templateResult.inject(referenceNode, { before: true });
+    referenceNode.parentNode.insertBefore(node, referenceNode);
+    return { templateResult, startNode, node };
+  }
+
+  static #insertAllBefore(childNodes, node) {
+    for (const childNode of [...childNodes]) {
+      node.parentNode.insertBefore(childNode, node);
+    }
+  }
+
+  static #removeWithin(node) {
+    while(node.firstChild) {
+      node.firstChild.remove();
+    }
+  }
+
+  static #removeBetween(startNode, node) {
+    while(node.previousSibling !== startNode) {
+      node.previousSibling.remove();
+    }
+  }
+
+  static #removeThrough(startNode, node) {
+    Template.#removeBetween(startNode, node);
+    startNode.remove();
+    node.remove();
+  }
+
+  static #clearObject(object) {
+    for (const key of Object.keys(object)) {
+      delete object[key];
+    }
+  }
+
+  static #createWeakMapReference() {
+    return Object.create(null);
+  }
+
+  static #setIfMissing(map, key, callback) {
+    // Values set in this file are ALL truthy, so "get" is used (versus "has").
+    let value = map.get(key);
+    if (!value) {
+      value = callback();
+      map.set(key, value);
+    }
+    return value;
+  }
+
+  static #getTypeText(type) {
+    return type === 'attribute'
+      ? `an ${type}`
+      : type === 'boolean-attribute' || type === 'property'
+        ? `a ${type}`
+        : `${type}`;
+  }
+}
+
+/** Internal implementation details for template results. */
+class TemplateResult {
+  static #UNSET = Symbol('unset');
+  #template = null;
+  #element = null;
+  #mapping = null;
+  #values = null;
+  #lastValues = null;
+  #injected = false;
+
+  constructor(template, values) {
+    this.#template = template;
+    this.#values = values;
+    this.#lastValues = this.#values.map(() => TemplateResult.#UNSET);
+  }
+
+  get template() {
+    return this.#template;
+  }
+
+  get values() {
+    return this.#values;
+  }
+
+  inject(node, options) {
+    if (this.#injected) {
+      throw new Error(`Unexpected re-injection of template result.`);
+    }
+    this.#injected = true;
+    const { element, mapping } = this.#template.inject(node, options);
+    this.#element = element;
+    this.#mapping = mapping;
+  }
+
+  assign(templateResult) {
+    this.#lastValues = this.#values;
+    this.#values = templateResult.values;
+  }
+
+  commit() {
+    this.#template.commit(this.#mapping, this.#values, this.#lastValues);
+  }
 }

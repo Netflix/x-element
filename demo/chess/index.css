@@ -3,14 +3,6 @@
   font-size: 1.2rem;
 }
 
-a {
-  color: hsl(270, 100%, 50%);
-}
-
-a:not(:hover) {
-  text-decoration: none;
-}
-
 #container {
   max-width: 12rem;
   display: flex;
@@ -20,14 +12,14 @@ a:not(:hover) {
   perspective: 1000px;
 }
 
-hello-world + hello-world {
+chess-piece + chess-piece {
   --hello-size: 6rem;
 }
 
-hello-world + hello-world + hello-world {
+chess-piece + chess-piece + chess-piece {
   --hello-size: 5rem;
 }
 
-hello-world:last-of-type {
+chess-piece:last-of-type {
   --hello-size: 4rem;
 }

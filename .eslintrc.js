@@ -26,6 +26,7 @@ module.exports = {
     'quotes': ['warn', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
     'semi': 'warn',
   },
+  ignorePatterns: ['*.d.ts'],
   env: {
     es6: true,
     browser: true,

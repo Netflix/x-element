@@ -1,6 +1,6 @@
-import XElement from './x-element.js';
+import XElement from '../../x-element.js';
 
-class HelloElement extends XElement {
+class ChessPieceElement extends XElement {
   static get properties() {
     return {
       rank: {
@@ -80,4 +80,4 @@ class HelloElement extends XElement {
   }
 }
 
-customElements.define('hello-world', HelloElement);
+customElements.define('chess-piece', ChessPieceElement);
