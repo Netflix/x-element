@@ -10,6 +10,7 @@ test('./test-analysis-errors.html');
 test('./test-initialization-errors.html');
 test('./test-attribute-changed-errors.html');
 test('./test-element-upgrade.html');
+test('./test-template-engine.html');
 test('./test-render.html');
 test('./test-render-root.html');
 test('./test-basic-properties.html');

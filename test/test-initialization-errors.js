@@ -92,10 +92,10 @@ it('errors are thrown in connectedCallback when template result fails to render'
         strings: {},
       };
     }
-    static template(html, { repeat }) {
+    static template(html, { keyedMap }) {
       return ({ strings }) => {
-        // In this case, "repeat" will fail if "strings" is not an array.
-        return html`${repeat(strings, string => html`${string}`)}`;
+        // In this case, "keyedMap" will fail if "strings" is not an array.
+        return html`${keyedMap(strings, () => {}, string => html`${string}`)}`;
       };
     }
   }
@@ -123,10 +123,10 @@ it('errors are thrown in connectedCallback when template result fails to render 
         strings: {},
       };
     }
-    static template(html, { repeat }) {
+    static template(html, { keyedMap }) {
       return ({ strings }) => {
-        // In this case, "repeat" will fail if "strings" is not an array.
-        return html`${repeat(strings, string => html`${string}`)}`;
+        // In this case, "keyedMap" will fail if "strings" is not an array.
+        return html`${keyedMap(strings, () => {}, string => html`${string}`)}`;
       };
     }
   }
