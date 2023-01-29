@@ -118,8 +118,7 @@ export default class XElement extends HTMLElement {
 
   /** Extends HTMLElement.prototype.connectedCallback. */
   connectedCallback() {
-    XElement.#initializeHost(this);
-    XElement.#addListeners(this);
+    XElement.#connectHost(this);
   }
 
   /** Extends HTMLElement.prototype.attributeChangedCallback. */
@@ -135,7 +134,7 @@ export default class XElement extends HTMLElement {
 
   /** Extends HTMLElement.prototype.disconnectedCallback. */
   disconnectedCallback() {
-    XElement.#removeListeners(this);
+    XElement.#disconnectHost(this);
   }
 
   /**
@@ -686,6 +685,18 @@ export default class XElement extends HTMLElement {
   }
 
   // Called once per-host from initial "connectedCallback".
+  static #connectHost(host) {
+    const initialized = XElement.#initializeHost(host);
+    XElement.#addListeners(host);
+    if (initialized) {
+      XElement.#updateHost(host);
+    }
+  }
+
+  static #disconnectHost(host) {
+    XElement.#removeListeners(host);
+  }
+
   static #initializeHost(host) {
     const hostInfo = XElement.#hosts.get(host);
     const { initialized, invalidProperties } = hostInfo;
@@ -705,8 +716,9 @@ export default class XElement extends HTMLElement {
         invalidProperties.add(property);
       }
       hostInfo.initialized = true;
-      XElement.#updateHost(host);
+      return true;
     }
+    return false;
   }
 
   // Prevent shadowing from properties added to element instance pre-upgrade.
