@@ -1,10 +1,23 @@
 import XElement from '../x-element.js';
 import { assert, it } from '../../../@netflix/x-test/x-test.js';
 
+class TestElementChild extends HTMLElement {
+  connectedCallback() {
+    const eventType = 'connected';
+    const eventData = { bubbles: true, composed: true };
+    this.dispatchEvent(new CustomEvent(eventType, eventData));
+  }
+}
+customElements.define('test-element-child', TestElementChild);
+
 class TestElement extends XElement {
   static get properties() {
     return {
       clicks: {
+        type: Number,
+        default: 0,
+      },
+      connections: {
         type: Number,
         default: 0,
       },
@@ -23,7 +36,7 @@ class TestElement extends XElement {
     };
   }
   static get listeners() {
-    return { click: this.onClick };
+    return { click: this.onClick, connected: this.onConnected };
   }
   static template(html) {
     return ({ clicks, count }) => {
@@ -32,6 +45,7 @@ class TestElement extends XElement {
         <button id="decrement" type="button">-</button>
         <span>clicks: ${clicks} count ${count}</span>
         <div id="custom-event-emitter"></div>
+        <test-element-child id="connected-event-emitter"></test-element-child>
       `;
     };
   }
@@ -42,6 +56,9 @@ class TestElement extends XElement {
     } else if (evt.target.id === 'decrement') {
       host.count--;
     }
+  }
+  static onConnected(host) {
+    host.connections++;
   }
   static onCustomEventOnce(host) {
     if (this === TestElement && host.constructor === TestElement) {
@@ -117,6 +134,19 @@ it('test manual lifecycle', () => {
   el.unlisten(el.shadowRoot, 'manual-check', onManualCheck);
   el.shadowRoot.dispatchEvent(new CustomEvent('manual-check'));
   assert(count === 2, 'listener was removed');
+});
+
+it('test synchronous event handling', () => {
+  // This is subtle, but it tests that if child elements emit events
+  //  synchronously in their first render, delegated event listening from the
+  //  parent will still work.
+  let count = 0;
+  const documentListener = () => count++;
+  document.addEventListener('connected', documentListener);
+  const el = document.createElement('test-element');
+  document.body.append(el);
+  assert(count === 1);
+  assert(el.connections === count);
 });
 
 it('throws for bad element on listen', () => {
