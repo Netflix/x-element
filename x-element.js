@@ -735,16 +735,19 @@ export default class XElement extends HTMLElement {
     // Process possible sources of initial state, with this priority:
     // 1. imperative, e.g. `element.prop = 'value';`
     // 2. declarative, e.g. `<element prop="value"></element>`
-    const { key, attribute } = property;
+    const { key, attribute, internal } = property;
     let value;
     let found = false;
-    if (Reflect.has(host, key)) {
-      value = host[key];
-      found = true;
-    } else if (attribute && host.hasAttribute(attribute)) {
-      const attributeValue = host.getAttribute(attribute);
-      value = XElement.#deserializeProperty(host, property, attributeValue);
-      found = true;
+    if (!internal) {
+      // Only look for public (i.e., non-internal) properties.
+      if (Reflect.has(host, key)) {
+        value = host[key];
+        found = true;
+      } else if (attribute && host.hasAttribute(attribute)) {
+        const attributeValue = host.getAttribute(attribute);
+        value = XElement.#deserializeProperty(host, property, attributeValue);
+        found = true;
+      }
     }
     return { value, found };
   }
