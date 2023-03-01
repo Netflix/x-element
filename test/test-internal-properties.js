@@ -15,6 +15,13 @@ class TestElement extends XElement {
         input: ['internalProperty'],
         compute: internalProperty => internalProperty,
       },
+      // This exists on the public interface, we want to ensure that there's no
+      //  issue using this same name on the internal interface.
+      children: {
+        // Use a type that's in conflict with the public interface.
+        type: Boolean,
+        internal: true,
+      },
     };
   }
   static template(html) {
@@ -42,7 +49,10 @@ it('can use "ownKeys" api.', () => {
   document.body.append(el);
   const ownKeys = Reflect.ownKeys(el.internal);
   assert(
-    ownKeys.length === 2 && ownKeys[0] === 'internalProperty' && ownKeys[1] === 'internalComputedProperty',
+    ownKeys.length === 3 &&
+    ownKeys[0] === 'internalProperty' &&
+    ownKeys[1] === 'internalComputedProperty' &&
+    ownKeys[2] === 'children',
     'The "ownKeys" trap does not work.'
   );
 });
