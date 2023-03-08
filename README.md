@@ -21,7 +21,7 @@ A dead simple starting point for custom elements. It provides the following func
 ## Installation:
 
 ```
-curl https://raw.githubusercontent.com/Netflix/x-element/master/x-element.js > x-element.js
+curl https://raw.githubusercontent.com/Netflix/x-element/main/x-element.js > x-element.js
 ```
 
 ...or if you're fancy:
