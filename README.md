@@ -62,6 +62,6 @@ Then...
 * http://localhost:8080/demo/uhtml
 * http://localhost:8080/demo/react
 * http://localhost:8080/test
-* * http://localhost:8080/performance
+* http://localhost:8080/performance
 
 (See [SPEC.md](./SPEC.md) for more details.)
