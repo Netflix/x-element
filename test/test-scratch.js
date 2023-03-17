@@ -1,5 +1,5 @@
 import XElement from '../x-element.js';
-import { assert, it, skip } from './x-test.js';
+import { assert, it } from './x-test.js';
 
 class TestElement extends XElement {
   static get properties() {
@@ -220,7 +220,7 @@ it('test dispatchError', () => {
 
 // TODO: Firefox somehow returns an un-upgraded instance after adoption. This
 //  seems like a bug in the browser, but we should look into it.
-(navigator.userAgent.includes('Firefox') ? skip : it)('test adoptedCallback', () => {
+(navigator.userAgent.includes('Firefox') ? it.skip : it)('test adoptedCallback', () => {
   const el = document.createElement('test-element');
   el.prop1 = 'adopt me!';
   document.body.append(el);

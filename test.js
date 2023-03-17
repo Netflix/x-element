@@ -14,7 +14,7 @@ const puppeteer = require('puppeteer');
     page.on('console', message => console.log(message.text())); // eslint-disable-line no-console
 
     // Visit our test page.
-    await page.goto('http://127.0.0.1:8080/test/?x-test-cover');
+    await page.goto('http://127.0.0.1:8080/test/?x-test-run-coverage');
 
     // Wait to be signaled about the end of the test. Because the test may have
     // not started, already started, or already ended, ping for status.
@@ -22,17 +22,21 @@ const puppeteer = require('puppeteer');
       await new Promise(resolve => {
         const onMessage = evt => {
           const { type, data } = evt.data;
-          if (type === 'x-test-ended' || (type === 'x-test-pong' && data.ended)) {
+          if (
+            type === 'x-test-root-coverage-request' ||
+            type === 'x-test-root-end' ||
+            (type === 'x-test-root-pong' && (data.waiting || data.ended))
+          ) {
             top.removeEventListener('message', onMessage);
             resolve();
           }
         };
         top.addEventListener('message', onMessage);
-        top.postMessage({ type: 'x-test-ping' }, '*');
+        top.postMessage({ type: 'x-test-client-ping' }, '*');
       });
     });
 
-    // Gather coverage information.
+    // Gather / send coverage information.
     const js = await page.coverage.stopJSCoverage();
 
     // Send coverage information to x-test and await test completion.
@@ -40,13 +44,13 @@ const puppeteer = require('puppeteer');
       await new Promise(resolve => {
         const onMessage = evt => {
           const { type } = evt.data;
-          if (type === 'x-test-cover-ended') {
+          if (type === 'x-test-root-end') {
             top.removeEventListener('message', onMessage);
             resolve();
           }
         };
         top.addEventListener('message', onMessage);
-        top.postMessage({ type: 'x-test-cover-start', data }, '*');
+        top.postMessage({ type: 'x-test-client-coverage-result', data }, '*');
       });
     }, { js });
 
