@@ -1062,9 +1062,9 @@ class Template {
   static #templates = new WeakMap();
   static #templateResults = new WeakMap();
   static #updaters = new WeakMap();
-  static #ATTRIBUTE = /<[a-zA-Z0-9-]+(?:[^/<>]|"[^"]*")* ([a-z][a-z-]*)="$/;
-  static #BOOLEAN_ATTRIBUTE = /<[a-zA-Z0-9-]+(?:[^/<>]|"[^"]*")* \?([a-z][a-z-]*)="$/;
-  static #PROPERTY = /<[a-zA-Z0-9-]+(?:[^/<>]|"[^"]*")* \.([a-z][a-zA-Z0-9_]*)="$/;
+  static #ATTRIBUTE = /<[a-zA-Z0-9-]+[^>]* ([a-z][a-z-]*)="$/;
+  static #BOOLEAN_ATTRIBUTE = /<[a-zA-Z0-9-]+[^>]* \?([a-z][a-z-]*)="$/;
+  static #PROPERTY = /<[a-zA-Z0-9-]+[^>]* \.([a-z][a-zA-Z0-9_]*)="$/;
 
   #type = null;
   #strings = null;

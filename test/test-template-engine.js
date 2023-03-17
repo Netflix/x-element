@@ -1,5 +1,5 @@
 import XElement from '../x-element.js';
-import { assert, it } from './x-test.js';
+import { assert, it, todo } from './x-test.js';
 
 // Long-term interface.
 const { render, html, svg, map, nullish } = XElement.templateEngine;
@@ -351,13 +351,43 @@ it('html: renders multiple templates (as content)', () => {
   container.remove();
 });
 
-it('html: renders elements with special characters in attributes', () => {
-  // Note the "/", "<", ">", and "&quot;" characters.
+it('html: renders elements with "/" characters in attributes', () => {
+  // Note the "/" character.
   const getTemplate = ({ width, height }) => {
     return html`\
       <svg
         id="svg"
-        class="<><>&quot;&quot;</></>"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        width="${ifDefined(width)}"
+        height="${ifDefined(height)}">
+        <circle id="circle" r="${width / 2}" cx="${width / 2}" cy="${height / 2}"></circle>
+      </svg>`;
+  };
+  const container = document.createElement('div');
+  document.body.append(container);
+  const width = 24;
+  const height = 24;
+  render(container, getTemplate({ width, height }));
+  const svgBox = container.querySelector('#svg').getBoundingClientRect();
+  assert(svgBox.width === width);
+  assert(svgBox.height === height);
+  const circleBox = container.querySelector('#circle').getBoundingClientRect();
+  assert(circleBox.width === width);
+  assert(circleBox.height === height);
+  container.remove();
+});
+
+// TODO: trying to find escaped values in strings is possible via a regex, but
+//  making that performant is nuanced. I.e., it's easy to cause catastrophic
+//  backtracking.
+todo('html: renders elements with "<" or ">" characters in attributes', () => {
+  // Note the "/", "<", and ">" characters.
+  const getTemplate = ({ width, height }) => {
+    return html`\
+      <svg
+        id="svg"
+        class="<><></></>"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         width="${ifDefined(width)}"
