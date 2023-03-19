@@ -2,20 +2,50 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <script type="module" src="./index.js"></script>
+    <link rel="stylesheet" href="./index.css">
   </head>
   <body>
-    <h1>default</h1>
-    <div id="default"></div>
-    <h1>lit html</h1>
-    <div id="lit-html"></div>
-    <h1>µhtml</h1>
-    <div id="uhtml"></div>
+    <div>
+      <div class="label">default</div>
+      <pre id="default" class="output"></pre>
+    </div>
+    <div>
+      <div class="label">lit html</div>
+      <pre id="lit-html" class="output"></pre>
+    </div>
+    <div>
+      <div class="label">µhtml</div>
+      <pre id="uhtml" class="output"></pre>
+    </div>
     <p>
-      The elements in this test all share a common base element. The only
-      difference is that they override the templating engine. The test consists
-      of two measurements &mdash; time to initialize and time to update.
+      This tests the performance of <code>html</code> and <code>render</code>.
+      By testing <em>only</em> these two functions, we isolate time spent by the
+      templating engine from time spent by the element base class.
     </p>
-    <script type="module" src="./performance.js"></script>
+    <p>
+      The term &ldquo;inject&rdquo; refers to the process of taking an array
+      of template strings, injecting special markup strings, instantiating a
+      <code>&lt;template&gt;</code> element, mapping DOM elements based on the
+      special markup previously injected, cloning that template element, and
+      finally rendering it within a container element. Injection happens only
+      <em>once per template function declaration</em>. This is the most
+      time-consuming step of the process, but it also is only typically needed
+      once per element base class definition.
+    </p>
+    <p>
+      The term &ldquo;initial&rdquo; refers to the process of taking a
+      template that&rsquo;s <em>already</em> been injected and rendering it into
+      a new container element. For example, if you render multiple elements in
+      the page, the templating function is likely shared &mdash; this means that
+      the engine can skip the <em>injection</em> phase altogether. This happens
+      whenever a new element of the same type is created (i.e., the same element
+      appearing in a list over-and-over again).
+    </p>
+    <p>
+      The term &ldquo;update&rdquo; refers to the process of changing the values
+      which are interpolated into a given template. This is the most common
+      thing the engine needs to do.
+    </p>
+    <script type="module" src="./index.js"></script>
   </body>
 </html>

@@ -1062,9 +1062,11 @@ class Template {
   static #templates = new WeakMap();
   static #templateResults = new WeakMap();
   static #updaters = new WeakMap();
-  static #ATTRIBUTE = /<[a-zA-Z0-9-]+[^>]* ([a-z][a-z-]*)="$/;
-  static #BOOLEAN_ATTRIBUTE = /<[a-zA-Z0-9-]+[^>]* \?([a-z][a-z-]*)="$/;
-  static #PROPERTY = /<[a-zA-Z0-9-]+[^>]* \.([a-z][a-zA-Z0-9_]*)="$/;
+  static #OPEN = /<[a-z][a-z0-9-]*(?=\s)/g;
+  static #STEP = /\s+[a-z][a-z0-9-]*(?=[\s>])|\s+[a-z][a-zA-Z0-9-]*="[^"]*"/y;
+  static #CLOSE = />/g;
+  static #ATTRIBUTE = /\s+(\??([a-z][a-zA-Z0-9-]*))="$/y;
+  static #PROPERTY = /\s+\.([a-z][a-zA-Z0-9_]*)="$/y;
 
   #type = null;
   #strings = null;
@@ -1077,34 +1079,48 @@ class Template {
 
   inject(node, options) {
     if (!this.#analysis) {
-      let string = '';
-      for (const [key, value] of Object.entries(this.#strings)) {
-        string += value;
-        const attributeMatch = string.match(Template.#ATTRIBUTE);
-        const booleanAttributeMatch = !attributeMatch ? string.match(Template.#BOOLEAN_ATTRIBUTE) : null;
-        const propertyMatch = !attributeMatch && !booleanAttributeMatch ? string.match(Template.#PROPERTY) : null;
-        if (attributeMatch) {
-          // We found a match like this: html`<div title="${value}"></div>`.
-          const name = attributeMatch[1];
-          string = string.slice(0, -2 - name.length) + `x-element-attribute-$${key}="${name}`;
-        } else if (booleanAttributeMatch) {
-          // We found a match like this: html`<div ?hidden="${!!value}"></div>`.
-          const name = booleanAttributeMatch[1];
-          string = string.slice(0, -3 - name.length) + `x-element-boolean-attribute-$${key}="${name}`;
-        } else if (propertyMatch) {
-          // We found a match like this: html`<div .title="${value}"></div>`.
-          const name = propertyMatch[1];
-          string = string.slice(0, -3 - name.length) + `x-element-property-$${key}="${name}`;
-        } else if (Number(key) < this.#strings.length - 1) {
+      let html = '';
+      const state = { inside: false, index: 0 };
+      for (let iii = 0; iii < this.#strings.length; iii++) {
+        const string = this.#strings[iii];
+        html += string;
+        Template.#exhaustString(string, state);
+        if (state.inside) {
+          Template.#ATTRIBUTE.lastIndex = state.index;
+          const attributeMatch = Template.#ATTRIBUTE.exec(string);
+          if (attributeMatch) {
+            const name = attributeMatch[2];
+            if (attributeMatch[1].startsWith('?')) {
+              // We found a match like this: html`<div ?hidden="${!!value}"></div>`.
+              html = html.slice(0, -3 - name.length) + `x-element-boolean-attribute-$${iii}="${name}`;
+            } else {
+              // We found a match like this: html`<div title="${value}"></div>`.
+              html = html.slice(0, -2 - name.length) + `x-element-attribute-$${iii}="${name}`;
+            }
+            state.index = 1; // Accounts for an expected quote character next.
+          } else {
+            Template.#PROPERTY.lastIndex = state.index;
+            const propertyMatch = Template.#PROPERTY.exec(string);
+            if (propertyMatch) {
+              // We found a match like this: html`<div .title="${value}"></div>`.
+              const name = propertyMatch[1];
+              html = html.slice(0, -3 - name.length) + `x-element-property-$${iii}="${name}`;
+              state.index = 1; // Accounts for an expected quote character next.
+            } else {
+              throw new Error(`Found invalid template near "${string.slice(state.index)}".`);
+            }
+          }
+        } else {
           // Assume it's a match like this: html`<div>${value}</div>`.
-          string += `<!--x-element-content-$${key}-->`;
+          html += `<!--x-element-content-$${iii}-->`;
+          state.index = 0; // No characters to account for. Reset to zero.
         }
       }
       if (this.#type === 'svg') {
-        string = `<svg xmlns="http://www.w3.org/2000/svg">${string}</svg>`;
+        html = `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`;
       }
       const element = document.createElement('template');
-      element.innerHTML = string;
+      element.innerHTML = html;
       const blueprint = Template.#evaluate(element.content); // mutates element.
       this.#analysis = { element, blueprint };
     }
@@ -1205,6 +1221,34 @@ class Template {
     updater.value = value;
     Template.#updaters.set(reference, updater);
     return reference;
+  }
+
+  static #exhaustString(string, state) {
+    if (!state.inside) {
+      // We're outside the opening tag.
+      Template.#OPEN.lastIndex = state.index;
+      const openMatch = Template.#OPEN.exec(string);
+      if (openMatch) {
+        state.inside = true;
+        state.index = Template.#OPEN.lastIndex;
+        Template.#exhaustString(string, state);
+      }
+    } else {
+      // We're inside the opening tag.
+      Template.#STEP.lastIndex = state.index;
+      let stepMatch = Template.#STEP.exec(string);
+      while (stepMatch) {
+        state.index = Template.#STEP.lastIndex;
+        stepMatch = Template.#STEP.exec(string);
+      }
+      Template.#CLOSE.lastIndex = state.index;
+      const closeMatch = Template.#CLOSE.exec(string);
+      if (closeMatch) {
+        state.inside = false;
+        state.index = Template.#CLOSE.lastIndex;
+        Template.#exhaustString(string, state);
+      }
+    }
   }
 
   static #evaluate(node, path) {

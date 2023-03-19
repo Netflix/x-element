@@ -65,46 +65,6 @@ describe('html rendering', () => {
     container.remove();
   });
 
-  it('does not recognize single-quoted attributes', () => {
-    const getTemplate = () => {
-      return html`<div id="target" ignore-me='${'foo'}'>Gotta double-quote those.</div>`;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate());
-    assert(container.querySelector('#target').getAttribute('ignore-me') !== 'foo');
-    container.remove();
-  });
-
-  it('does not recognize single-quoted properties', () => {
-    const getTemplate = () => {
-      return html`<div id="target" .ignoreMe='${'foo'}'>Gotta double-quote those.</div>`;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate());
-    assert(container.querySelector('#target').ignoreMe !== 'foo');
-    container.remove();
-  });
-
-  it('refuses to reuse a template', () => {
-    const templateResultReference = html`<div id="target"></div>`;
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, templateResultReference);
-    assert(!!container.querySelector('#target'));
-    render(container, null);
-    assert(!container.querySelector('#target'));
-    let error;
-    try {
-      render(container, templateResultReference);
-    } catch (e) {
-      error = e;
-    }
-    assert(error?.message === 'Unexpected re-injection of template result.', error.message);
-    container.remove();
-  });
-
   it('renders nullish templates', () => {
     const getTemplate = () => {
       return html`<div></div>`;
@@ -124,14 +84,14 @@ describe('html rendering', () => {
 
   it('renders interpolated content', () => {
     const getTemplate = ({ content }) => {
-      return html`<div id="target">${content}</div>`;
+      return html`<div id="target">a b ${content}</div>`;
     };
     const container = document.createElement('div');
     document.body.append(container);
     render(container, getTemplate({ content: 'Interpolated.' }));
-    assert(container.querySelector('#target').textContent === 'Interpolated.');
+    assert(container.querySelector('#target').textContent === 'a b Interpolated.');
     render(container, getTemplate({ content: 'Updated.' }));
-    assert(container.querySelector('#target').textContent === 'Updated.');
+    assert(container.querySelector('#target').textContent === 'a b Updated.');
     container.remove();
   });
 
@@ -170,8 +130,8 @@ describe('html rendering', () => {
   });
 
   it('renders attributes', () => {
-    const getTemplate = ({ attr }) => {
-      return html`<div id="target" attr="${attr}"></div>`;
+    const getTemplate = ({ attr, content }) => {
+      return html`<div id="target" attr="${attr}" f="b">Something<span>${content}</span></div>`;
     };
     const container = document.createElement('div');
     document.body.append(container);
@@ -207,7 +167,12 @@ describe('html rendering', () => {
 
   it('renders properties', () => {
     const getTemplate = ({ prop }) => {
-      return html`<div id="target" .prop="${prop}"></div>`;
+      return html`\
+        <div
+          id="target"
+          foo-bar
+          .prop="${prop}">
+        </div>`;
     };
     const container = document.createElement('div');
     document.body.append(container);
@@ -379,10 +344,7 @@ describe('html rendering', () => {
     container.remove();
   });
 
-  // TODO: trying to find escaped values in strings is possible via a regex, but
-  //  making that performant is nuanced. I.e., it's easy to cause catastrophic
-  //  backtracking.
-  it.todo('renders elements with "<" or ">" characters in attributes', () => {
+  it('renders elements with "<" or ">" characters in attributes', () => {
     // Note the "/", "<", and ">" characters.
     const getTemplate = ({ width, height }) => {
       return html`\
@@ -761,6 +723,86 @@ describe('svg updaters', () => {
 });
 
 describe('rendering errors', () => {
+  describe('templating', () => {
+    it.skip('throws when attempting to interpolate within a style tag', () => {});
+
+    it.skip('throws when attempting to interpolate within a script tag', () => {});
+
+    it('throws for unquoted attributes', () => {
+      const templateResultReference = html`<div id="target" not-ok=${'foo'}>Gotta double-quote those.</div>`;
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, templateResultReference);
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Found invalid template near " not-ok=".`, error.message);
+      container.remove();
+    });
+
+    it('throws for single-quoted attributes', () => {
+      const templateResultReference = html`<div id="target" not-ok='${'foo'}'>Gotta double-quote those.</div>`;
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, templateResultReference);
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Found invalid template near " not-ok='".`, error.message);
+      container.remove();
+    });
+
+    it('throws for unquoted properties', () => {
+      const templateResultReference = html`<div id="target" .notOk=${'foo'}>Gotta double-quote those.</div>`;
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, templateResultReference);
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Found invalid template near " .notOk=".`, error.message);
+      container.remove();
+    });
+
+    it('throws for single-quoted properties', () => {
+      const templateResultReference = html`<div id="target" .notOk='${'foo'}'>Gotta double-quote those.</div>`;
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, templateResultReference);
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Found invalid template near " .notOk='".`, error.message);
+      container.remove();
+    });
+
+    it('throws for re-injection of template result', () => {
+      const templateResultReference = html`<div id="target"></div>`;
+      const container = document.createElement('div');
+      document.body.append(container);
+      render(container, templateResultReference);
+      assert(!!container.querySelector('#target'));
+      render(container, null);
+      assert(!container.querySelector('#target'));
+      let error;
+      try {
+        render(container, templateResultReference);
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === 'Unexpected re-injection of template result.', error.message);
+      container.remove();
+    });
+  });
+
   describe('ifDefined', () => {
     it('throws if used on a "boolean-attribute"', () => {
       const expected = 'The ifDefined update must be used on an attribute, not on a boolean-attribute.';
