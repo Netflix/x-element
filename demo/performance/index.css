@@ -1,0 +1,19 @@
+:root {
+  line-height: 20px;
+}
+
+.label {
+  font-weight: bold;
+}
+
+.output {
+  height: calc(20px * 3);
+}
+
+p {
+  width: 70ch;
+}
+
+p:first-of-type {
+  margin-top: 2em;
+}
