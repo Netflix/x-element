@@ -1107,7 +1107,7 @@ class Template {
               html = html.slice(0, -3 - name.length) + `x-element-property-$${iii}="${name}`;
               state.index = 1; // Accounts for an expected quote character next.
             } else {
-              throw new Error(`Found invalid template near "${string.slice(state.index)}".`);
+              throw new Error(`Found invalid template string "${string}" at "${string.slice(state.index)}".`);
             }
           }
         } else {
@@ -1278,7 +1278,7 @@ class Template {
             node.textContent = '';
             items.push({ path, key: contentMatch[1], type: 'text-content' });
           } else {
-            node.textContent = '/* x-element: Interpolation is not allowed here. */';
+            throw new Error(`Interpolation of "${node.localName}" tags is not allowed.`);
           }
         }
       }

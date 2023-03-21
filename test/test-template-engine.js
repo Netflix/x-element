@@ -19,40 +19,6 @@ describe('html rendering', () => {
     container.remove();
   });
 
-  it('refuses to interpolate within a style tag', () => {
-    const getTemplate = ({ color }) => {
-      return html`
-        <style id="target">
-          #target {
-            background-color: ${color};
-          }
-        </style>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ color: 'url(evil-url)' }));
-    const textContent = container.querySelector('#target').textContent;
-    assert(textContent === '/* x-element: Interpolation is not allowed here. */', textContent);
-    container.remove();
-  });
-
-  it('refuses to interpolate within a script tag', () => {
-    const getTemplate = ({ message }) => {
-      return html`
-        <script id="target">
-          console.log('${message}');
-        </script>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ message: '\' + prompt(\'evil\') + \'' }));
-    const textContent = container.querySelector('#target').textContent;
-    assert(textContent === '/* x-element: Interpolation is not allowed here. */', textContent);
-    container.remove();
-  });
-
   it('renders interpolated content without parsing', () => {
     const userContent = '<a href="https://evil.com">Click Me!</a>';
     const getTemplate = () => {
@@ -724,9 +690,47 @@ describe('svg updaters', () => {
 
 describe('rendering errors', () => {
   describe('templating', () => {
-    it.skip('throws when attempting to interpolate within a style tag', () => {});
+    it('throws when attempting to interpolate within a style tag', () => {
+      const getTemplate = ({ color }) => {
+        return html`
+          <style id="target">
+            #target {
+              background-color: ${color};
+            }
+          </style>
+        `;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ color: 'url(evil-url)' }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Interpolation of "style" tags is not allowed.`, error.message);
+      container.remove();
+    });
 
-    it.skip('throws when attempting to interpolate within a script tag', () => {});
+    it('throws when attempting to interpolate within a script tag', () => {
+      const getTemplate = ({ message }) => {
+        return html`
+          <script id="target">
+            console.log('${message}');
+          </script>
+        `;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ message: '\' + prompt(\'evil\') + \'' }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Interpolation of "script" tags is not allowed.`, error.message);
+      container.remove();
+    });
 
     it('throws for unquoted attributes', () => {
       const templateResultReference = html`<div id="target" not-ok=${'foo'}>Gotta double-quote those.</div>`;
@@ -738,7 +742,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template near " not-ok=".`, error.message);
+      assert(error?.message === `Found invalid template string "<div id="target" not-ok=" at " not-ok=".`, error.message);
       container.remove();
     });
 
@@ -752,7 +756,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template near " not-ok='".`, error.message);
+      assert(error?.message === `Found invalid template string "<div id="target" not-ok='" at " not-ok='".`, error.message);
       container.remove();
     });
 
@@ -766,7 +770,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template near " .notOk=".`, error.message);
+      assert(error?.message === `Found invalid template string "<div id="target" .notOk=" at " .notOk=".`, error.message);
       container.remove();
     });
 
@@ -780,7 +784,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template near " .notOk='".`, error.message);
+      assert(error?.message === `Found invalid template string "<div id="target" .notOk='" at " .notOk='".`, error.message);
       container.remove();
     });
 
