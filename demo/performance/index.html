@@ -46,6 +46,12 @@
       which are interpolated into a given template. This is the most common
       thing the engine needs to do.
     </p>
+    <p>
+      Finally, a note on how the tests work — they are batched up and run within
+      animation frames to guard against any interference that might occur when
+      an animation frame is skipped due to the main thread being busy. This is
+      why the tests all take the same amount of time to complete.
+    </p>
     <script type="module" src="./index.js"></script>
   </body>
 </html>
