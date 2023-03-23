@@ -1062,11 +1062,18 @@ class Template {
   static #templates = new WeakMap();
   static #templateResults = new WeakMap();
   static #updaters = new WeakMap();
+  static #ATTRIBUTE_PREFIXES = {
+    attribute: 'x-element-attribute-',
+    boolean: 'x-element-boolean-',
+    property: 'x-element-property-',
+  };
+  static #CONTENT_PREFIX = 'x-element-content-';
+  static #CONTENT_REGEX = new RegExp(`${Template.#CONTENT_PREFIX}(\\d+)`);
   static #OPEN = /<[a-z][a-z0-9-]*(?=\s)/g;
   static #STEP = /\s+[a-z][a-z0-9-]*(?=[\s>])|\s+[a-z][a-zA-Z0-9-]*="[^"]*"/y;
-  static #CLOSE = />/g;
   static #ATTRIBUTE = /\s+(\??([a-z][a-zA-Z0-9-]*))="$/y;
   static #PROPERTY = /\s+\.([a-z][a-zA-Z0-9_]*)="$/y;
+  static #CLOSE = />/g;
 
   #type = null;
   #strings = null;
@@ -1079,11 +1086,10 @@ class Template {
 
   inject(node, options) {
     if (!this.#analysis) {
-      let html = '';
+      const htmlStrings = [];
       const state = { inside: false, index: 0 };
       for (let iii = 0; iii < this.#strings.length; iii++) {
-        const string = this.#strings[iii];
-        html += string;
+        let string = this.#strings[iii];
         Template.#exhaustString(string, state);
         if (state.inside) {
           Template.#ATTRIBUTE.lastIndex = state.index;
@@ -1092,10 +1098,10 @@ class Template {
             const name = attributeMatch[2];
             if (attributeMatch[1].startsWith('?')) {
               // We found a match like this: html`<div ?hidden="${!!value}"></div>`.
-              html = html.slice(0, -3 - name.length) + `x-element-boolean-attribute-$${iii}="${name}`;
+              string = string.slice(0, -3 - name.length) + `${Template.#ATTRIBUTE_PREFIXES.boolean}${iii}="${name}`;
             } else {
               // We found a match like this: html`<div title="${value}"></div>`.
-              html = html.slice(0, -2 - name.length) + `x-element-attribute-$${iii}="${name}`;
+              string = string.slice(0, -2 - name.length) + `${Template.#ATTRIBUTE_PREFIXES.attribute}${iii}="${name}`;
             }
             state.index = 1; // Accounts for an expected quote character next.
           } else {
@@ -1104,7 +1110,7 @@ class Template {
             if (propertyMatch) {
               // We found a match like this: html`<div .title="${value}"></div>`.
               const name = propertyMatch[1];
-              html = html.slice(0, -3 - name.length) + `x-element-property-$${iii}="${name}`;
+              string = string.slice(0, -3 - name.length) + `${Template.#ATTRIBUTE_PREFIXES.property}${iii}="${name}`;
               state.index = 1; // Accounts for an expected quote character next.
             } else {
               throw new Error(`Found invalid template string "${string}" at "${string.slice(state.index)}".`);
@@ -1112,13 +1118,14 @@ class Template {
           }
         } else {
           // Assume it's a match like this: html`<div>${value}</div>`.
-          html += `<!--x-element-content-$${iii}-->`;
+          string += `<!--${Template.#CONTENT_PREFIX}${iii}-->`;
           state.index = 0; // No characters to account for. Reset to zero.
         }
+        htmlStrings[iii] = string;
       }
-      if (this.#type === 'svg') {
-        html = `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`;
-      }
+      const html = this.#type === 'svg'
+        ? `<svg xmlns="http://www.w3.org/2000/svg">${htmlStrings.join('')}</svg>`
+        : htmlStrings.join('');
       const element = document.createElement('template');
       element.innerHTML = html;
       const blueprint = Template.#evaluate(element.content); // mutates element.
@@ -1255,35 +1262,39 @@ class Template {
     path = path ?? [];
     const items = [];
     if (node.nodeType === Node.ELEMENT_NODE) {
-      for (const attribute of [...node.attributes]) {
-        const attributeMatch = attribute.name.match(/^x-element-attribute-\$(\d+)$/);
-        const booleanAttributeMatch = !attributeMatch ? attribute.name.match(/^x-element-boolean-attribute-\$(\d+)$/) : null;
-        const propertyMatch = !attributeMatch && !booleanAttributeMatch ? attribute.name.match(/^x-element-property-\$(\d+)$/) : null;
-        if (attributeMatch) {
-          node.removeAttribute(attributeMatch[0]);
-          items.push({ path, key: attributeMatch[1], type: 'attribute', name: attribute.value });
-        } else if (booleanAttributeMatch) {
-          node.removeAttribute(booleanAttributeMatch[0]);
-          items.push({ path, key: booleanAttributeMatch[1], type: 'boolean-attribute', name: attribute.value });
-        } else if (propertyMatch) {
-          node.removeAttribute(propertyMatch[0]);
-          items.push({ path, key: propertyMatch[1], type: 'property', name: attribute.value });
+      const attributesToRemove = new Set();
+      for (const attribute of node.attributes) {
+        const name = attribute.name;
+        const type = name.startsWith(Template.#ATTRIBUTE_PREFIXES.attribute)
+          ? 'attribute'
+          : name.startsWith(Template.#ATTRIBUTE_PREFIXES.boolean)
+            ? 'boolean'
+            : name.startsWith(Template.#ATTRIBUTE_PREFIXES.property)
+              ? 'property'
+              : null;
+        if (type) {
+          const prefix = Template.#ATTRIBUTE_PREFIXES[type];
+          const key = name.slice(prefix.length);
+          const value = attribute.value;
+          items.push({ path, key, type, name: value });
+          attributesToRemove.add(name);
         }
       }
+      for (const attribute of attributesToRemove) {
+        node.removeAttribute(attribute);
+      }
       // Special case to handle elements which only allow text content (no comments).
-      if (node.localName.match(/^plaintext|script|style|textarea|title$/)) {
-        const contentMatch = node.textContent.match(/x-element-content-\$(\d+)/);
+      const localName = node.localName;
+      if ((localName === 'style' || localName === 'script') && Template.#CONTENT_REGEX.exec(node.textContent)) {
+        throw new Error(`Interpolation of "${localName}" tags is not allowed.`);
+      } else if (localName === 'plaintext' || localName === 'textarea' || localName === 'title') {
+        const contentMatch = Template.#CONTENT_REGEX.exec(node.textContent);
         if (contentMatch) {
-          if (node.localName.match(/^plaintext|textarea|title$/)) {
-            node.textContent = '';
-            items.push({ path, key: contentMatch[1], type: 'text-content' });
-          } else {
-            throw new Error(`Interpolation of "${node.localName}" tags is not allowed.`);
-          }
+          items.push({ path, key: contentMatch[1], type: 'text' });
         }
       }
     } else if (node.nodeType === Node.COMMENT_NODE) {
-      const contentMatch = node.textContent.match(/x-element-content-\$(\d+)/);
+      const contentMatch = Template.#CONTENT_REGEX.exec(node.textContent);
       if (contentMatch) {
         node.textContent = '';
         const startNode = document.createComment('');
@@ -1313,7 +1324,7 @@ class Template {
       const node = find(item.path);
       switch (item.type) {
         case 'attribute':
-        case 'boolean-attribute':
+        case 'boolean':
         case 'property': {
           nextItems.push({ key: item.key, type: item.type, name: item.name, node });
           break;
@@ -1324,7 +1335,7 @@ class Template {
           nextItems.push(nextItem);
           break;
         }
-        case 'text-content': {
+        case 'text': {
           const nextItem = { key: item.key, type: item.type, node };
           nextItems.push(nextItem);
           break;
@@ -1345,10 +1356,10 @@ class Template {
             ? updater(type, lastValue, { node, name })
             : Template.#attribute(type, values[key], lastValue, { node, name });
           break;
-        case 'boolean-attribute':
+        case 'boolean':
           updater
             ? updater(type, lastValue, { node, name })
-            : Template.#booleanAttribute(type, values[key], lastValue, { node, name });
+            : Template.#boolean(type, values[key], lastValue, { node, name });
           break;
         case 'property':
           updater
@@ -1360,10 +1371,10 @@ class Template {
             ? updater(type, lastValue, { node, startNode })
             : Template.#content(type, values[key], lastValue, { node, startNode });
           break;
-        case 'text-content':
+        case 'text':
           updater
             ? updater(type, lastValue, { node })
-            : Template.#textContent(type, values[key], lastValue, { node });
+            : Template.#text(type, values[key], lastValue, { node });
           break;
       }
     }
@@ -1375,7 +1386,7 @@ class Template {
     }
   }
 
-  static #booleanAttribute(type, value, lastValue, { node, name }) {
+  static #boolean(type, value, lastValue, { node, name }) {
     if (value !== lastValue) {
       value
         ? node.setAttribute(name, '')
@@ -1389,7 +1400,7 @@ class Template {
     }
   }
 
-  static #textContent(type, value, lastValue, { node }) {
+  static #text(type, value, lastValue, { node }) {
     if (value !== lastValue) {
       node.textContent = value;
     }
@@ -1629,11 +1640,18 @@ class Template {
   }
 
   static #getTypeText(type) {
-    return type === 'attribute'
-      ? `an ${type}`
-      : type === 'boolean-attribute' || type === 'property'
-        ? `a ${type}`
-        : `${type}`;
+    switch (type) {
+      case 'attribute':
+        return 'an attribute';
+      case 'boolean':
+        return 'a boolean attribute';
+      case 'property':
+        return 'a property';
+      case 'content':
+        return 'content';
+      case 'text':
+        return 'text content';
+    }
   }
 }
 

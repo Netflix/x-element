@@ -808,8 +808,8 @@ describe('rendering errors', () => {
   });
 
   describe('ifDefined', () => {
-    it('throws if used on a "boolean-attribute"', () => {
-      const expected = 'The ifDefined update must be used on an attribute, not on a boolean-attribute.';
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The ifDefined update must be used on an attribute, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${ifDefined(maybe)}"></div>`;
       };
@@ -862,8 +862,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used with "text-content"', () => {
-      const expected = 'The ifDefined update must be used on an attribute, not on text-content.';
+    it('throws if used with "text"', () => {
+      const expected = 'The ifDefined update must be used on an attribute, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${ifDefined(maybe)}</textarea>`;
       };
@@ -882,8 +882,8 @@ describe('rendering errors', () => {
   });
 
   describe('nullish', () => {
-    it('throws if used on a "boolean-attribute"', () => {
-      const expected = 'The nullish update must be used on an attribute, not on a boolean-attribute.';
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The nullish update must be used on an attribute, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${nullish(maybe)}"></div>`;
       };
@@ -936,8 +936,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used with "text-content"', () => {
-      const expected = 'The nullish update must be used on an attribute, not on text-content.';
+    it('throws if used with "text"', () => {
+      const expected = 'The nullish update must be used on an attribute, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${nullish(maybe)}</textarea>`;
       };
@@ -974,8 +974,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used on a "boolean-attribute"', () => {
-      const expected = 'The live update must be used on a property, not on a boolean-attribute.';
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The live update must be used on a property, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${live(maybe)}"></div>`;
       };
@@ -1010,8 +1010,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used with "text-content"', () => {
-      const expected = 'The live update must be used on a property, not on text-content.';
+    it('throws if used with "text"', () => {
+      const expected = 'The live update must be used on a property, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${live(maybe)}</textarea>`;
       };
@@ -1048,8 +1048,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used on a "boolean-attribute"', () => {
-      const expected = 'The unsafeHTML update must be used on content, not on a boolean-attribute.';
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The unsafeHTML update must be used on content, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${unsafeHTML(maybe)}"></div>`;
       };
@@ -1084,8 +1084,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used with "text-content"', () => {
-      const expected = 'The unsafeHTML update must be used on content, not on text-content.';
+    it('throws if used with "text"', () => {
+      const expected = 'The unsafeHTML update must be used on content, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${unsafeHTML(maybe)}</textarea>`;
       };
@@ -1142,8 +1142,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used on a "boolean-attribute"', () => {
-      const expected = 'The unsafeSVG update must be used on content, not on a boolean-attribute.';
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The unsafeSVG update must be used on content, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${unsafeSVG(maybe)}"></div>`;
       };
@@ -1178,8 +1178,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used with "text-content"', () => {
-      const expected = 'The unsafeSVG update must be used on content, not on text-content.';
+    it('throws if used with "text"', () => {
+      const expected = 'The unsafeSVG update must be used on content, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${unsafeSVG(maybe)}</textarea>`;
       };
@@ -1272,8 +1272,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used on a "boolean-attribute"', () => {
-      const expected = 'The map update must be used on content, not on a boolean-attribute.';
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The map update must be used on content, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${map(maybe, () => {}, () => {})}"></div>`;
       };
@@ -1308,8 +1308,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used with "text-content"', () => {
-      const expected = 'The map update must be used on content, not on text-content.';
+    it('throws if used with "text"', () => {
+      const expected = 'The map update must be used on content, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${map(maybe, () => {}, () => {})}</textarea>`;
       };
@@ -1443,8 +1443,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used on a "boolean-attribute"', () => {
-      const expected = 'The repeat update must be used on content, not on a boolean-attribute.';
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The repeat update must be used on content, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${repeat(maybe, () => {})}"></div>`;
       };
@@ -1479,8 +1479,8 @@ describe('rendering errors', () => {
       container.remove();
     });
 
-    it('throws if used with "text-content"', () => {
-      const expected = 'The repeat update must be used on content, not on text-content.';
+    it('throws if used with "text"', () => {
+      const expected = 'The repeat update must be used on content, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${repeat(maybe, () => {})}</textarea>`;
       };
