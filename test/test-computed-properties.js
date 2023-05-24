@@ -213,6 +213,19 @@ it('does correct NaN checking', () => {
   assert(el.count === count);
 });
 
+it('resets compute validity on initialization to catch upgrade edge cases with internal, computed properties', () => {
+  const el = document.createElement('test-element');
+  el.setAttribute('a', '1');
+  el.setAttribute('b', '2');
+  assert(el.a === undefined);
+  assert(el.b === undefined);
+  assert(Number.isNaN(el.internal.c));
+  document.body.append(el);
+  assert(el.a === 1);
+  assert(el.b === 2);
+  assert(el.internal.c === 3);
+});
+
 it('cannot be written to from host', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
