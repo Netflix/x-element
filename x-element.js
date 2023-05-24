@@ -646,7 +646,7 @@ export default class XElement extends HTMLElement {
 
   static #initializeHost(host) {
     const hostInfo = XElement.#hosts.get(host);
-    const { initialized, invalidProperties } = hostInfo;
+    const { computeMap, initialized, invalidProperties } = hostInfo;
     if (initialized === false) {
       XElement.#upgradeOwnProperties(host);
       // Only reflect attributes when the element is connected.
@@ -661,6 +661,9 @@ export default class XElement extends HTMLElement {
           XElement.#setPropertyValue(host, property, property.default(host, property.initial()));
         }
         invalidProperties.add(property);
+        if (property.compute) {
+          computeMap.get(property).valid = false;
+        }
       }
       hostInfo.initialized = true;
       return true;
