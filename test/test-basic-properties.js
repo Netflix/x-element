@@ -250,6 +250,19 @@ it('inheritance is considered in type checking', () => {
   assert(el.objectProperty === array, 'property was set');
 });
 
+it('numeric properties deserialize "" (empty) to "NaN"', () => {
+  const el = document.createElement('test-element');
+  el.setAttribute('numeric-property', '0');
+  document.body.append(el);
+  assert(el.numericProperty === 0, '"0" was coerced to 0');
+  el.setAttribute('numeric-property', '');
+  assert(Number.isNaN(el.numericProperty), '"" was coerced to NaN');
+  el.setAttribute('numeric-property', ' ');
+  assert(Number.isNaN(el.numericProperty), '" " was coerced to NaN');
+  el.setAttribute('numeric-property', '      ');
+  assert(Number.isNaN(el.numericProperty), '"      " was coerced to NaN');
+});
+
 it('cannot set to known properties', () => {
   class BadTestElement extends XElement {
     static get properties() {

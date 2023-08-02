@@ -852,7 +852,13 @@ export default class XElement extends HTMLElement {
       return value;
     } else {
       // Coerce type as needed.
-      return property.type(value);
+      switch (property.type) {
+        case Number:
+          // Don't try and coerce something like "Number('') >> 0".
+          return value.trim() ? property.type(value) : Number.NaN;
+        default:
+          return property.type(value);
+      }
     }
   }
 
