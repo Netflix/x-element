@@ -10,7 +10,7 @@
 
 A dead simple starting point for custom elements. It provides the following functionality:
 
-- Efficient element generation and data binding via default templating engine
+- Efficient element generation and data binding via an integrated templating engine
 - ...or drop in an engine of your choice (e.g., [lit-html](https://lit.dev))
 - Automatic `.property` to `[attribute]` reflection (opt-in)
 - Automatic `[attribute]` to `.property` synchronization (one-directional, on connected)
