@@ -1,5 +1,4 @@
-/* eslint-env node */
-const puppeteer = require('puppeteer');
+import puppeteer from 'puppeteer';
 
 (async () => {
   try {

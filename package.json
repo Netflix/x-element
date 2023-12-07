@@ -5,6 +5,7 @@
   "version": "1.0.0-rc.57",
   "license": "SEE LICENSE IN LICENSE",
   "repository": "https://github.com/Netflix/x-element",
+  "type": "module",
   "main": "x-element.js",
   "module": "x-element.js",
   "types": "x-element.d.ts",
@@ -26,7 +27,7 @@
   ],
   "dependencies": {},
   "devDependencies": {
-    "eslint": "^8.47.0",
+    "eslint": "^8.55.0",
     "http-server": "^14.1.1",
     "puppeteer": "^21.0.3",
     "tap-parser": "^13.0.1"
