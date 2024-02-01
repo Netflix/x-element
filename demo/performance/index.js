@@ -1,6 +1,6 @@
 import XElement from '../../x-element.js';
-import { html as litHtmlHtml, render as litHtmlRender } from 'https://unpkg.com/lit-html/lit-html.js?module';
-import { render as uhtmlRender, html as uhtmlHtml } from 'https://unpkg.com/uhtml?module';
+import { html as litHtmlHtml, render as litHtmlRender } from 'https://unpkg.com/lit-html/lit-html.js';
+import { render as uhtmlRender, html as uhtmlHtml } from 'https://unpkg.com/uhtml';
 
 class LitHtmlElement extends XElement {
   // Use lit-html's template engine rather than the built-in x-element engine.
