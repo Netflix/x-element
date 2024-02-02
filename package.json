@@ -27,9 +27,9 @@
   ],
   "dependencies": {},
   "devDependencies": {
-    "eslint": "^8.55.0",
+    "eslint": "^8.56.0",
     "http-server": "^14.1.1",
-    "puppeteer": "^21.0.3",
-    "tap-parser": "^13.0.1"
+    "puppeteer": "^21.10.0",
+    "tap-parser": "^15.3.1"
   }
 }
