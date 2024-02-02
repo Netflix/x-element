@@ -56,12 +56,6 @@ yarn install && yarn start
 ```
 
 Then...
-* http://localhost:8080/demo
-* http://localhost:8080/demo/chess
-* http://localhost:8080/demo/lit-html
-* http://localhost:8080/demo/uhtml
-* http://localhost:8080/demo/react
-* http://localhost:8080/test
-* http://localhost:8080/performance
+* http://localhost:8080
 
-(See [SPEC.md](./SPEC.md) for more details.)
+See [SPEC.md](./SPEC.md) for all the deets.
