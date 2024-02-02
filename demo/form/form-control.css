@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+#container {
+  position: relative;
+}
+
+:host(:invalid) #input {
+  color: red;
+}
+
+#matches-wrapper {
+  position: absolute;
+  bottom: 0;
+  transform: translateY(calc(100% + 4px));
+  background-color: white;
+  box-shadow: inset 0 0 0 1px black;
+  padding: 4px;
+}
+
+#matches {
+  width: 140px;
+  max-height: 400px;
+  overflow: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+#container:not(:focus-within) #matches-wrapper {
+  display: none;
+}
+
+.match {
+  display: block;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+#no-matches {
+  color: gray;
+}
+
+.match + #no-matches {
+  display: none;
+}
