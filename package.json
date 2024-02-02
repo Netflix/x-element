@@ -1,9 +1,8 @@
 {
   "name": "@netflix/x-element",
-  "author": "Casey Klebba",
-  "description": "Custom Element base class.",
+  "description": "A dead simple starting point for custom elements.",
   "version": "1.0.0-rc.57",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "repository": "https://github.com/Netflix/x-element",
   "type": "module",
   "main": "x-element.js",
@@ -31,5 +30,15 @@
     "http-server": "^14.1.1",
     "puppeteer": "^21.10.0",
     "tap-parser": "^15.3.1"
-  }
+  },
+  "contributors": [
+    {
+      "name": "Andrew Seier",
+      "email": "aseier@netflix.com"
+    },
+    {
+      "name": "Casey Klebba",
+      "email": "cklebba@netflix.com"
+    }
+  ]
 }

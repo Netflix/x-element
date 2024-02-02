@@ -34,40 +34,9 @@ And use it in your markup:
 
 ## Rendering
 
-XElement uses default templating engine (or one you choose like [lit-html]) to
-efficiently turn interpolated html markup into dom nodes. Here's an example
-using [lit-html]:
+XElement has a built-in templating engine to efficiently turn interpolated html markup into DOM nodes.
 
-```javascript
-import XElement from 'https://deno.land/x/element/x-element.js';
-import { asyncAppend } from 'https://unpkg.com/lit-html/directives/async-append.js?module';
-import { asyncReplace } from 'https://unpkg.com/lit-html/directives/async-replace.js?module';
-import { cache } from 'https://unpkg.com/lit-html/directives/cache.js?module';
-import { classMap } from 'https://unpkg.com/lit-html/directives/class-map.js?module';
-import { directive } from 'https://unpkg.com/lit-html/directive.js?module';
-import { guard } from 'https://unpkg.com/lit-html/directives/guard.js?module';
-import { html, render as originalRender, svg } from 'https://unpkg.com/lit-html/lit-html.js?module';
-import { ifDefined } from 'https://unpkg.com/lit-html/directives/if-defined.js?module';
-import { live } from 'https://unpkg.com/lit-html/directives/live.js?module';
-import { repeat } from 'https://unpkg.com/lit-html/directives/repeat.js?module';
-import { styleMap } from 'https://unpkg.com/lit-html/directives/style-map.js?module';
-import { templateContent } from 'https://unpkg.com/lit-html/directives/template-content.js?module';
-import { unsafeHTML } from 'https://unpkg.com/lit-html/directives/unsafe-html.js?module';
-import { unsafeSVG } from 'https://unpkg.com/lit-html/directives/unsafe-svg.js?module';
-import { until } from 'https://unpkg.com/lit-html/directives/until.js?module';
-
-export default class BaseElement extends XElement {
-  // Use lit-html's template engine rather than the built-in x-element engine.
-  static get templateEngine() {
-    const render = (container, template) => originalRender(template, container);
-    return {
-      render, html, svg, asyncAppend, asyncReplace, cache, classMap, directive,
-      guard, ifDefined, live, repeat, styleMap, templateContent, unsafeHTML,
-      unsafeSVG, until,
-    };
-  }
-}
-```
+It is also possible to integrate third party rendering engines. Here is an example using [lit-html]: [demo/lit-html/base-element.js](./demo/lit-html/base-element.js)
 
 ## Properties
 
@@ -76,16 +45,16 @@ attribute is updated, a render is queued.
 
 Property definitions have the following options:
 
-- `type` [Function]: associate properties with types.
+- `type`      [Function]: associate properties with types.
 - `attribute` [String]: override default attribute for properties.
-- `input` [StringArray]: declare names of watched properties for a computed property.
-- `compute` [Function]: compute property value when input changes.
-- `reflect` [Boolean]: reflect properties back to attributes.
-- `observe` [Function]: react when properties change.
-- `initial` [Function|Any]: provide initial, default values for nullish properties.
-- `default` [Function|Any]: provide recurring, default values for nullish properties.
-- `readOnly` [Boolean]: prevent setting properties on the host.
-- `internal` [Boolean]: prevent getting / setting properties on the host.
+- `input`     [StringArray]: declare names of watched properties for a computed property.
+- `compute`   [Function]: compute property value when input changes.
+- `reflect`   [Boolean]: reflect properties back to attributes.
+- `observe`   [Function]: react when properties change.
+- `initial`   [Function|Any]: provide initial, default values for nullish properties.
+- `default`   [Function|Any]: provide recurring, default values for nullish properties.
+- `readOnly`  [Boolean]: prevent setting properties on the host.
+- `internal`  [Boolean]: prevent getting / setting properties on the host.
 
 ### Example
 
@@ -388,4 +357,4 @@ class MyElement extends XElement {
 - [lit-html]
 
 [WHATWG Custom Elements Spec]: https://html.spec.whatwg.org/multipage/custom-elements.html
-[lit-html]: https://lit-html.polymer-project.org/
+[lit-html]: https://lit.dev
