@@ -14,7 +14,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "start": "http-server -o demo -c-1",
+    "start": "ROOT=./demo node ./server.js",
     "lint": "eslint --max-warnings=0 .",
     "lint-fix": "eslint --fix .",
     "test": "node test.js | tap-parser -l"
@@ -28,7 +28,6 @@
   "dependencies": {},
   "devDependencies": {
     "eslint": "^8.56.0",
-    "http-server": "^14.1.1",
     "puppeteer": "^21.10.0",
     "tap-parser": "^15.3.1"
   }
