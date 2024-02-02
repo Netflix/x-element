@@ -24,18 +24,14 @@ A dead simple starting point for custom elements. It provides the following func
 curl https://raw.githubusercontent.com/Netflix/x-element/main/x-element.js > x-element.js
 ```
 
-...or if you're fancy:
-
-```
-yarn add @netflix/x-element
-```
-or
-```
-npm install @netflix/x-element
-```
 or
 ```
 import XElement from 'https://deno.land/x/element/x-element.js';
+```
+
+...or if you're fancy:
+```
+npm install @netflix/x-element
 ```
 
 ## Project Philosophy:
@@ -52,7 +48,7 @@ import XElement from 'https://deno.land/x/element/x-element.js';
 ## Development:
 
 ```
-yarn install && yarn start
+npm install && npm start
 ```
 
 Then...

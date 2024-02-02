@@ -3,7 +3,7 @@
 We use GitHub actions to publish new versions of this repository. To publish, perform the following actions:
 
 1. Checkout the `main` branch and `pull` to ensure your local branch is current — `git checkout main && git pull origin main`
-2. Run `yarn version` and select the next version number (being careful to differentiate between releases and release candidates) — `yarn version`
+2. Run `npm version` and select the next version number (being careful to differentiate between releases and release candidates) — `npm version`
 3. Push the resulting commit to the origin's `main` branch — `git push origin main`
 4. Push the resulting tags to origin — `git push origin --tags`
 5. In the GitHub UI, find [the tag you just pushed](https://github.com/Netflix/x-element/tags) and find the "Create release" option.

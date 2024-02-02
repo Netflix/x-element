@@ -11,8 +11,8 @@ jobs:
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
-      - run: yarn install
-      - run: yarn lint
-      - run: yarn start &
+      - run: npm install
+      - run: npm run lint
+      - run: npm start &
       - run: sleep 2
-      - run: yarn test
+      - run: npm test
