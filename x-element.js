@@ -123,8 +123,8 @@ export default class XElement extends HTMLElement {
       render(renderRoot, result);
     } catch (error) {
       const pathString = XElement.#toPathString(this);
-      error.message = `${error.message} — Invalid template for "${this.constructor.name}" at path "${pathString}"`;
-      throw error;
+      const message = `${error.message} — Invalid template for "${this.constructor.name}" at path "${pathString}"`;
+      throw new Error(message, { cause: error });
     }
   }
 
