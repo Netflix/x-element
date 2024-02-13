@@ -27,7 +27,7 @@
   "dependencies": {},
   "devDependencies": {
     "eslint": "^8.56.0",
-    "puppeteer": "^21.10.0",
+    "puppeteer": "^22.0.0",
     "tap-parser": "^15.3.1"
   },
   "contributors": [

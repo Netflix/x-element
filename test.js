@@ -3,7 +3,17 @@ import puppeteer from 'puppeteer';
 (async () => {
   try {
     // Open our browser.
-    const browser = await puppeteer.launch({ timeout: 10000 });
+    const browser = await puppeteer.launch({
+      timeout: 10000,
+      // opt-in to the new Chrome headless implementation
+      // ref: https://developer.chrome.com/articles/new-headless/
+      headless: 'new',
+      args: [
+        // Disables interactive prompt: Do you want to the application Chromium.app to accept incoming network connections?
+        // ref: https://github.com/puppeteer/puppeteer/issues/4752#issuecomment-586599843
+        '--disable-features=DialMediaRouteProvider',
+      ],
+    });
     const page = await browser.newPage();
 
     // Starts to gather coverage information for JS and CSS files

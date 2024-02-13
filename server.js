@@ -2,11 +2,8 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
-const port = process.env.PORT || 8080;
 const root = process.env.ROOT || '.';
-const head = process.env.HEAD || null;
-
-const userHeaders = JSON.parse(head);
+const userHeaders = JSON.parse(process.env.HEAD || null);
 
 const mimeLookup = new Map([
   ['.css',  'text/css'],
@@ -14,16 +11,19 @@ const mimeLookup = new Map([
   ['.ico',  'image/x-icon'],
   ['.js',   'application/javascript'],
   ['.json', 'application/json'],
-  ['.md', 'text/markdown'],
+  ['.md',   'text/markdown'],
   ['.png',  'image/png'],
   ['.txt',  'text/plain'],
 ]);
 
 class Server {
+
+  static origin;
+
   static requestListener(request, response) {
     if (request.method === 'GET') {
-      const fileUrl = request.url;
-      const filePath = path.resolve(`${root}/${fileUrl}`);
+      const url = new URL(request.url, Server.origin);
+      const filePath = path.resolve(`${root}/${url.pathname}`);
       const fileExt = path.extname(filePath);
       const mimeType = mimeLookup.get(fileExt);
 
@@ -40,7 +40,7 @@ class Server {
           Server.sendUnknownMimeType(response, fileExt);
         }
       } else {
-        if (fileUrl.endsWith('/')) {
+        if (url.pathname.endsWith('/')) {
           const directoryIndex = `${filePath}/index.html`;
           fs.stat(directoryIndex, (error, stats) => {
             if (stats) {
@@ -51,7 +51,7 @@ class Server {
             }
           });
         } else {
-          Server.sendRedirect(response, `${fileUrl}/`);
+          Server.sendRedirect(response, `${url.pathname}/`);
         }
       }
     }
@@ -93,7 +93,10 @@ class Server {
   }
 }
 
-http.createServer(Server.requestListener).listen(port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Development server running: http://localhost:${port}`);
+const server = http.createServer(Server.requestListener);
+
+server.listen(process.env.PORT || 8080, () => {
+  const { address, port } = server.address();
+  Server.origin = `http://[${address}]:${port}`;
+  console.log(`Development server running: ${Server.origin}`); // eslint-disable-line no-console
 });
