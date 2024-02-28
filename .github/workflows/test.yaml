@@ -1,17 +1,16 @@
-name: Push
-on: [push]
+# Test flow triggered by other workflows.
+name: Test
+on: [workflow_call]
 jobs:
-  test:
+  main:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
+          node-version: '20.x'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm install
+      - run: npm ci
       - run: npm run lint
       - run: npm start &
       - run: sleep 2
