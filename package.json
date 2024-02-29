@@ -1,7 +1,7 @@
 {
   "name": "@netflix/x-element",
   "description": "A dead simple starting point for custom elements.",
-  "version": "1.0.0-rc.57",
+  "version": "1.0.0-rc.58",
   "license": "Apache-2.0",
   "repository": "https://github.com/Netflix/x-element",
   "type": "module",
