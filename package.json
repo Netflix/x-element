@@ -16,7 +16,8 @@
     "start": "node ./server.js",
     "lint": "eslint --max-warnings=0 .",
     "lint-fix": "eslint --fix .",
-    "test": "node test.js | tap-parser -l"
+    "test": "node test.js | tap-parser -l",
+    "bump": "./bump.sh"
   },
   "files": [
     "/x-element.js",
