@@ -1,5 +1,5 @@
 {
   "name": "@netflix/x-element",
-  "version": "1.0.0-rc.59",
+  "version": "1.0.0",
   "exports": "./x-element.js"
 }
