@@ -1,28 +1,43 @@
-/** Base element class for creating custom elements. */
 export default class XElement extends HTMLElement {
-  /** Extends HTMLElement.observedAttributes to handle the properties block. */
+  constructor() {
+    super();
+    XElement.#constructHost(this);
+  }
+
+  /** [NATIVE] Extends `HTMLElement.connectedCallback` */
+  connectedCallback() {
+    XElement.#connectHost(this);
+  }
+
+  /** [NATIVE] Extends `HTMLElement.attributeChangedCallback` */
+  attributeChangedCallback(attribute, oldValue, value) {
+    const { attributeMap } = XElement.#constructors.get(this.constructor);
+    // Authors may extend "observedAttributes". Optionally chain to account for
+    // attributes which we don't know about.
+    attributeMap.get(attribute)?.sync(this, value, oldValue);
+  }
+
+  /** [NATIVE] Extends `HTMLElement.adoptedCallback` */
+  adoptedCallback() {}
+
+  /** [NATIVE] Extends `HTMLElement.disconnectedCallback` */
+  disconnectedCallback() {
+    XElement.#disconnectHost(this);
+  }
+
+  /**
+   * [NATIVE] `HTMLElement.observedAttributes` is used to synchronize
+   * serializable attribute values with their corresponding properties (one-way, in `connectedCallback`).
+   * 
+   * See: https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements#responding_to_attribute_changes
+   */
   static get observedAttributes() {
     XElement.#analyzeConstructor(this);
     return [...XElement.#constructors.get(this).attributeMap.keys()];
   }
 
-  /** Default templating engine. Use "templateEngine" to override. */
-  static get defaultTemplateEngine() {
-    return TemplateEngine.interface;
-  }
-
-  /** Configured templating engine. Defaults to "defaultTemplateEngine".
-   *
-   * Override this as needed if x-element's default template engine does not
-   * meet your needs. A "render" method is the only required field. An "html"
-   * tagged template literal is expected, but not strictly required.
-   */
-  static get templateEngine() {
-    return XElement.defaultTemplateEngine;
-  }
-
   /**
-   * Declare watched properties (and related attributes) on an element.
+   * Declare and configure the behavior of watched and derived properties:
    *
    *   static get properties() {
    *     return {
@@ -45,7 +60,7 @@ export default class XElement extends HTMLElement {
   }
 
   /**
-   * Declare event handlers on an element.
+   * Declare delegated event handlers for the element.
    *
    *   static get listeners() {
    *     return {
@@ -53,26 +68,18 @@ export default class XElement extends HTMLElement {
    *     }
    *   }
    *
-   * Note that listeners are added to the element's render root. Listeners are
-   * added during "connectedCallback" and removed during "disconnectedCallback".
+   * Listeners are added to the host element during "connectedCallback"
+   * and removed during "disconnectedCallback".
    *
-   * The arguments passed to your callback are always "(host, event)".
+   * The arguments passed to event callbacks are `(host, event)`
    */
   static get listeners() {
     return {};
   }
 
   /**
-   * Customize shadow root initialization and optionally forgo encapsulation.
-   *
-   * E.g., setup focus delegation or return host instead of host.shadowRoot.
-   */
-  static createRenderRoot(host) {
-    return host.attachShadow({ mode: 'open' });
-  }
-
-  /**
-   * Setup template callback to update DOM when properties change.
+   * Elements typically define the `template` callback in order to
+   * display property changes in their local DOM.
    *
    *   static template(html, { nullish }) {
    *     return (href) => {
@@ -84,31 +91,31 @@ export default class XElement extends HTMLElement {
     return (properties, host) => {}; // eslint-disable-line no-unused-vars
   }
 
-  /** Standard instance constructor. */
-  constructor() {
-    super();
-    XElement.#constructHost(this);
+  /** 
+   * The current templating engine used by all element instances of this type.
+   * Create multiple extensions of this base class to comingle various
+   * templating engines within a single runtime.
+   * 
+   * A `render` method is the only required field. An `html` tagged
+   * template literal is expected, but not strictly required.
+   */
+  static get templateEngine() {
+    return XElement.defaultTemplateEngine;
   }
 
-  /** Extends HTMLElement.prototype.connectedCallback. */
-  connectedCallback() {
-    XElement.#connectHost(this);
+  /** Reference to the internal templating engine. */
+  static get defaultTemplateEngine() {
+    return TemplateEngine.interface;
   }
 
-  /** Extends HTMLElement.prototype.attributeChangedCallback. */
-  attributeChangedCallback(attribute, oldValue, value) {
-    const { attributeMap } = XElement.#constructors.get(this.constructor);
-    // Authors may extend "observedAttributes". Optionally chain to account for
-    // attributes which we don't know about.
-    attributeMap.get(attribute)?.sync(this, value, oldValue);
-  }
-
-  /** Extends HTMLElement.prototype.adoptedCallback. */
-  adoptedCallback() {}
-
-  /** Extends HTMLElement.prototype.disconnectedCallback. */
-  disconnectedCallback() {
-    XElement.#disconnectHost(this);
+  /**
+   * By default the templating engine's render root is configured as a `shadowRoot`
+   *
+   * Alternatively you could configure a light DOM render root by returning `host`,
+   * or set up focus delegation: https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot/delegatesFocus
+   */
+  static createRenderRoot(host) {
+    return host.attachShadow({ mode: 'open' });
   }
 
   /**
@@ -1060,7 +1067,7 @@ class TemplateEngine {
   // Throw an error for removed parts of the interface to make migration easier.
   static #removed (name) {
     return () => {
-      throw new Error(`Removed "${name}" from default templating engine interface. Import and plug-in "lit-html" as your element's templating engine if you want this functionality.`);
+      throw new Error(`Removed "${name}" from default templating engine interface. Configure "lit-html" as your templating engine if you need this functionality.`);
     };
   }
 }

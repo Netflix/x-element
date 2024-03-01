@@ -21,6 +21,7 @@
   "files": [
     "/x-element.js",
     "/demo",
+    "/docs",
     "/test",
     "/etc"
   ],

@@ -43,7 +43,7 @@ It is also possible to integrate third party rendering engines. Here is an examp
 Properties and their related attributes are watched. When a property or related
 attribute is updated, a render is queued.
 
-Property definitions have the following options:
+Property definitions are configured with these options:
 
 - `type`      [Function]: associate properties with types.
 - `attribute` [String]: override default attribute for properties.
