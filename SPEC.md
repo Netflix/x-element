@@ -252,26 +252,48 @@ class MyElement extends XElement {
 
 ## Render Root
 
-By default, XElement will create an open shadow root. However, you can change
-this behavior by overriding the `createRenderRoot` method. There are a few
-reasons why you might want to do this as shown below.
+By default, XElement will create an open shadow root with no adopted style
+sheets. However, you can change this behavior by overriding the
+`shadowRootInit` and `styleSheets` getters. Or, for full control, you can use
+the `createRenderRoot` to manually configure or not use a shadow root at all.
+
+### Custom Shadow Root Initialization
+
+Control special behavior like “focus delegation” by overriding the default
+shadow root configuration.
+
+```javascript
+class MyElement extends XElement {
+  static shadowRootInit() {
+    return { mode: 'open', delegatesFocus: true };
+  }
+}
+```
+
+### Adopted Style Sheets
+
+Import and leverage `.css` files via import attributes. Style sheets returned
+by the `styleSheets` getter will be adopted by host’s the attached shadow root.
+
+```javascript
+import myElementStyleSheet from './my-element-style.css' with { type: 'css' };
+
+class MyElement extends XElement {
+  static get styleSheets() {
+    return [myElementStyleSheet];
+  }
+}
+```
 
 ### No Shadow Root
+
+Sometimes, you don’t want encapsulation. No problem — just return the `host`
+directly by overriding `createRenderRoot`.
 
 ```javascript
 class MyElement extends XElement {
   static createRenderRoot(host) {
     return host;
-  }
-}
-```
-
-### Focus Delegation
-
-```javascript
-class MyElement extends XElement {
-  static createRenderRoot(host) {
-    return host.attachShadowRoot({ mode: 'open', delegatesFocus: true });
   }
 }
 ```
