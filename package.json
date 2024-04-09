@@ -25,8 +25,8 @@
     "/test",
     "/etc"
   ],
-  "dependencies": {},
   "devDependencies": {
+    "@netflix/eslint-config": "^3.0.0",
     "eslint": "^8.56.0",
     "puppeteer": "^22.0.0",
     "tap-parser": "^15.3.1"
