@@ -1325,7 +1325,8 @@ class Template {
     const find = path => {
       let node = content;
       for (const index of path) {
-        node = Template.#setIfMissing(lookup, node, () => node.childNodes)[index];
+        const ref = node;
+        node = Template.#setIfMissing(lookup, node, () => ref.childNodes)[index];
       }
       return node;
     };
