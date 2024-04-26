@@ -10,8 +10,7 @@
 
 A dead simple starting point for custom elements. It provides the following functionality:
 
-- Efficient element generation and data binding via an integrated templating engine
-- ...or use another engine (e.g., [lit-html](https://lit.dev))
+- Efficient DOM generation and data binding using your preferred [templating engine](./doc/TEMPLATES.md)
 - Automatic `.property` to `[attribute]` reflection (opt-in)
 - Automatic `[attribute]` to `.property` synchronization (one-directional, on connected)
 - Simple and efficient property observation and computation
@@ -54,4 +53,4 @@ npm install && npm start
 Then...
 * http://localhost:8080
 
-See [SPEC.md](./SPEC.md) for all the deets.
+See [SPEC.md](./doc/SPEC.md) for all the deets.
