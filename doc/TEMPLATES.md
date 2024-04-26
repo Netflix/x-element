@@ -1,10 +1,74 @@
 # Templates & DOM
 
-Because `x-element` has zero dependencies it also ships with an integrated template engine. However 
+Because `x-element` has zero dependencies it ships with an integrated template engine. Developers can choose alternatives according to their preference, e.g. `lit-html`, `React`, etc.
+
+Add a static template function in your `x-element` definition in order to leverage automagical DOM generation and data binding:
+
+```
+static template(html, { repeat }) {
+  return ({ options, selectedId }) => {
+    return html`
+      <select name="my-options">
+        ${repeat(options, option => option.id, option => html`
+          <option value="${option.value}" ?selected="${option.id === selectedId}">
+        `)}
+      </select>
+    `;
+  };
+}
+```
+
+The following binding types are supported:
+
+| Type                | Example                |
+| ------------------- | ---------------------- |
+| attribute           | `<div foo="${bar}">`   |
+| attribute (boolean) | `<div ?foo="${bar}">`  |
+| property            | `<div .foo="${bar}">`  |
+| text                | `<div>${foo}</div>`    |
+| content             | `${foo}`               |
+
+Equivalent to:
+
+```
+const el = document.createElement('my-custom-element');
+
+// attribute value bindings add or modify the attribute value
+el.setAttribute('foo', bar);
+
+// attribute boolean bindings add or remove the attribute
+el.setAttribute('foo', '');
+
+// property bindings assign the value to the property of the node
+el.foo = bar;
+
+// text bindings assign the value to the content of the node
+el.textContent = foo;
+
+// content bindings create and append text to the node
+el.appendChild(document.createTextNode(foo))
+```
+
+### Important note on serialization during data binding:
+Values assigned to DOM attributes are always serizalized using `toString()` during assignment. To help you avoid `[object Object]` surprises, properties defined using `x-element` allow you to specify their anticipated type. Properties with scalar types `String`, `Number`, and `Boolean` may be bound to attributes using native serialization. Attempting to bind non-scalar types to attributes will result in an `x-element` error message.
+
+The following directives are supported:
+
+* ifDefined
+* live
+* map
+* nullish
+* repeat
+* unsafeHTML
+* unsafeSVG
+
+The following template languages are supported:
+
+* html
+* svg
 
 ## Customizing your base class
 
-Developers can choose to override the default template engine that ships with `x-element` according to their preference.
 Following is a working example using [lit-html](https://lit.dev):
 
 ```
@@ -58,8 +122,8 @@ A more complete implementation with all of the Lit directives can be viewed [her
 
 Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework agnostic.** Here's more explanation:
 
-- We register a new custom element `my-custom-element` within the current page context using a native browser API: `customElements.define('my-custom-element', MyCustomElement);`
-- If the features of our custom element are really basic, we could do this easily without any libraries. As the feature becomes more complex some common boilerplate starts to emerge; this spurred the creation of the `x-element` project.
+- We can register a new custom element `my-custom-element` within the current page context using a native browser API: `customElements.define('my-custom-element', MyCustomElement);`
+- If the features of our custom element are really basic, we could do this easily without any libraries. As your features become more complex some common concerns and conveniences start to emerge (in our case these items became the `x-element` project).
 - Regardless of the manner in which the element has been defined, the current page context now guarantees a relationship between the new tag `<my-custom-element>` and the class `MyCustomElement`. This concept is critical to understand because this normalization liberates developers from the need to choose a single framework (or framework version) to define their features.
 - Note that it is possible to create a DOM node named `my-custom-element` _before_ the custom element has been defined via `customElements.define('my-custom-element', MyCustomElement)`. This can be done using declarative HTML like `<my-custom-element></my-custom-element>` or with imperative API calls like `const el = document.createElement('my-custom-element')`. At this stage the `my-custom-element` DOM node is functionally equivalent to a `span`.
 - When `my-custom-element` is eventually defined within the page context all instances of that element are instantly "upgraded" using the `MyCustomElement` class. This is the second important concept: DOM composition is independent from custom element definition. This decoupling enables composible feature developers to have flexibility when selecting a DOM template engine. Because child nodes within `my-custom-element` can be fully encapsulated using the [Shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM) creating and managing them becomes an implementation detail.

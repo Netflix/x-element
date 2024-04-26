@@ -36,7 +36,7 @@ And use it in your markup:
 
 XElement has a built-in templating engine to efficiently manage DOM generation and data binding using native [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals).
 
-It is also possible to use third party rendering engines. Check out the (template guide)[./doc/TEMPLATES.md] to learn more.
+It is also possible to use third party rendering engines. Check out the (template guide)[./TEMPLATES.md] to learn more.
 
 ## Properties
 
@@ -357,8 +357,5 @@ class MyElement extends XElement {
 
 ## References
 
-- [WHATWG Custom Elements Spec]
-- [lit-html]
-
-[WHATWG Custom Elements Spec]: https://html.spec.whatwg.org/multipage/custom-elements.html
-[lit-html]: https://lit.dev
+- [WHATWG Custom Elements Spec](https://html.spec.whatwg.org/multipage/custom-elements.html)
+- [lit-html](https://lit.dev)
