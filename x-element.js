@@ -11,7 +11,8 @@ export default class XElement extends HTMLElement {
     return TemplateEngine.interface;
   }
 
-  /** Configured templating engine. Defaults to "defaultTemplateEngine".
+  /**
+   * Configured templating engine. Defaults to "defaultTemplateEngine".
    *
    * Override this as needed if x-element's default template engine does not
    * meet your needs. A "render" method is the only required field. An "html"
@@ -19,6 +20,24 @@ export default class XElement extends HTMLElement {
    */
   static get templateEngine() {
     return XElement.defaultTemplateEngine;
+  }
+
+  /**
+   * Declare an initialization object for the host’s shadow root.
+   * See https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow.
+   */
+  static get shadowRootInit() {
+    return { mode: 'open' };
+  }
+
+  /**
+   * Declare an array of CSSSTyleSheet objects to adopt on the shadow root.
+   * Note that a CSSStyleSheet object is the type returned when importing a
+   * stylesheet file via import attributes. This has no effect if you are using
+   * the “host” as your render root (versus attaching a shadow root).
+   */
+  static get styleSheets() {
+    return [];
   }
 
   /**
@@ -68,7 +87,9 @@ export default class XElement extends HTMLElement {
    * E.g., setup focus delegation or return host instead of host.shadowRoot.
    */
   static createRenderRoot(host) {
-    return host.attachShadow({ mode: 'open' });
+    const shadowRoot = host.attachShadow(this.shadowRootInit);
+    shadowRoot.adoptedStyleSheets = this.styleSheets;
+    return shadowRoot;
   }
 
   /**
