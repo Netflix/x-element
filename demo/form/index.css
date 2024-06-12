@@ -1,0 +1,31 @@
+p {
+  max-width: 50ch;
+}
+
+fieldset {
+  width: min-content;
+}
+label {
+  display: block;
+  white-space: nowrap;
+  width: min-content;
+}
+label + label {
+  margin-top: 4px;
+}
+
+input {
+  display: block;
+}
+
+#submit {
+  margin-top: 8px;
+}
+
+form-control {
+  position: relative;
+  z-index: 0;
+}
+form-control:focus-within {
+  z-index: 1;
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="index.css">
+    <script type="module" src="form-control.js"></script>
+  </head>
+  <body>
+    <p>
+      This demonstrates what it currently looks like to build a Form-Associated
+      Custom Element via <code>x-element</code>.
+    </p>
+    <form id="form">
+      <fieldset>
+        <legend>Group one</legend>
+        <label>Native, optional input
+          <input type="text" name="control-1">
+        </label>
+        <label>Custom, required control
+          <form-control required name="control-2"></form-control>
+        </label>
+      </fieldset>
+      <fieldset>
+        <legend>Group two</legend>
+        <label>Custom, optional control
+          <form-control name="control-3"></form-control>
+        </label>
+        <label>Native, optional input
+          <input type="color" name="control-4">
+        </label>
+      </fieldset>
+      <input id="submit" type="submit">
+    </form>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>
