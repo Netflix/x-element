@@ -151,6 +151,10 @@ callbacks are memoized and are expected to be pure.
 If the given function is defined on the constructor, the context (`this`) is
 guaranteed to be the constructor when called later.
 
+**Computed properties are lazily evaluated.** If a computed property is not
+rendered in a template function or accessed programmatically, its code will
+not run.
+
 ## Observed properties
 
 Create an observed property by providing an `observe` function. Whenever an
