@@ -67,6 +67,40 @@ The following template languages are supported:
 * html
 * svg
 
+### A word on Repeat, Map, and template re-rendering
+
+In web components, arrays and other complex data types are expected (if they are present at all) to be handed to the parent component as content within [slots](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_templates_and_slots), using the contents as XML-like data (or as freestanding tags/web components), rather than on attributes.
+
+This has some subtle consequences for the built-in reactivity of web components. The main way that web components are notified of changes to their data are by updates to their attributes. This means that if you use repeat or map to render a section of your template, **changes to the arrays or objects iterated over will not automatically trigger a re-render.**
+
+As a result, you must manually trigger the `.render` method of your component somehow. The most idiomatic way to trigger a re-render would be to ensure the data you're iterating over is derived from contents within your component's slot, and then to add a listener to the [`slotchange`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLSlotElement/slotchange_event) event which retriggers your component's render function:
+
+```
+static get listeners() {
+  return {slotchange: this.render}
+}
+```
+
+Another method might be to use an observation library to watch for changes to the objects you're iterating over, and then run the render function as a callback.
+
+#### Cache key functions
+
+Due to the limitations in the last section, we always re-render repeat and map templates by default. However, this can get expensive depending on the number of items that must be re-rendered. If you want to avoid re-rendering items in a repeat or map template, you can specify a `key` function that will checked. If the key function's output is the same as the last time the render ran, the template will not be re-rendered.
+
+This snippet includes a key function as its last argument that ensures the repeat template will not be re-run unless the `options` array is completely replaced:
+
+```
+return ({ options, selectedId }) => {
+  return html`
+  <select name="my-options">
+    ${repeat(options, option => option.id, option => html`
+      <option value="${option.value}" ?selected="${option.id === selectedId}">${option.text}</option>
+    `, () => options)}
+  </select>
+  <slot></slot>`;
+};
+```
+
 ## Customizing your base class
 
 Following is a working example using [lit-html](https://lit.dev):
@@ -116,11 +150,11 @@ class MyCustomElement extends BaseElement {
 customElements.define('my-custom-element', MyCustomElement);
 ```
 
-A more complete implementation with all of the Lit directives can be viewed [here](../demo/lit-html/).
+A more complete implementation with all the Lit directives can be viewed [here](../demo/lit-html/).
 
 ## Choosing your template engine(s)
 
-Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework agnostic.** Here's more explanation:
+Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework-agnostic.** Here's more explanation:
 
 - We can register a new custom element `my-custom-element` within the current page context using a native browser API: `customElements.define('my-custom-element', MyCustomElement);`
 - If the features of our custom element are really basic, we could do this easily without any libraries. As your features become more complex some common concerns and conveniences start to emerge (in our case these items became the `x-element` project).
@@ -192,7 +226,7 @@ A working example can be found (here)[../demo/react/]
 
 ### Important note regarding React versions before React 19
 
-Because `my-custom-element` has no bound properties, the above example works as expected. `ReactDOM` will generate and attach `<my-custom-element>` to your root just like any other native element. However **React 18 and all prior versions remain incompatible with custom elements**, due to a variety of past design decisions that were deliberated at length [here](https://github.com/facebook/react/issues/11347). In short, React's original property binding and event management system predates the custom element specification. Addressing the incompatibility causes breaking changes to the framework which needed careful consideration.
+Because `my-custom-element` has no bound properties, the above example works as expected. `ReactDOM` will generate and attach `<my-custom-element>` to your root just like any other native element. However, **React 18 and all prior versions remain incompatible with custom elements**, due to a variety of past design decisions that were deliberated at length [here](https://github.com/facebook/react/issues/11347). In short, React's original property binding and event management system predates the custom element specification. Addressing the incompatibility causes breaking changes to the framework which needed careful consideration.
 
 Fortunately the React team recently [announced support for custom elements](https://react.dev/blog/2024/04/25/react-19#support-for-custom-elements) in its next major version, React 19.
 
@@ -200,7 +234,7 @@ Fortunately the React team recently [announced support for custom elements](http
 
 ## Summary
 
-Features distributed as custom elements are framework and library agnostic. Thus custom elements can integrate with [any modern framework](https://custom-elements-everywhere.com/). By using native ShadowDOM encapsulation developers can choose the manner in which they manage the DOM while avoiding the risk of vendor lock-in.
+Features distributed as custom elements are framework and library agnostic. Thus, custom elements can integrate with [any modern framework](https://custom-elements-everywhere.com/). By using native ShadowDOM encapsulation developers can choose the manner in which they manage the DOM while avoiding the risk of vendor lock-in.
 
 Key concepts repeated:
 
