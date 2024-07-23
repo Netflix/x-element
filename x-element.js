@@ -1583,13 +1583,11 @@ class Template {
 
   static #map(type, value, lastValue, { node, startNode }, { identify, callback }, name) {
     if (type === 'content') {
-      if (value !== lastValue) {
-        if (Array.isArray(value)) {
-          const internals = Template.#setIfMissing(Template.#internals, startNode, () => ({}));
-          Template.#mapInner(internals, node, startNode, identify, callback, value, name);
-        } else {
-          throw new Error(`Unexpected ${name} value "${value}".`);
-        }
+      if (Array.isArray(value)) {
+        const internals = Template.#setIfMissing(Template.#internals, startNode, () => ({}));
+        Template.#mapInner(internals, node, startNode, identify, callback, value, name);
+      } else {
+        throw new Error(`Unexpected ${name} value "${value}".`);
       }
     } else {
       throw new Error(`The ${name} update must be used on ${Template.#getTypeText('content')}, not on ${Template.#getTypeText(type)}.`);
