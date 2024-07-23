@@ -67,6 +67,20 @@ The following template languages are supported:
 * html
 * svg
 
+### Nested Data and Re-rendering
+
+Web components will only trigger a re-render by default **when their properties are replaced**. This means that when using non-primitive data structures as properties, mutating the contents of these structures will not result in the component re-rendering. You must either replace the data structure or manually call the `.render` method.
+
+Likewise, data structures that are **not** set as properties will **never** trigger a render on their own, even if replaced. If you use such a structure and need to re-render based on it, plan for a method of observing the data and calling the `.render` function manually.
+
+For example, if your complex data structure is derived from the contents of a [slot](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_templates_and_slots), you will want to add a listener to the [`slotchange`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLSlotElement/slotchange_event) event that calls `.render`, like so:
+
+```
+static get listeners() {
+  return {slotchange: this.render}
+}
+```
+
 ## Customizing your base class
 
 Following is a working example using [lit-html](https://lit.dev):
@@ -119,7 +133,7 @@ A more complete implementation that incorporates all of the Lit directives can b
 
 ## Choosing your template engine(s)
 
-Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework agnostic.** Here's more explanation:
+Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework-agnostic.** Here's more explanation:
 
 - We can register a new custom element `my-custom-element` within the current page context using a native browser API: `customElements.define('my-custom-element', MyCustomElement);`
 - If the features of our custom element are really basic, we could do this easily without any libraries. As your features become more complex some common concerns and conveniences start to emerge (in our case these items became the `x-element` project).
@@ -198,7 +212,7 @@ Fortunately the React team recently [announced support for custom elements](http
 
 ## Summary
 
-Features distributed as custom elements are framework and library agnostic. Thus custom elements can integrate with [any modern framework](https://custom-elements-everywhere.com/). By using native ShadowDOM encapsulation developers can choose the manner in which they manage the DOM while avoiding the risk of vendor lock-in.
+Features distributed as custom elements are framework and library agnostic. Thus, custom elements can integrate with [any modern framework](https://custom-elements-everywhere.com/). By using native ShadowDOM encapsulation developers can choose the manner in which they manage the DOM while avoiding the risk of vendor lock-in.
 
 Key concepts repeated:
 
