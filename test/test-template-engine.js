@@ -532,6 +532,36 @@ describe('html updaters', () => {
     container.remove();
   });
 
+  it('repeat re-runs each time', () => {
+    const getTemplate = ({ items, lookup }) => {
+      return html`
+      <div>
+        <ul id="target">
+          ${repeat(items, item => item.id, item => {
+            return html`<li id="${item.id}">${lookup?.[item.id]}</li>`;
+          })}
+        </ul>
+      </div>
+    `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const items = [{ id: 'a' }, { id: 'b'}, { id: 'c' }];
+    let lookup = { a: 'foo', b: 'bar', c: 'baz' };
+    render(container, getTemplate({ items, lookup }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    assert(container.querySelector('#a').textContent === 'foo');
+    assert(container.querySelector('#b').textContent === 'bar');
+    assert(container.querySelector('#c').textContent === 'baz');
+    lookup = { a: 'fizzle', b: 'bop', c: 'fuzz' };
+    render(container, getTemplate({ items, lookup }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    assert(container.querySelector('#a').textContent === 'fizzle');
+    assert(container.querySelector('#b').textContent === 'bop');
+    assert(container.querySelector('#c').textContent === 'fuzz');
+    container.remove();
+  });
+
   it('map', () => {
     const getTemplate = ({ items }) => {
       return html`
@@ -589,6 +619,36 @@ describe('html updaters', () => {
     assert(container.querySelector('#target').children[0] !== foo);
     assert(container.querySelector('#target').children[1] !== bar);
     assert(container.querySelector('#target').children[2] !== baz);
+    container.remove();
+  });
+
+  it('map: re-renders each time', () => {
+    const getTemplate = ({ items, lookup }) => {
+      return html`
+        <div>
+          <ul id="target">
+            ${map(items, item => item.id, item => {
+              return html`<li id="${ item.id }">${ lookup?.[item.id] }</li>`;
+            })}
+          </ul>
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const items = [{ id: 'a' }, { id: 'b'}, { id: 'c' }];
+    let lookup = { a: 'foo', b: 'bar', c: 'baz' };
+    render(container, getTemplate({ items, lookup }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    assert(container.querySelector('#a').textContent === 'foo');
+    assert(container.querySelector('#b').textContent === 'bar');
+    assert(container.querySelector('#c').textContent === 'baz');
+    lookup = { a: 'fizzle', b: 'bop', c: 'fuzz' };
+    render(container, getTemplate({ items, lookup }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    assert(container.querySelector('#a').textContent === 'fizzle');
+    assert(container.querySelector('#b').textContent === 'bop');
+    assert(container.querySelector('#c').textContent === 'fuzz');
     container.remove();
   });
 
