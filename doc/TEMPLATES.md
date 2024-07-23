@@ -67,6 +67,10 @@ The following template languages are supported:
 * html
 * svg
 
+### A note on non-primitive data:
+
+Because DOM manipulation is *slow* — template engines do their best to avoid it (if a value hasn’t changed, DOM manipulation is skipped). To know if a non-primitive property has changed, a change-by-reference check is performed (versus a change-by-value check). Therefore, treat non-primitives as if they’re immutable. I.e., do this: `element.property = { ...element.property, foo: 'bar' }`, and don’t do this: `element.property.foo = 'bar'`.
+
 ## Customizing your base class
 
 Following is a working example using [lit-html](https://lit.dev):
@@ -119,7 +123,7 @@ A more complete implementation that incorporates all of the Lit directives can b
 
 ## Choosing your template engine(s)
 
-Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework agnostic.** Here's more explanation:
+Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework-agnostic.** Here's more explanation:
 
 - We can register a new custom element `my-custom-element` within the current page context using a native browser API: `customElements.define('my-custom-element', MyCustomElement);`
 - If the features of our custom element are really basic, we could do this easily without any libraries. As your features become more complex some common concerns and conveniences start to emerge (in our case these items became the `x-element` project).
@@ -198,7 +202,7 @@ Fortunately the React team recently [announced support for custom elements](http
 
 ## Summary
 
-Features distributed as custom elements are framework and library agnostic. Thus custom elements can integrate with [any modern framework](https://custom-elements-everywhere.com/). By using native ShadowDOM encapsulation developers can choose the manner in which they manage the DOM while avoiding the risk of vendor lock-in.
+Features distributed as custom elements are framework and library agnostic. Thus, custom elements can integrate with [any modern framework](https://custom-elements-everywhere.com/). By using native ShadowDOM encapsulation developers can choose the manner in which they manage the DOM while avoiding the risk of vendor lock-in.
 
 Key concepts repeated:
 
