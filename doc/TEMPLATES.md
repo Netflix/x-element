@@ -50,7 +50,7 @@ el.appendChild(document.createTextNode(foo))
 ```
 
 ### Important note on serialization during data binding:
-Values assigned to DOM attributes are always serizalized using `toString()` during assignment. To help you avoid `[object Object]` surprises, properties defined using `x-element` allow you to specify their anticipated type. Properties with scalar types `String`, `Number`, and `Boolean` may be bound to attributes using native serialization. Attempting to bind non-scalar types to attributes will result in an `x-element` error message.
+Values assigned to DOM attributes are always serialized using `toString()` during assignment. To help you avoid `[object Object]` surprises, properties defined using `x-element` allow you to specify their anticipated type. Properties with scalar types `String`, `Number`, and `Boolean` may be bound to attributes using native serialization. Attempting to bind non-scalar types to attributes will result in an `x-element` error message.
 
 The following directives are supported:
 
