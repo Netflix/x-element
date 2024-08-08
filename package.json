@@ -27,9 +27,9 @@
   ],
   "devDependencies": {
     "@netflix/eslint-config": "^3.0.0",
-    "eslint": "^9.1.0",
-    "puppeteer": "^22.7.1",
-    "tap-parser": "^15.3.2"
+    "eslint": "^9.8.0",
+    "puppeteer": "^23.0.2",
+    "tap-parser": "^18.0.0"
   },
   "contributors": [
     {
