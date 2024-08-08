@@ -1004,18 +1004,21 @@ class TemplateEngine {
    *    </div>
    *  `;
    */
-  static map(items, identify, callback) {
+  static map(items, identify, callback, key = () => {}) {
     if (typeof identify !== 'function') {
       throw new Error(`Unexpected map identify "${identify}" provided, expected a function.`);
     }
     if (typeof callback !== 'function') {
       throw new Error(`Unexpected map callback "${callback}" provided, expected a function.`);
     }
-    return Template.map(items, identify, callback, 'map');
+    if (typeof key !== 'function') {
+      throw new Error(`Unexpected map key "${key}" provided, expected a function.`);
+    }
+    return Template.map(items, identify, callback,  key,'map');
   }
 
   /** Shim for prior "repeat" function. Use "map". */
-  static repeat(value, identify, callback) {
+  static repeat(value, identify, callback, key = () => {}) {
     if (arguments.length === 2) {
       callback = identify;
       identify = null;
@@ -1024,8 +1027,10 @@ class TemplateEngine {
       throw new Error(`Unexpected repeat identify "${identify}" provided, expected a function.`);
     } else if (typeof callback !== 'function') {
       throw new Error(`Unexpected repeat callback "${callback}" provided, expected a function.`);
+    } else if (typeof key !== 'function') {
+      throw new Error(`Unexpected repeat key "${key}" provided, expected a function.`);
     }
-    return Template.map(value, identify, callback, 'repeat');
+    return Template.map(value, identify, callback, key,'repeat');
   }
 
   static get interface() {
@@ -1230,11 +1235,11 @@ class Template {
     return reference;
   }
 
-  static map(value, identify, callback, name) {
+  static map(value, identify, callback, key, name) {
     const reference = Template.#createWeakMapReference();
     const context = { identify, callback };
     const updater = (type, lastValue, details) => Template.#map(type, value, lastValue, details, context, name);
-    updater.value = value;
+    updater.value = key();
     Template.#updaters.set(reference, updater);
     return reference;
   }

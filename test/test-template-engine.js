@@ -532,6 +532,48 @@ describe('html updaters', () => {
     container.remove();
   });
 
+  it('repeat re-runs each time by default', () => {
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${repeat(items, item => item.id, item => {
+            return html`<span id="${item.id}" class="item">${item.id}</span>`;
+          })}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const items = [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }];
+    render(container, getTemplate({ items }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    items.push({id: 'beep'});
+    render(container, getTemplate({ items }));
+    assert(container.querySelector('#target').childElementCount === 4);
+    container.remove();
+  });
+
+  it('repeat respects a cache key', () => {
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${repeat(items, item => item.id, item => {
+        return html`<span id="${item.id}" class="item">${item.id}</span>`;
+      }, () => items)}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const items = [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }];
+    render(container, getTemplate({ items }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    items.push({id: 'beep'});
+    render(container, getTemplate({ items }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    container.remove();
+  });
+
   it('map', () => {
     const getTemplate = ({ items }) => {
       return html`
@@ -589,6 +631,49 @@ describe('html updaters', () => {
     assert(container.querySelector('#target').children[0] !== foo);
     assert(container.querySelector('#target').children[1] !== bar);
     assert(container.querySelector('#target').children[2] !== baz);
+    container.remove();
+  });
+
+  it('map: re-renders each time by default', () => {
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${map(items, item => item.id, item => {
+            return html`<div id="${item.id}" class="item">${item.id}</div>`;
+          })}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const items = [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }];
+    render(container, getTemplate({ items }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    items.push({id: 'beep'});
+    render(container, getTemplate({ items }));
+    assert(container.querySelector('#target').childElementCount === 4);
+    container.remove();
+  });
+
+  it('map: respects a cache key', () => {
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${map(items, item => item.id, item => {
+            return html`<div id="${item.id}" class="item">${item.id}</div>`;
+          }, () => items)}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const items = [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }];
+    render(container, getTemplate({ items }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    items.push({id: 'beep'});
+    render(container, getTemplate({ items }));
+    // New item should not appear because the result is still cached.
+    assert(container.querySelector('#target').childElementCount === 3);
     container.remove();
   });
 
@@ -1254,6 +1339,28 @@ describe('rendering errors', () => {
       container.remove();
     });
 
+    it('throws if key is not a function', () => {
+      const getTemplate = ({ items }) => {
+        return html`
+        <div id="target">
+          ${map(items, item => item.id, item => {
+          return html`<div id="${item.id}" class="item">${item.id}</div>`;
+        }, 'bogus')}
+        </div>
+      `;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ items: [] }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === 'Unexpected map key "bogus" provided, expected a function.');
+      container.remove();
+    });
+
     it('throws if used on an "attribute"', () => {
       const expected = 'The map update must be used on content, not on an attribute.';
       const getTemplate = ({ maybe }) => {
@@ -1423,6 +1530,27 @@ describe('rendering errors', () => {
       assert(!!actual, 'No error was thrown.');
       assert(actual === expected, actual);
       container.remove();
+    });
+
+    it('throws if key is not a function', () => {
+      const getTemplate = ({ items }) => {
+        return html`
+        <div id="target">
+          ${repeat(items, item => item.id, item => {
+          return html`<span id="${item.id}" class="item">${item.id}</span>`;
+        }, 'bogus')}
+        </div>
+      `;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ items: [] }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === 'Unexpected repeat key "bogus" provided, expected a function.');
     });
 
     it('throws if used on an "attribute"', () => {
