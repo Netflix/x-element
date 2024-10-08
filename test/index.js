@@ -13,6 +13,7 @@ test('./test-element-upgrade.html');
 test('./test-template-engine.html');
 test('./test-render.html');
 test('./test-render-root.html');
+test('./test-styles.html');
 test('./test-basic-properties.html');
 test('./test-initial-properties.html');
 test('./test-default-properties.html');

@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New support for static `styles` getter for `adoptedStyleSheets` ergonomics (#52).
+
+### Fixed
+
+- The `map` function now works with properties / attributes bound across template contexts (#179).
+
 ## [1.0.0] - 2024-02-29
 
 ### Added

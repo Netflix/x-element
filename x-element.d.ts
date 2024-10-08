@@ -61,6 +61,7 @@ export class XElement extends HTMLElement {
     render: (container: HTMLElement, result: any) => void,
     html: (strings: TemplateStringsArray, ...any) => any,
   }
+  static readonly styles: [CSSStyleSheet]
   static createRenderRoot(host: XElement): HTMLElement;
   static template(
     html: (strings: TemplateStringsArray, ...any) => any,
