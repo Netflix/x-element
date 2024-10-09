@@ -899,16 +899,38 @@ export default class XElement extends HTMLElement {
   static #prototypeInterface = new Set(Object.getOwnPropertyNames(XElement.prototype));
 }
 
-/** Wrapper to document public interface to the default templating engine. */
+/** Internal implementation details for template engine. */
 class TemplateEngine {
+  static #UNSET = Symbol('unset'); // Ensures a unique, initial comparison.
+  static #ATTRIBUTE_PREFIXES = {
+    attribute: 'x-element-attribute-',
+    boolean: 'x-element-boolean-',
+    property: 'x-element-property-',
+  };
+  static #CONTENT_PREFIX = 'x-element-content-';
+  static #CONTENT_REGEX = new RegExp(`${TemplateEngine.#CONTENT_PREFIX}(\\d+)`);
+  static #OPEN = /<[a-z][a-z0-9-]*(?=\s)/g;
+  static #STEP = /\s+[a-z][a-z0-9-]*(?=[\s>])|\s+[a-z][a-zA-Z0-9-]*="[^"]*"/y;
+  static #ATTRIBUTE = /\s+(\??([a-z][a-zA-Z0-9-]*))="$/y;
+  static #PROPERTY = /\s+\.([a-z][a-zA-Z0-9_]*)="$/y;
+  static #CLOSE = />/g;
+
   static #interface = null;
+  static #stateMap = new WeakMap(); // Maps nodes to internal state.
+  static #analysisMap = new WeakMap(); // Maps strings to cached computations.
+  static #resultMap = new WeakMap(); // Maps references to results.
+  static #updaterMap = new WeakMap(); // Maps references to updaters.
 
   /**
    * Declare HTML markup to be interpolated.
+   *
    *   html`<div attr="${obj.attr}" .prop="${obj.prop}">${obj.content}</div>`;
    */
   static html(strings, ...values) {
-    return Template.html(strings, ...values);
+    const reference = TemplateEngine.#createReference();
+    const result = TemplateEngine.#createResult('html', strings, values);
+    TemplateEngine.#resultMap.set(reference, result);
+    return reference;
   }
 
   /**
@@ -917,7 +939,10 @@ class TemplateEngine {
    *   svg`<circle r="${obj.r}" cx="${obj.cx}" cy="${obj.cy}"></div>`;
    */
   static svg(strings, ...values) {
-    return Template.svg(strings, ...values);
+    const reference = TemplateEngine.#createReference();
+    const result = TemplateEngine.#createResult('svg', strings, values);
+    TemplateEngine.#resultMap.set(reference, result);
+    return reference;
   }
 
   /**
@@ -925,8 +950,22 @@ class TemplateEngine {
    *
    * Accepts a "container" element and renders the given "result" into it.
    */
-  static render(container, result) {
-    Template.render(container, result);
+  static render(container, resultReference) {
+    const state = TemplateEngine.#setIfMissing(TemplateEngine.#stateMap, container, () => ({}));
+    if (resultReference) {
+      const result = TemplateEngine.#resultMap.get(resultReference);
+      if (TemplateEngine.#cannotReuseResult(state.result, result)) {
+        TemplateEngine.#removeWithin(container);
+        state.result = result;
+        TemplateEngine.#inject(result, container);
+      } else {
+        TemplateEngine.#assign(state.result, result);
+      }
+      TemplateEngine.#commit(state.result);
+    } else {
+      TemplateEngine.#clearObject(state);
+      TemplateEngine.#removeWithin(container);
+    }
   }
 
   /**
@@ -938,7 +977,11 @@ class TemplateEngine {
    *  html`<a href="${ifDefined(obj.href)}"></div>`;
    */
   static ifDefined(value) {
-    return Template.ifDefined(value);
+    const reference = TemplateEngine.#createReference();
+    const updater = (type, lastValue, details) => TemplateEngine.#ifDefined(type, value, lastValue, details);
+    updater.value = value;
+    TemplateEngine.#updaterMap.set(reference, updater);
+    return reference;
   }
 
   /**
@@ -950,11 +993,15 @@ class TemplateEngine {
    *  html`<a href="${nullish(obj.href)}"></div>`;
    */
   static nullish(value) {
-    return Template.nullish(value);
+    const reference = TemplateEngine.#createReference();
+    const updater = (type, lastValue, details) => TemplateEngine.#nullish(type, value, lastValue, details);
+    updater.value = value;
+    TemplateEngine.#updaterMap.set(reference, updater);
+    return reference;
   }
 
   /**
-   * Updater to manage a property which may change outside the templating engine.
+   * Updater to manage a property which may change outside the template engine.
    *
    * Typically, properties are declaratively managed from state and efficient
    * value checking is used (i.e., "value !== lastValue"). However, if DOM state
@@ -964,7 +1011,11 @@ class TemplateEngine {
    *  html`<input .value="${live(obj.value)}"/>`;
    */
   static live(value) {
-    return Template.live(value);
+    const reference = TemplateEngine.#createReference();
+    const updater = (type, lastValue, details) => TemplateEngine.#live(type, value, lastValue, details);
+    updater.value = value;
+    TemplateEngine.#updaterMap.set(reference, updater);
+    return reference;
   }
 
   /**
@@ -976,7 +1027,11 @@ class TemplateEngine {
    *  html`<div>${unsafeHTML(obj.trustedMarkup)}</div>`;
    */
   static unsafeHTML(value) {
-    return Template.unsafeHTML(value);
+    const reference = TemplateEngine.#createReference();
+    const updater = (type, lastValue, details) => TemplateEngine.#unsafeHTML(type, value, lastValue, details);
+    updater.value = value;
+    TemplateEngine.#updaterMap.set(reference, updater);
+    return reference;
   }
 
   /**
@@ -992,7 +1047,11 @@ class TemplateEngine {
    *  `;
    */
   static unsafeSVG(value) {
-    return Template.unsafeSVG(value);
+    const reference = TemplateEngine.#createReference();
+    const updater = (type, lastValue, details) => TemplateEngine.#unsafeSVG(type, value, lastValue, details);
+    updater.value = value;
+    TemplateEngine.#updaterMap.set(reference, updater);
+    return reference;
   }
 
   /**
@@ -1011,7 +1070,7 @@ class TemplateEngine {
     if (typeof callback !== 'function') {
       throw new Error(`Unexpected map callback "${callback}" provided, expected a function.`);
     }
-    return Template.map(items, identify, callback, 'map');
+    return TemplateEngine.#mapOrRepeat(items, identify, callback, 'map');
   }
 
   /** Shim for prior "repeat" function. Use "map". */
@@ -1025,7 +1084,7 @@ class TemplateEngine {
     } else if (typeof callback !== 'function') {
       throw new Error(`Unexpected repeat callback "${callback}" provided, expected a function.`);
     }
-    return Template.map(value, identify, callback, 'repeat');
+    return TemplateEngine.#mapOrRepeat(value, identify, callback, 'repeat');
   }
 
   static get interface() {
@@ -1043,249 +1102,76 @@ class TemplateEngine {
         unsafeSVG: TemplateEngine.unsafeSVG, // Kept as-is for now.
         ifDefined: TemplateEngine.ifDefined, // Kept as-is for now.
         repeat: TemplateEngine.repeat, // Wrapper around "map". We may deprecate these soon.
-        asyncAppend: TemplateEngine.#removed('asyncAppend'), // Removed.
-        asyncReplace: TemplateEngine.#removed('asyncReplace'), // Removed.
-        cache: TemplateEngine.#removed('cache'), // Removed.
-        classMap: TemplateEngine.#removed('classMap'), // Removed.
-        directive: TemplateEngine.#removed('directive'), // Removed.
-        guard: TemplateEngine.#removed('guard'), // Removed.
-        styleMap: TemplateEngine.#removed('styleMap'), // Removed.
-        templateContent: TemplateEngine.#removed('templateContent'), // Removed.
-        until: TemplateEngine.#removed('until'), // Removed.
+        asyncAppend: TemplateEngine.#interfaceRemoved('asyncAppend'), // Removed.
+        asyncReplace: TemplateEngine.#interfaceRemoved('asyncReplace'), // Removed.
+        cache: TemplateEngine.#interfaceRemoved('cache'), // Removed.
+        classMap: TemplateEngine.#interfaceRemoved('classMap'), // Removed.
+        directive: TemplateEngine.#interfaceRemoved('directive'), // Removed.
+        guard: TemplateEngine.#interfaceRemoved('guard'), // Removed.
+        styleMap: TemplateEngine.#interfaceRemoved('styleMap'), // Removed.
+        templateContent: TemplateEngine.#interfaceRemoved('templateContent'), // Removed.
+        until: TemplateEngine.#interfaceRemoved('until'), // Removed.
       });
     }
     return TemplateEngine.#interface;
   }
 
-  // Throw an error for removed parts of the interface to make migration easier.
-  static #removed (name) {
-    return () => {
-      throw new Error(`Removed "${name}" from default templating engine interface. Import and plug-in "lit-html" as your element's templating engine if you want this functionality.`);
-    };
-  }
-}
-
-/** Internal implementation details for templating and updating. */
-class Template {
-  static #internals = new WeakMap();
-  static #templates = new WeakMap();
-  static #templateResults = new WeakMap();
-  static #updaters = new WeakMap();
-  static #ATTRIBUTE_PREFIXES = {
-    attribute: 'x-element-attribute-',
-    boolean: 'x-element-boolean-',
-    property: 'x-element-property-',
-  };
-  static #CONTENT_PREFIX = 'x-element-content-';
-  static #CONTENT_REGEX = new RegExp(`${Template.#CONTENT_PREFIX}(\\d+)`);
-  static #OPEN = /<[a-z][a-z0-9-]*(?=\s)/g;
-  static #STEP = /\s+[a-z][a-z0-9-]*(?=[\s>])|\s+[a-z][a-zA-Z0-9-]*="[^"]*"/y;
-  static #ATTRIBUTE = /\s+(\??([a-z][a-zA-Z0-9-]*))="$/y;
-  static #PROPERTY = /\s+\.([a-z][a-zA-Z0-9_]*)="$/y;
-  static #CLOSE = />/g;
-
-  #type = null;
-  #strings = null;
-  #analysis = null;
-
-  constructor(type, strings) {
-    this.#type = type;
-    this.#strings = strings;
-  }
-
-  inject(node, options) {
-    if (!this.#analysis) {
-      const htmlStrings = [];
-      const state = { inside: false, index: 0 };
-      for (let iii = 0; iii < this.#strings.length; iii++) {
-        let string = this.#strings[iii];
-        Template.#exhaustString(string, state);
-        if (state.inside) {
-          Template.#ATTRIBUTE.lastIndex = state.index;
-          const attributeMatch = Template.#ATTRIBUTE.exec(string);
-          if (attributeMatch) {
-            const name = attributeMatch[2];
-            if (attributeMatch[1].startsWith('?')) {
-              // We found a match like this: html`<div ?hidden="${!!value}"></div>`.
-              string = string.slice(0, -3 - name.length) + `${Template.#ATTRIBUTE_PREFIXES.boolean}${iii}="${name}`;
-            } else {
-              // We found a match like this: html`<div title="${value}"></div>`.
-              string = string.slice(0, -2 - name.length) + `${Template.#ATTRIBUTE_PREFIXES.attribute}${iii}="${name}`;
-            }
-            state.index = 1; // Accounts for an expected quote character next.
-          } else {
-            Template.#PROPERTY.lastIndex = state.index;
-            const propertyMatch = Template.#PROPERTY.exec(string);
-            if (propertyMatch) {
-              // We found a match like this: html`<div .title="${value}"></div>`.
-              const name = propertyMatch[1];
-              string = string.slice(0, -3 - name.length) + `${Template.#ATTRIBUTE_PREFIXES.property}${iii}="${name}`;
-              state.index = 1; // Accounts for an expected quote character next.
-            } else {
-              throw new Error(`Found invalid template string "${string}" at "${string.slice(state.index)}".`);
-            }
-          }
-        } else {
-          // Assume it's a match like this: html`<div>${value}</div>`.
-          string += `<!--${Template.#CONTENT_PREFIX}${iii}-->`;
-          state.index = 0; // No characters to account for. Reset to zero.
-        }
-        htmlStrings[iii] = string;
-      }
-      const html = this.#type === 'svg'
-        ? `<svg xmlns="http://www.w3.org/2000/svg">${htmlStrings.join('')}</svg>`
-        : htmlStrings.join('');
-      const element = document.createElement('template');
-      element.innerHTML = html;
-      const blueprint = Template.#evaluate(element.content); // mutates element.
-      this.#analysis = { element, blueprint };
-    }
-    const { element, blueprint } = this.#analysis;
-    const clone = element.cloneNode(true);
-    const mapping = Template.#instrument(blueprint, clone.content); // mutates clone.
-    const content = clone.content;
-    options?.before
-      ? this.#type === 'svg'
-        ? Template.#insertAllBefore(content.firstChild.childNodes, node)
-        : Template.#insertAllBefore(content.childNodes, node)
-      : this.#type === 'svg'
-        ? node.append(...content.firstChild.childNodes)
-        : node.append(content);
-    return { element: clone, mapping };
-  }
-
-  commit(mapping, values, lastValues) {
-    Template.#commit(mapping, values, lastValues);
-  }
-
-  static html(strings, ...values) {
-    const template = Template.#setIfMissing(Template.#templates, strings, () => new Template('html', strings));
-    const reference = Template.#createWeakMapReference();
-    Template.#templateResults.set(reference, new TemplateResult(template, values));
-    return reference;
-  }
-
-  static svg(strings, ...values) {
-    const template = Template.#setIfMissing(Template.#templates, strings, () => new Template('svg', strings));
-    const reference = Template.#createWeakMapReference();
-    Template.#templateResults.set(reference, new TemplateResult(template, values));
-    return reference;
-  }
-
-  static render(container, reference) {
-    const internals = Template.#setIfMissing(Template.#internals, container, () => ({}));
-    if (reference) {
-      const templateResult = Template.#templateResults.get(reference);
-      if (internals.templateResult?.template !== templateResult.template) {
-        Template.#removeWithin(container);
-        internals.templateResult = templateResult;
-        templateResult.inject(container);
-      } else {
-        internals.templateResult.assign(templateResult);
-      }
-      internals.templateResult.commit();
-    } else {
-      Template.#clearObject(internals);
-      Template.#removeWithin(container);
-    }
-  }
-
-  static ifDefined(value) {
-    const reference = Template.#createWeakMapReference();
-    const updater = (type, lastValue, details) => Template.#ifDefined(type, value, lastValue, details);
-    updater.value = value;
-    Template.#updaters.set(reference, updater);
-    return reference;
-  }
-
-  static nullish(value) {
-    const reference = Template.#createWeakMapReference();
-    const updater = (type, lastValue, details) => Template.#nullish(type, value, lastValue, details);
-    updater.value = value;
-    Template.#updaters.set(reference, updater);
-    return reference;
-  }
-
-  static live(value) {
-    const reference = Template.#createWeakMapReference();
-    const updater = (type, lastValue, details) => Template.#live(type, value, lastValue, details);
-    updater.value = value;
-    Template.#updaters.set(reference, updater);
-    return reference;
-  }
-
-  static unsafeHTML(value) {
-    const reference = Template.#createWeakMapReference();
-    const updater = (type, lastValue, details) => Template.#unsafeHTML(type, value, lastValue, details);
-    updater.value = value;
-    Template.#updaters.set(reference, updater);
-    return reference;
-  }
-
-  static unsafeSVG(value) {
-    const reference = Template.#createWeakMapReference();
-    const updater = (type, lastValue, details) => Template.#unsafeSVG(type, value, lastValue, details);
-    updater.value = value;
-    Template.#updaters.set(reference, updater);
-    return reference;
-  }
-
-  static map(value, identify, callback, name) {
-    const reference = Template.#createWeakMapReference();
+  static #mapOrRepeat(value, identify, callback, name) {
+    const reference = TemplateEngine.#createReference();
     const context = { identify, callback };
-    const updater = (type, lastValue, details) => Template.#map(type, value, lastValue, details, context, name);
+    const updater = (type, lastValue, details) => TemplateEngine.#map(type, value, lastValue, details, context, name);
     updater.value = value;
-    Template.#updaters.set(reference, updater);
+    TemplateEngine.#updaterMap.set(reference, updater);
     return reference;
   }
 
   static #exhaustString(string, state) {
     if (!state.inside) {
       // We're outside the opening tag.
-      Template.#OPEN.lastIndex = state.index;
-      const openMatch = Template.#OPEN.exec(string);
+      TemplateEngine.#OPEN.lastIndex = state.index;
+      const openMatch = TemplateEngine.#OPEN.exec(string);
       if (openMatch) {
         state.inside = true;
-        state.index = Template.#OPEN.lastIndex;
-        Template.#exhaustString(string, state);
+        state.index = TemplateEngine.#OPEN.lastIndex;
+        TemplateEngine.#exhaustString(string, state);
       }
     } else {
       // We're inside the opening tag.
-      Template.#STEP.lastIndex = state.index;
-      let stepMatch = Template.#STEP.exec(string);
+      TemplateEngine.#STEP.lastIndex = state.index;
+      let stepMatch = TemplateEngine.#STEP.exec(string);
       while (stepMatch) {
-        state.index = Template.#STEP.lastIndex;
-        stepMatch = Template.#STEP.exec(string);
+        state.index = TemplateEngine.#STEP.lastIndex;
+        stepMatch = TemplateEngine.#STEP.exec(string);
       }
-      Template.#CLOSE.lastIndex = state.index;
-      const closeMatch = Template.#CLOSE.exec(string);
+      TemplateEngine.#CLOSE.lastIndex = state.index;
+      const closeMatch = TemplateEngine.#CLOSE.exec(string);
       if (closeMatch) {
         state.inside = false;
-        state.index = Template.#CLOSE.lastIndex;
-        Template.#exhaustString(string, state);
+        state.index = TemplateEngine.#CLOSE.lastIndex;
+        TemplateEngine.#exhaustString(string, state);
       }
     }
   }
 
-  static #evaluate(node, path) {
+  static #getInitialDirections(node, path) {
     path = path ?? [];
-    const items = [];
+    const initialDirections = [];
     if (node.nodeType === Node.ELEMENT_NODE) {
       const attributesToRemove = new Set();
       for (const attribute of node.attributes) {
         const name = attribute.name;
-        const type = name.startsWith(Template.#ATTRIBUTE_PREFIXES.attribute)
+        const type = name.startsWith(TemplateEngine.#ATTRIBUTE_PREFIXES.attribute)
           ? 'attribute'
-          : name.startsWith(Template.#ATTRIBUTE_PREFIXES.boolean)
+          : name.startsWith(TemplateEngine.#ATTRIBUTE_PREFIXES.boolean)
             ? 'boolean'
-            : name.startsWith(Template.#ATTRIBUTE_PREFIXES.property)
+            : name.startsWith(TemplateEngine.#ATTRIBUTE_PREFIXES.property)
               ? 'property'
               : null;
         if (type) {
-          const prefix = Template.#ATTRIBUTE_PREFIXES[type];
+          const prefix = TemplateEngine.#ATTRIBUTE_PREFIXES[type];
           const key = name.slice(prefix.length);
           const value = attribute.value;
-          items.push({ path, key, type, name: value });
+          initialDirections.push({ path, key, type, name: value });
           attributesToRemove.add(name);
         }
       }
@@ -1294,100 +1180,113 @@ class Template {
       }
       // Special case to handle elements which only allow text content (no comments).
       const localName = node.localName;
-      if ((localName === 'style' || localName === 'script') && Template.#CONTENT_REGEX.exec(node.textContent)) {
+      if (
+        (localName === 'style' || localName === 'script') &&
+        TemplateEngine.#CONTENT_REGEX.exec(node.textContent)
+      ) {
         throw new Error(`Interpolation of "${localName}" tags is not allowed.`);
-      } else if (localName === 'plaintext' || localName === 'textarea' || localName === 'title') {
-        const contentMatch = Template.#CONTENT_REGEX.exec(node.textContent);
+      } else if (
+        localName === 'plaintext' ||
+        localName === 'textarea' ||
+        localName === 'title'
+      ) {
+        const contentMatch = TemplateEngine.#CONTENT_REGEX.exec(node.textContent);
         if (contentMatch) {
-          items.push({ path, key: contentMatch[1], type: 'text' });
+          initialDirections.push({ path, key: contentMatch[1], type: 'text' });
         }
       }
     } else if (node.nodeType === Node.COMMENT_NODE) {
-      const contentMatch = Template.#CONTENT_REGEX.exec(node.textContent);
+      const contentMatch = TemplateEngine.#CONTENT_REGEX.exec(node.textContent);
       if (contentMatch) {
         node.textContent = '';
         const startNode = document.createComment('');
         node.parentNode.insertBefore(startNode, node);
         path[path.length - 1] = path[path.length - 1] + 1;
-        items.push({ path, key: contentMatch[1], type: 'content' });
+        initialDirections.push({ path, key: contentMatch[1], type: 'content' });
       }
     }
     let iii = 0;
     for (const childNode of node.childNodes) {
-      items.push(...Template.#evaluate(childNode, [...path, iii++]));
+      initialDirections.push(...TemplateEngine.#getInitialDirections(childNode, [...path, iii++]));
     }
-    return items;
+    return initialDirections;
   }
 
-  static #instrument(blueprint, content) {
-    const nextItems = [];
+  static #fillInHtml(type, strings) {
+    const htmlStrings = [];
+    const state = { inside: false, index: 0 };
+    for (let iii = 0; iii < strings.length; iii++) {
+      let string = strings[iii];
+      TemplateEngine.#exhaustString(string, state);
+      if (state.inside) {
+        TemplateEngine.#ATTRIBUTE.lastIndex = state.index;
+        const attributeMatch = TemplateEngine.#ATTRIBUTE.exec(string);
+        if (attributeMatch) {
+          const name = attributeMatch[2];
+          if (attributeMatch[1].startsWith('?')) {
+            // We found a match like this: html`<div ?hidden="${!!value}"></div>`.
+            string = string.slice(0, -3 - name.length) + `${TemplateEngine.#ATTRIBUTE_PREFIXES.boolean}${iii}="${name}`;
+          } else {
+            // We found a match like this: html`<div title="${value}"></div>`.
+            string = string.slice(0, -2 - name.length) + `${TemplateEngine.#ATTRIBUTE_PREFIXES.attribute}${iii}="${name}`;
+          }
+          state.index = 1; // Accounts for an expected quote character next.
+        } else {
+          TemplateEngine.#PROPERTY.lastIndex = state.index;
+          const propertyMatch = TemplateEngine.#PROPERTY.exec(string);
+          if (propertyMatch) {
+            // We found a match like this: html`<div .title="${value}"></div>`.
+            const name = propertyMatch[1];
+            string = string.slice(0, -3 - name.length) + `${TemplateEngine.#ATTRIBUTE_PREFIXES.property}${iii}="${name}`;
+            state.index = 1; // Accounts for an expected quote character next.
+          } else {
+            throw new Error(`Found invalid template string "${string}" at "${string.slice(state.index)}".`);
+          }
+        }
+      } else {
+        // Assume it's a match like this: html`<div>${value}</div>`.
+        string += `<!--${TemplateEngine.#CONTENT_PREFIX}${iii}-->`;
+        state.index = 0; // No characters to account for. Reset to zero.
+      }
+      htmlStrings[iii] = string;
+    }
+    return type === 'svg'
+      ? `<svg xmlns="http://www.w3.org/2000/svg">${htmlStrings.join('')}</svg>`
+      : htmlStrings.join('');
+  }
+
+  static #getFinalDirections(initialDirections, content) {
+    const finalDirections = [];
     const lookup = new Map();
     const find = path => {
       let node = content;
       for (const index of path) {
         const ref = node;
-        node = Template.#setIfMissing(lookup, node, () => ref.childNodes)[index];
+        node = TemplateEngine.#setIfMissing(lookup, node, () => ref.childNodes)[index];
       }
       return node;
     };
-    for (const item of blueprint) {
-      const node = find(item.path);
-      switch (item.type) {
+    for (const direction of initialDirections) {
+      const node = find(direction.path);
+      switch (direction.type) {
         case 'attribute':
         case 'boolean':
         case 'property': {
-          nextItems.push({ key: item.key, type: item.type, name: item.name, node });
+          finalDirections.push({ key: direction.key, type: direction.type, name: direction.name, node });
           break;
         }
         case 'content': {
           const startNode = node.previousSibling;
-          const nextItem = { key: item.key, type: item.type, node, startNode };
-          nextItems.push(nextItem);
+          finalDirections.push({ key: direction.key, type: direction.type, node, startNode });
           break;
         }
         case 'text': {
-          const nextItem = { key: item.key, type: item.type, node };
-          nextItems.push(nextItem);
+          finalDirections.push({ key: direction.key, type: direction.type, node });
           break;
         }
       }
     }
-    return nextItems;
-  }
-
-  static #commit(mapping, values, lastValues) {
-    for (const { key, type, node, startNode, name } of mapping) {
-      const lastUpdater = Template.#updaters.get(lastValues[key]);
-      const lastValue = lastUpdater ? lastUpdater.value : lastValues[key];
-      const updater = Template.#updaters.get(values[key]);
-      switch (type) {
-        case 'attribute':
-          updater
-            ? updater(type, lastValue, { node, name })
-            : Template.#attribute(type, values[key], lastValue, { node, name });
-          break;
-        case 'boolean':
-          updater
-            ? updater(type, lastValue, { node, name })
-            : Template.#boolean(type, values[key], lastValue, { node, name });
-          break;
-        case 'property':
-          updater
-            ? updater(type, lastValue, { node, name })
-            : Template.#property(type, values[key], lastValue, { node, name });
-          break;
-        case 'content':
-          updater
-            ? updater(type, lastValue, { node, startNode })
-            : Template.#content(type, values[key], lastValue, { node, startNode });
-          break;
-        case 'text':
-          updater
-            ? updater(type, lastValue, { node })
-            : Template.#text(type, values[key], lastValue, { node });
-          break;
-      }
-    }
+    return finalDirections;
   }
 
   static #attribute(type, value, lastValue, { node, name }) {
@@ -1398,9 +1297,7 @@ class Template {
 
   static #boolean(type, value, lastValue, { node, name }) {
     if (value !== lastValue) {
-      value
-        ? node.setAttribute(name, '')
-        : node.removeAttribute(name);
+      value ? node.setAttribute(name, '') : node.removeAttribute(name);
     }
   }
 
@@ -1418,24 +1315,24 @@ class Template {
 
   static #content(type, value, lastValue, { node, startNode }) {
     if (value !== lastValue) {
-      const internals = Template.#setIfMissing(Template.#internals, startNode, () => ({}));
-      if (Template.#templateResults.has(value)) {
-        const templateResult = Template.#templateResults.get(value);
-        if (internals.templateResult?.template !== templateResult.template) {
-          Template.#removeBetween(startNode, node);
-          Template.#clearObject(internals);
-          internals.templateResult = templateResult;
-          templateResult.inject(node, { before: true });
+      const state = TemplateEngine.#setIfMissing(TemplateEngine.#stateMap, startNode, () => ({}));
+      if (TemplateEngine.#resultMap.has(value)) {
+        const result = TemplateEngine.#resultMap.get(value);
+        if (TemplateEngine.#cannotReuseResult(state.result, result)) {
+          TemplateEngine.#removeBetween(startNode, node);
+          TemplateEngine.#clearObject(state);
+          state.result = result;
+          TemplateEngine.#inject(result, node, { before: true });
         } else {
-          internals.templateResult.assign(templateResult);
+          TemplateEngine.#assign(state.result, result);
         }
-        internals.templateResult.commit();
+        TemplateEngine.#commit(state.result);
       } else if (Array.isArray(value)) {
-        Template.#mapInner(internals, node, startNode, null, null, value, 'array');
+        TemplateEngine.#mapInner(state, node, startNode, null, null, value, 'array');
       } else {
-        if (internals.templateResult) {
-          Template.#removeBetween(startNode, node);
-          Template.#clearObject(internals);
+        if (state.result) {
+          TemplateEngine.#removeBetween(startNode, node);
+          TemplateEngine.#clearObject(state);
         }
         const previousSibling = node.previousSibling;
         if (previousSibling === startNode) {
@@ -1456,7 +1353,7 @@ class Template {
           : node.removeAttribute(name);
       }
     } else {
-      throw new Error(`The ifDefined update must be used on ${Template.#getTypeText('attribute')}, not on ${Template.#getTypeText(type)}.`);
+      throw new Error(`The ifDefined update must be used on ${TemplateEngine.#getTypeText('attribute')}, not on ${TemplateEngine.#getTypeText(type)}.`);
     }
   }
 
@@ -1468,7 +1365,7 @@ class Template {
           : node.removeAttribute(name);
       }
     } else {
-      throw new Error(`The nullish update must be used on ${Template.#getTypeText('attribute')}, not on ${Template.#getTypeText(type)}.`);
+      throw new Error(`The nullish update must be used on ${TemplateEngine.#getTypeText('attribute')}, not on ${TemplateEngine.#getTypeText(type)}.`);
     }
   }
 
@@ -1478,7 +1375,7 @@ class Template {
         node[name] = value;
       }
     } else {
-      throw new Error(`The live update must be used on ${Template.#getTypeText('property')}, not on ${Template.#getTypeText(type)}.`);
+      throw new Error(`The live update must be used on ${TemplateEngine.#getTypeText('property')}, not on ${TemplateEngine.#getTypeText(type)}.`);
     }
   }
 
@@ -1488,14 +1385,14 @@ class Template {
         if (typeof value === 'string') {
           const template = document.createElement('template');
           template.innerHTML = value;
-          Template.#removeBetween(startNode, node);
-          Template.#insertAllBefore(template.content.childNodes, node);
+          TemplateEngine.#removeBetween(startNode, node);
+          TemplateEngine.#insertAllBefore(template.content.childNodes, node);
         } else {
           throw new Error(`Unexpected unsafeHTML value "${value}".`);
         }
       }
     } else {
-      throw new Error(`The unsafeHTML update must be used on ${Template.#getTypeText('content')}, not on ${Template.#getTypeText(type)}.`);
+      throw new Error(`The unsafeHTML update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
     }
   }
 
@@ -1505,29 +1402,29 @@ class Template {
         if (typeof value === 'string') {
           const template = document.createElement('template');
           template.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${value}</svg>`;
-          Template.#removeBetween(startNode, node);
-          Template.#insertAllBefore(template.content.firstChild.childNodes, node);
+          TemplateEngine.#removeBetween(startNode, node);
+          TemplateEngine.#insertAllBefore(template.content.firstChild.childNodes, node);
         } else {
           throw new Error(`Unexpected unsafeSVG value "${value}".`);
         }
       }
     } else {
-      throw new Error(`The unsafeSVG update must be used on ${Template.#getTypeText('content')}, not on ${Template.#getTypeText(type)}.`);
+      throw new Error(`The unsafeSVG update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
     }
   }
 
-  static #mapInner(internals, node, startNode, identify, callback, inputs, name) {
-    if (!internals.map) {
-      Template.#clearObject(internals);
-      internals.map = new Map;
+  static #mapInner(state, node, startNode, identify, callback, inputs, name) {
+    if (!state.map) {
+      TemplateEngine.#clearObject(state);
+      state.map = new Map();
       let index = 0;
       for (const input of inputs) {
         const reference = callback ? callback(input, index) : input;
-        const templateResult = Template.#templateResults.get(reference);
-        if (templateResult) {
+        const result = TemplateEngine.#resultMap.get(reference);
+        if (result) {
           const id = identify ? identify(input, index) : String(index);
-          internals.map.set(id, { id, ...Template.#createItem(templateResult, node) });
-          templateResult.commit();
+          state.map.set(id, { id, ...TemplateEngine.#createItem(result, node) });
+          TemplateEngine.#commit(result);
         } else {
           throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
         }
@@ -1539,32 +1436,32 @@ class Template {
       let index = 0;
       for (const input of inputs) {
         const reference = callback ? callback(input, index) : input;
-        const templateResult = Template.#templateResults.get(reference);
-        if (templateResult) {
+        const result = TemplateEngine.#resultMap.get(reference);
+        if (result) {
           const id = identify ? identify(input, index) : String(index);
-          if (internals.map.has(id)) {
-            const item = internals.map.get(id);
-            if (item.templateResult?.template !== templateResult.template) {
+          if (state.map.has(id)) {
+            const item = state.map.get(id);
+            if (TemplateEngine.#cannotReuseResult(item.result, result)) {
               const itemClone = { ...item };
-              Object.assign(item, Template.#createItem(templateResult, itemClone.startNode));
-              Template.#removeThrough(itemClone.startNode, itemClone.node);
+              Object.assign(item, TemplateEngine.#createItem(result, itemClone.startNode));
+              TemplateEngine.#removeThrough(itemClone.startNode, itemClone.node);
             } else {
-              item.templateResult.assign(templateResult);
+              TemplateEngine.#assign(item.result, result);
             }
           } else {
-            const item = { id, ...Template.#createItem(templateResult, node) };
-            internals.map.set(id, item);
+            const item = { id, ...TemplateEngine.#createItem(result, node) };
+            state.map.set(id, item);
           }
-          const item = internals.map.get(id);
+          const item = state.map.get(id);
           const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
           if (referenceNode !== item.startNode) {
             const nodesToMove = [item.startNode];
             while (nodesToMove[nodesToMove.length - 1] !== item.node) {
               nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
             }
-            Template.#insertAllBefore(nodesToMove, referenceNode);
+            TemplateEngine.#insertAllBefore(nodesToMove, referenceNode);
           }
-          item.templateResult.commit();
+          TemplateEngine.#commit(item.result);
           ids.add(item.id);
           lastItem = item;
         } else {
@@ -1572,10 +1469,10 @@ class Template {
         }
         index++;
       }
-      for (const [id, item] of internals.map.entries()) {
+      for (const [id, item] of state.map.entries()) {
         if (!ids.has(id)) {
-          Template.#removeThrough(item.startNode, item.node);
-          internals.map.delete(id);
+          TemplateEngine.#removeThrough(item.startNode, item.node);
+          state.map.delete(id);
         }
       }
     }
@@ -1584,23 +1481,106 @@ class Template {
   static #map(type, value, lastValue, { node, startNode }, { identify, callback }, name) {
     if (type === 'content') {
       if (Array.isArray(value)) {
-        const internals = Template.#setIfMissing(Template.#internals, startNode, () => ({}));
-        Template.#mapInner(internals, node, startNode, identify, callback, value, name);
+        const state = TemplateEngine.#setIfMissing(TemplateEngine.#stateMap, startNode, () => ({}));
+        TemplateEngine.#mapInner(state, node, startNode, identify, callback, value, name);
       } else {
         throw new Error(`Unexpected ${name} value "${value}".`);
       }
     } else {
-      throw new Error(`The ${name} update must be used on ${Template.#getTypeText('content')}, not on ${Template.#getTypeText(type)}.`);
+      throw new Error(`The ${name} update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
     }
   }
 
-  static #createItem(templateResult, referenceNode) {
+  static #createResult(type, strings, values) {
+    const lastValues = values.map(() => TemplateEngine.#UNSET);
+    const injected = false;
+    return { type, strings, values, lastValues, injected };
+  }
+
+  static #createItem(result, referenceNode) {
     const startNode = document.createComment('');
     const node = document.createComment('');
     referenceNode.parentNode.insertBefore(startNode, referenceNode);
-    templateResult.inject(referenceNode, { before: true });
+    TemplateEngine.#inject(result, referenceNode, { before: true });
     referenceNode.parentNode.insertBefore(node, referenceNode);
-    return { templateResult, startNode, node };
+    return { result, startNode, node };
+  }
+
+  static #getAnalysis(result) {
+    const { type, strings } = result;
+    const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#analysisMap, strings, () => ({}));
+    if (!analysis.done) {
+      analysis.done = true;
+      const initialElement = document.createElement('template');
+      initialElement.innerHTML = TemplateEngine.#fillInHtml(type, strings);
+      const initialDirections = TemplateEngine.#getInitialDirections(initialElement.content); // mutates element.
+      Object.assign(analysis, { initialElement, initialDirections });
+    }
+    return analysis;
+  }
+
+  static #inject(result, node, options) {
+    if (result.injected) {
+      throw new Error(`Unexpected re-injection of template result.`);
+    }
+    result.injected = true;
+    const { initialElement, initialDirections } = TemplateEngine.#getAnalysis(result);
+    const element = initialElement.cloneNode(true);
+    result.directions = TemplateEngine.#getFinalDirections(initialDirections, element.content);
+    options?.before
+      ? result.type === 'svg'
+        ? TemplateEngine.#insertAllBefore(element.content.firstChild.childNodes, node)
+        : TemplateEngine.#insertAllBefore(element.content.childNodes, node)
+      : result.type === 'svg'
+        ? node.append(...element.content.firstChild.childNodes)
+        : node.append(element.content);
+  }
+
+  static #assign(result, newResult) {
+    result.lastValues = result.values;
+    result.values = newResult.values;
+  }
+
+  static #commit(result) {
+    const { directions, values, lastValues } = result;
+    for (const { key, type, node, startNode, name } of directions) {
+      const lastUpdater = TemplateEngine.#updaterMap.get(lastValues[key]);
+      const lastValue = lastUpdater ? lastUpdater.value : lastValues[key];
+      const updater = TemplateEngine.#updaterMap.get(values[key]);
+      switch (type) {
+        case 'attribute':
+          updater
+            ? updater(type, lastValue, { node, name })
+            : TemplateEngine.#attribute(type, values[key], lastValue, { node, name });
+          break;
+        case 'boolean':
+          updater
+            ? updater(type, lastValue, { node, name })
+            : TemplateEngine.#boolean(type, values[key], lastValue, { node, name });
+          break;
+        case 'property':
+          updater
+            ? updater(type, lastValue, { node, name })
+            : TemplateEngine.#property(type, values[key], lastValue, { node, name });
+          break;
+        case 'content':
+          updater
+            ? updater(type, lastValue, { node, startNode })
+            : TemplateEngine.#content(type, values[key], lastValue, { node, startNode });
+          break;
+        case 'text':
+          updater
+            ? updater(type, lastValue, { node })
+            : TemplateEngine.#text(type, values[key], lastValue, { node });
+          break;
+      }
+    }
+  }
+
+  static #cannotReuseResult(result, newResult) {
+    return (
+      result?.type !== newResult.type || result?.strings !== newResult.strings
+    );
   }
 
   static #insertAllBefore(childNodes, node) {
@@ -1622,7 +1602,7 @@ class Template {
   }
 
   static #removeThrough(startNode, node) {
-    Template.#removeBetween(startNode, node);
+    TemplateEngine.#removeBetween(startNode, node);
     startNode.remove();
     node.remove();
   }
@@ -1633,7 +1613,7 @@ class Template {
     }
   }
 
-  static #createWeakMapReference() {
+  static #createReference() {
     return Object.create(null);
   }
 
@@ -1661,48 +1641,10 @@ class Template {
         return 'text content';
     }
   }
-}
 
-/** Internal implementation details for template results. */
-class TemplateResult {
-  static #UNSET = Symbol('unset');
-  #template = null;
-  #element = null;
-  #mapping = null;
-  #values = null;
-  #lastValues = null;
-  #injected = false;
-
-  constructor(template, values) {
-    this.#template = template;
-    this.#values = values;
-    this.#lastValues = this.#values.map(() => TemplateResult.#UNSET);
-  }
-
-  get template() {
-    return this.#template;
-  }
-
-  get values() {
-    return this.#values;
-  }
-
-  inject(node, options) {
-    if (this.#injected) {
-      throw new Error(`Unexpected re-injection of template result.`);
-    }
-    this.#injected = true;
-    const { element, mapping } = this.#template.inject(node, options);
-    this.#element = element;
-    this.#mapping = mapping;
-  }
-
-  assign(templateResult) {
-    this.#lastValues = this.#values;
-    this.#values = templateResult.values;
-  }
-
-  commit() {
-    this.#template.commit(this.#mapping, this.#values, this.#lastValues);
+  static #interfaceRemoved (name) {
+    return () => {
+      throw new Error(`Removed "${name}" from default templating engine interface. Import and plug-in "lit-html" as your element's templating engine if you want this functionality.`);
+    };
   }
 }
