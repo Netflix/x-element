@@ -1,22 +1,28 @@
 /** Base element class for creating custom elements. */
 export default class XElement extends HTMLElement {
-  /** Extends HTMLElement.observedAttributes to handle the properties block. */
+  /**
+   * Extends HTMLElement.observedAttributes to handle the properties block.
+   * @returns {string[]}
+   */
   static get observedAttributes() {
     XElement.#analyzeConstructor(this);
     return [...XElement.#constructors.get(this).attributeMap.keys()];
   }
 
-  /** Default templating engine. Use "templateEngine" to override. */
+  /**
+   * Default templating engine. Use "templateEngine" to override.
+   * @returns {{[key: string]: Function}}
+   */
   static get defaultTemplateEngine() {
     return TemplateEngine.interface;
   }
 
   /**
    * Configured templating engine. Defaults to "defaultTemplateEngine".
-   *
    * Override this as needed if x-element's default template engine does not
    * meet your needs. A "render" method is the only required field. An "html"
    * tagged template literal is expected, but not strictly required.
+   * @returns {{[key: string]: Function}}
    */
   static get templateEngine() {
     return XElement.defaultTemplateEngine;
@@ -26,47 +32,90 @@ export default class XElement extends HTMLElement {
    * Declare an array of CSSStyleSheet objects to adopt on the shadow root.
    * Note that a CSSStyleSheet object is the type returned when importing a
    * stylesheet file via import attributes.
+   * ```js
+   * import importedStyle from './path-to.css' with { type: 'css' };
+   * class MyElement extends XElement {
+   *   static get styles() {
+   *     const inlineStyle = new CSSStyleSheet();
+   *     inlineStyle.replaceSync(`:host { display: block; }`);
+   *     return [importedStyle, inlineStyle];
+   *   }
+   * }
+   * ```
+   * @returns {CSSStyleSheet[]}
    */
   static get styles() {
     return [];
   }
 
   /**
+   * Observe callback.
+   * @callback observeCallback
+   * @param {HTMLElement} host
+   * @param {any} value
+   * @param {any} oldValue
+   */
+
+  /**
+   * A property value.
+   * @typedef {object} Property
+   * @property {any} [type]
+   * @property {string} [attribute]
+   * @property {string[]} [input]
+   * @property {Function} [compute]
+   * @property {observeCallback} [observe]
+   * @property {boolean} [reflect]
+   * @property {boolean} [internal]
+   * @property {boolean} [readOnly]
+   * @property {any|Function} [initial]
+   * @property {any|Function} [default]
+   */
+
+  /**
    * Declare watched properties (and related attributes) on an element.
-   *
-   *   static get properties() {
-   *     return {
-   *       property1: {
-   *         type: String,
-   *       },
-   *       property2: {
-   *         type: Number,
-   *         input: ['property1'],
-   *         compute: this.computeProperty2,
-   *         reflect: true,
-   *         observe: this.observeProperty2,
-   *         default: 0,
-   *       }
-   *     };
-   *   }
+   * ```js
+   * static get properties() {
+   *   return {
+   *     property1: {
+   *       type: String,
+   *     },
+   *     property2: {
+   *       type: Number,
+   *       input: ['property1'],
+   *       compute: this.computeProperty2,
+   *       reflect: true,
+   *       observe: this.observeProperty2,
+   *       default: 0,
+   *     }
+   *   };
+   * }
+   * ```
+   * @returns {{[key: string]: Property}}
    */
   static get properties() {
     return {};
   }
 
   /**
+   * Listen callback.
+   * @callback delegatedListenCallback
+   * @param {HTMLElement} host
+   * @param {Event} event
+   */
+
+  /**
    * Declare event handlers on an element.
-   *
-   *   static get listeners() {
-   *     return {
-   *       click: this.onClick,
-   *     }
+   * ```js
+   * static get listeners() {
+   *   return {
+   *     click: this.onClick,
    *   }
-   *
+   * }
+   *```
    * Note that listeners are added to the element's render root. Listeners are
    * added during "connectedCallback" and removed during "disconnectedCallback".
-   *
    * The arguments passed to your callback are always "(host, event)".
+   * @returns {{[key: string]: delegatedListenCallback}}
    */
   static get listeners() {
     return {};
@@ -74,38 +123,59 @@ export default class XElement extends HTMLElement {
 
   /**
    * Customize shadow root initialization and optionally forgo encapsulation.
-   *
    * E.g., setup focus delegation or return host instead of host.shadowRoot.
+   * @param {HTMLElement} host
+   * @returns {HTMLElement|ShadowRoot}
    */
   static createRenderRoot(host) {
     return host.attachShadow({ mode: 'open' });
   }
 
   /**
+   * Template callback.
+   * @callback templateCallback
+   * @param {object} properties
+   * @param {HTMLElement} host
+   */
+
+  /**
    * Setup template callback to update DOM when properties change.
-   *
-   *   static template(html, { nullish }) {
-   *     return (href) => {
-   *       return html`<a href=${nullish(href)}>click me</a>`;
-   *     }
+   * ```js
+   * static template(html, { nullish }) {
+   *   return (href) => {
+   *     return html`<a href=${nullish(href)}>click me</a>`;
    *   }
+   * }
+   * ```
+   * @param {Function} html
+   * @param {{[key: string]: Function}} engine
+   * @returns {templateCallback}
    */
   static template(html, engine) { // eslint-disable-line no-unused-vars
     return (properties, host) => {}; // eslint-disable-line no-unused-vars
   }
 
-  /** Standard instance constructor. */
+  /**
+   * Standard instance constructor.
+   */
   constructor() {
     super();
     XElement.#constructHost(this);
   }
 
-  /** Extends HTMLElement.prototype.connectedCallback. */
+  /**
+   * Extends HTMLElement.prototype.connectedCallback.
+   */
   connectedCallback() {
     XElement.#connectHost(this);
   }
 
-  /** Extends HTMLElement.prototype.attributeChangedCallback. */
+  /**
+   * Extends HTMLElement.prototype.attributeChangedCallback.
+   * @param {string} attribute
+   * @param {string|null} oldValue
+   * @param {string|null} value
+   */
   attributeChangedCallback(attribute, oldValue, value) {
     const { attributeMap } = XElement.#constructors.get(this.constructor);
     // Authors may extend "observedAttributes". Optionally chain to account for
@@ -113,10 +183,14 @@ export default class XElement extends HTMLElement {
     attributeMap.get(attribute)?.sync(this, value, oldValue);
   }
 
-  /** Extends HTMLElement.prototype.adoptedCallback. */
+  /**
+   * Extends HTMLElement.prototype.adoptedCallback.
+   */
   adoptedCallback() {}
 
-  /** Extends HTMLElement.prototype.disconnectedCallback. */
+  /**
+   * Extends HTMLElement.prototype.disconnectedCallback.
+   */
   disconnectedCallback() {
     XElement.#disconnectHost(this);
   }
@@ -139,9 +213,18 @@ export default class XElement extends HTMLElement {
   }
 
   /**
+   * Listen callback.
+   * @callback listenCallback
+   * @param {Event} event
+   */
+
+  /**
    * Wrapper around HTMLElement.addEventListener.
-   *
    * Advanced — use this only if declaring listeners statically is not possible.
+   * @param {EventTarget} element
+   * @param {string} type
+   * @param {listenCallback} callback
+   * @param {object} [options]
    */
   listen(element, type, callback, options) {
     if (XElement.#typeIsWrong(EventTarget, element)) {
@@ -164,9 +247,11 @@ export default class XElement extends HTMLElement {
   }
 
   /**
-   * Wrapper around HTMLElement.removeEventListener.
-   *
-   * Inverse of "listen".
+   * Wrapper around HTMLElement.removeEventListener. Inverse of "listen".
+   * @param {EventTarget} element
+   * @param {string} type
+   * @param {listenCallback} callback
+   * @param {object} [options]
    */
   unlisten(element, type, callback, options) {
     if (XElement.#typeIsWrong(EventTarget, element)) {
@@ -188,7 +273,10 @@ export default class XElement extends HTMLElement {
     XElement.#removeListener(this, element, type, callback, options);
   }
 
-  /** Helper method to dispatch an "ErrorEvent" on the element. */
+  /**
+   * Helper method to dispatch an "ErrorEvent" on the element.
+   * @param {Error} error
+   */
   dispatchError(error) {
     const { message } = error;
     const eventData = { error, message, bubbles: true, composed: true };
@@ -197,9 +285,9 @@ export default class XElement extends HTMLElement {
 
   /**
    * For element authors. Getter and setter for internal properties.
-   *
    * Note that you can set read-only properties from host.internal. However, you
    * must get read-only properties directly from the host.
+   * @returns {object}
    */
   get internal() {
     return XElement.#hosts.get(this).internal;
@@ -944,8 +1032,12 @@ class TemplateEngine {
 
   /**
    * Declare HTML markup to be interpolated.
-   *
-   *   html`<div attr="${obj.attr}" .prop="${obj.prop}">${obj.content}</div>`;
+   * ```js
+   * html`<div attr="${obj.attr}" .prop="${obj.prop}">${obj.content}</div>`;
+   * ```
+   * @param {string[]} strings
+   * @param {any[]} values
+   * @returns {any}
    */
   static html(strings, ...values) {
     const reference = TemplateEngine.#createReference();
@@ -956,8 +1048,12 @@ class TemplateEngine {
 
   /**
    * Declare SVG markup to be interpolated.
-   *
-   *   svg`<circle r="${obj.r}" cx="${obj.cx}" cy="${obj.cy}"></div>`;
+   * ```js
+   * svg`<circle r="${obj.r}" cx="${obj.cx}" cy="${obj.cy}"></div>`;
+   * ```
+   * @param {string[]} strings
+   * @param {any[]} values
+   * @returns {any}
    */
   static svg(strings, ...values) {
     const reference = TemplateEngine.#createReference();
@@ -968,8 +1064,9 @@ class TemplateEngine {
 
   /**
    * Core rendering entry point for x-element template engine.
-   *
    * Accepts a "container" element and renders the given "result" into it.
+   * @param {HTMLElement} container
+   * @param {any} resultReference
    */
   static render(container, resultReference) {
     const state = TemplateEngine.#setIfMissing(TemplateEngine.#stateMap, container, () => ({}));
@@ -991,11 +1088,13 @@ class TemplateEngine {
 
   /**
    * Updater to manage an attribute which may be undefined.
-   *
    * In the following example, the "ifDefined" updater will remove the
    * attribute if it's undefined. Else, it sets the key-value pair.
-   *
-   *  html`<a href="${ifDefined(obj.href)}"></div>`;
+   * ```js
+   * html`<a href="${ifDefined(obj.href)}"></div>`;
+   * ```
+   * @param {any} value
+   * @returns {any}
    */
   static ifDefined(value) {
     const reference = TemplateEngine.#createReference();
@@ -1007,11 +1106,13 @@ class TemplateEngine {
 
   /**
    * Updater to manage an attribute which may not exist.
-   *
    * In the following example, the "nullish" updater will remove the
    * attribute if it's nullish. Else, it sets the key-value pair.
-   *
-   *  html`<a href="${nullish(obj.href)}"></div>`;
+   * ```js
+   * html`<a href="${nullish(obj.href)}"></div>`;
+   * ```
+   * @param {any} value
+   * @returns {any}
    */
   static nullish(value) {
     const reference = TemplateEngine.#createReference();
@@ -1023,13 +1124,15 @@ class TemplateEngine {
 
   /**
    * Updater to manage a property which may change outside the template engine.
-   *
    * Typically, properties are declaratively managed from state and efficient
    * value checking is used (i.e., "value !== lastValue"). However, if DOM state
    * is expected to change, the "live" updater can be used to essentially change
    * this check to "value !== node[property]".
-   *
-   *  html`<input .value="${live(obj.value)}"/>`;
+   * ```js
+   * html`<input .value="${live(obj.value)}"/>`;
+   * ```
+   * @param {any} value
+   * @returns {any}
    */
   static live(value) {
     const reference = TemplateEngine.#createReference();
@@ -1041,11 +1144,13 @@ class TemplateEngine {
 
   /**
    * Updater to inject trusted HTML into the DOM.
-   *
    * Use with caution. The "unsafeHTML" updater allows arbitrary input to be
    * parsed as HTML and injected into the DOM.
-   *
-   *  html`<div>${unsafeHTML(obj.trustedMarkup)}</div>`;
+   * ```js
+   * html`<div>${unsafeHTML(obj.trustedMarkup)}</div>`;
+   * ```
+   * @param {any} value
+   * @returns {any}
    */
   static unsafeHTML(value) {
     const reference = TemplateEngine.#createReference();
@@ -1057,15 +1162,17 @@ class TemplateEngine {
 
   /**
    * Updater to inject trusted SVG into the DOM.
-   *
    * Use with caution. The "unsafeSVG" updater allows arbitrary input to be
    * parsed as SVG and injected into the DOM.
-   *
-   *  html`
-   *    <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
-   *      ${unsafeSVG(obj.trustedMarkup)}
-   *    </svg>
-   *  `;
+   * ```js
+   * html`
+   *   <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+   *     ${unsafeSVG(obj.trustedMarkup)}
+   *   </svg>
+   * `;
+   * ```
+   * @param {any} value
+   * @returns {any}
    */
   static unsafeSVG(value) {
     const reference = TemplateEngine.#createReference();
@@ -1077,12 +1184,17 @@ class TemplateEngine {
 
   /**
    * Updater to manage a keyed array of templates (allows for DOM reuse).
-   *
-   *  html`
-   *    <ul>
-   *      ${map(items, item => item.id, item => html`<li>${item.value}</li>`)}
-   *    </div>
-   *  `;
+   * ```js
+   * html`
+   *   <ul>
+   *     ${map(items, item => item.id, item => html`<li>${item.value}</li>`)}
+   *   </div>
+   * `;
+   * ```
+   * @param {any[]} items
+   * @param {Function} identify
+   * @param {Function} callback
+   * @returns {any}
    */
   static map(items, identify, callback) {
     if (typeof identify !== 'function') {
@@ -1094,8 +1206,14 @@ class TemplateEngine {
     return TemplateEngine.#mapOrRepeat(items, identify, callback, 'map');
   }
 
-  /** Shim for prior "repeat" function. Use "map". */
-  static repeat(value, identify, callback) {
+  /**
+   * Shim for prior "repeat" function. Use "map".
+   * @param {any[]} items
+   * @param {Function} identify
+   * @param {Function} [callback]
+   * @returns {any}
+   */
+  static repeat(items, identify, callback) {
     if (arguments.length === 2) {
       callback = identify;
       identify = null;
@@ -1105,9 +1223,13 @@ class TemplateEngine {
     } else if (typeof callback !== 'function') {
       throw new Error(`Unexpected repeat callback "${callback}" provided, expected a function.`);
     }
-    return TemplateEngine.#mapOrRepeat(value, identify, callback, 'repeat');
+    return TemplateEngine.#mapOrRepeat(items, identify, callback, 'repeat');
   }
 
+  /**
+   * Default template engine interface — what you get inside “template”.
+   * @returns {{[key: string]: Function}}
+   */
   static get interface() {
     if (!TemplateEngine.#interface) {
       TemplateEngine.#interface = Object.freeze({

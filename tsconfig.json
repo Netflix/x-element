@@ -1,0 +1,20 @@
+{
+  "files": [
+    "./x-element.js",
+    "./etc/ready.js"
+  ],
+  "compilerOptions": {
+    "target": "ES2023",
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    // Even though the docs suggest that “declarationMap” is a way to go from
+    //  generated-js back to ts… it also seems to be the case that it will help
+    //  IDEs get to the right _js_ when using types. See
+    //  https://www.typescriptlang.org/docs/handbook/declaration-files/dts-from-js.html
+    "declarationMap": true,
+    "noEmitOnError": true,
+    "module": "NodeNext" // Approximates browser target.
+  }
+}

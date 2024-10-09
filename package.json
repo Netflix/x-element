@@ -3,11 +3,14 @@
   "description": "A dead simple starting point for custom elements.",
   "version": "1.0.0",
   "license": "Apache-2.0",
-  "repository": "https://github.com/Netflix/x-element",
+  "repository": "github:Netflix/x-element",
   "type": "module",
-  "main": "x-element.js",
-  "module": "x-element.js",
-  "types": "x-element.d.ts",
+  "exports": {
+    "./x-element.js": "./x-element.js",
+    "./x-element.d.ts": "./x-element.d.ts",
+    "./etc/ready.js": "./etc/ready.js",
+    "./etc/ready.d.ts": "./etc/ready.d.ts"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
@@ -17,19 +20,24 @@
     "lint": "eslint --max-warnings=0 .",
     "lint-fix": "eslint --fix .",
     "test": "node test.js | tap-parser -l",
+    "type": "tsc",
     "bump": "./bump.sh"
   },
   "files": [
     "/x-element.js",
+    "/x-element.d.ts",
+    "/x-element.d.ts.map",
     "/demo",
     "/test",
     "/etc"
   ],
   "devDependencies": {
     "@netflix/eslint-config": "^3.0.0",
+    "eslint-plugin-jsdoc": "^50.3.1",
     "eslint": "^9.12.0",
     "puppeteer": "^23.5.3",
-    "tap-parser": "^18.0.0"
+    "tap-parser": "^18.0.0",
+    "typescript": "^5.6.3"
   },
   "engines": {
     "node": "20.18.0",

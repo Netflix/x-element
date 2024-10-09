@@ -1,5 +1,18 @@
 {
   "name": "@netflix/x-element",
   "version": "1.0.0",
-  "exports": "./x-element.js"
+  "exports": {
+    "./x-element.js":  "./x-element.js",
+    "./x-element.d.ts": "./x-element.d.ts",
+    "./etc/ready.js": "./etc/ready.js",
+    "./etc/ready.d.ts": "./etc/ready.d.ts"
+  },
+  "include": [
+    "./x-element.js",
+    "./x-element.d.ts",
+    "./x-element.d.ts.map",
+    "./etc/ready.js",
+    "./etc/ready.d.ts",
+    "./etc/ready.d.ts.map"
+  ]
 }

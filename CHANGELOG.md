@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The `map` function now works with properties / attributes bound across template contexts (#179).
+- The `x-element.d.ts` file now reflects the actual interface. Previously, it
+  has some issues (e.g., improper module export).
+
+### Changed
+
+- The `x-element.js` file is now “typed” via JSDoc. The validity of the JSDoc
+  comments are linted alongside the rest of the code and the annotations there
+  are exported into a generated `x-element.d.ts` file. Previously, that file was
+  hand-curated.
 
 ## [1.0.0] - 2024-02-29
 
