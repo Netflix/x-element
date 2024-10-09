@@ -1,5 +1,12 @@
 {
   "name": "@netflix/x-element",
   "version": "1.0.0",
-  "exports": "./x-element.js"
+  "exports": {
+    "./x-element.d.ts": "./x-element.d.ts"
+  },
+  "include": [
+    "./x-element.js",
+    "./x-element.d.ts",
+    "./x-element.d.ts.map"
+  ]
 }

@@ -1,0 +1,14 @@
+{
+  "files": [
+    "./x-element.js"
+  ],
+  "compilerOptions": {
+    "target": "ES2023",
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmitOnError": true,
+    "module": "NodeNext" // Approximates browser target.
+  }
+}
