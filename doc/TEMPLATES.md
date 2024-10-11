@@ -5,11 +5,11 @@ Because `x-element` has zero dependencies it ships with an integrated template e
 Add a static template function in your `x-element` definition in order to leverage automagical DOM generation and data binding:
 
 ```javascript
-static template(html, { repeat }) {
+static template(html, { map }) {
   return ({ options, selectedId }) => {
     return html`
       <select name="my-options">
-        ${repeat(options, option => option.id, option => html`
+        ${map(options, option => option.id, option => html`
           <option value="${option.value}" ?selected="${option.id === selectedId}">
         `)}
       </select>
@@ -25,10 +25,10 @@ The following binding types are supported:
 | attribute           | `<div foo="${bar}">`   |
 | attribute (boolean) | `<div ?foo="${bar}">`  |
 | property            | `<div .foo="${bar}">`  |
-| text                | `<div>${foo}</div>`    |
+| content             | `<div>${foo}</div>`    |
 | content             | `${foo}`               |
 
-Equivalent to:
+Emulates:
 
 ```javascript
 const el = document.createElement('my-custom-element');
