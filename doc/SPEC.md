@@ -254,28 +254,48 @@ class MyElement extends XElement {
 }
 ```
 
+## Styles
+
+The recommended way to add styles to your shadow root is to author a separate
+`.css` file, import it as a `CSSStyleSheet` and declare it in your `.styles`.
+For more control, you can alternatively use `createRenderRoot` (see below).
+
+```javascript
+import styleSheet from './my-element-style.css' with { type: 'css' };
+
+class MyElement extends XElement {
+  static get styles() {
+    return [styleSheet];
+  }
+}
+```
+
 ## Render Root
 
-By default, XElement will create an open shadow root. However, you can change
-this behavior by overriding the `createRenderRoot` method. There are a few
-reasons why you might want to do this as shown below.
+By default, XElement will create an open shadow root and use that as your render
+root. However, you may want to customize or not attach a shadow root at all.
+
+### Custom Shadow Root Initialization
+
+Control special behavior like “focus delegation” by overriding the default
+shadow root configuration.
+
+```javascript
+class MyElement extends XElement {
+  static createRenderRoot(host) {
+    return host.attachShadow({ mode: 'open', delegatesFocus: true });
+  }
+}
+```
 
 ### No Shadow Root
+
+Sometimes, you don’t want encapsulation. No problem — just return the `host`.
 
 ```javascript
 class MyElement extends XElement {
   static createRenderRoot(host) {
     return host;
-  }
-}
-```
-
-### Focus Delegation
-
-```javascript
-class MyElement extends XElement {
-  static createRenderRoot(host) {
-    return host.attachShadowRoot({ mode: 'open', delegatesFocus: true });
   }
 }
 ```

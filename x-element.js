@@ -11,7 +11,8 @@ export default class XElement extends HTMLElement {
     return TemplateEngine.interface;
   }
 
-  /** Configured templating engine. Defaults to "defaultTemplateEngine".
+  /**
+   * Configured templating engine. Defaults to "defaultTemplateEngine".
    *
    * Override this as needed if x-element's default template engine does not
    * meet your needs. A "render" method is the only required field. An "html"
@@ -19,6 +20,15 @@ export default class XElement extends HTMLElement {
    */
   static get templateEngine() {
     return XElement.defaultTemplateEngine;
+  }
+
+  /**
+   * Declare an array of CSSStyleSheet objects to adopt on the shadow root.
+   * Note that a CSSStyleSheet object is the type returned when importing a
+   * stylesheet file via import attributes.
+   */
+  static get styles() {
+    return [];
   }
 
   /**
@@ -197,7 +207,7 @@ export default class XElement extends HTMLElement {
 
   // Called once per class — kicked off from "static get observedAttributes".
   static #analyzeConstructor(constructor) {
-    const { properties, listeners } = constructor;
+    const { styles, properties, listeners } = constructor;
     const propertiesEntries = Object.entries(properties);
     const listenersEntries = Object.entries(listeners);
     XElement.#validateProperties(constructor, properties, propertiesEntries);
@@ -222,7 +232,7 @@ export default class XElement extends HTMLElement {
     }
     const listenerMap = new Map(listenersEntries);
     XElement.#constructors.set(constructor, {
-      propertyMap, internalPropertyMap, attributeMap, listenerMap,
+      styles, propertyMap, internalPropertyMap, attributeMap, listenerMap,
       propertiesTarget, internalTarget,
     });
   }
@@ -534,7 +544,18 @@ export default class XElement extends HTMLElement {
     const computeMap = new Map();
     const observeMap = new Map();
     const defaultMap = new Map();
-    const { propertyMap } = XElement.#constructors.get(host.constructor);
+    const { styles, propertyMap } = XElement.#constructors.get(host.constructor);
+    if (styles.length > 0) {
+      if (renderRoot === host.shadowRoot) {
+        if (renderRoot.adoptedStyleSheets.length === 0) {
+          renderRoot.adoptedStyleSheets = styles;
+        } else {
+          throw new Error('Unexpected "styles" declared when preexisting "adoptedStyleSheets" exist.');
+        }
+      } else {
+        throw new Error('Unexpected "styles" declared without a shadow root.');
+      }
+    }
     for (const property of propertyMap.values()) {
       if (property.compute) {
         computeMap.set(property, { valid: false, args: undefined });
