@@ -69,17 +69,7 @@ The following template languages are supported:
 
 ### Nested Data and Re-rendering
 
-Web components will only trigger a re-render by default **when their properties are replaced**. This means that when using non-primitive data structures as properties, mutating the contents of these structures will not result in the component re-rendering. You must either replace the data structure or manually call the `.render` method.
-
-Likewise, data structures that are **not** set as properties will **never** trigger a render on their own, even if replaced. If you use such a structure and need to re-render based on it, plan for a method of observing the data and calling the `.render` function manually.
-
-For example, if your complex data structure is derived from the contents of a [slot](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_templates_and_slots), you will want to add a listener to the [`slotchange`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLSlotElement/slotchange_event) event that calls `.render`, like so:
-
-```
-static get listeners() {
-  return {slotchange: this.render}
-}
-```
+Web components will only trigger a re-render by default **when their properties are replaced**. This means that when using non-primitive data structures as properties, mutating the contents of these structures will not result in the component re-rendering. This is by design. When you need to update a nested data structure on a web component, replace the property's value with a newly minted data structure.
 
 ## Customizing your base class
 
