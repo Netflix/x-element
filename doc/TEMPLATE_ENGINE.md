@@ -213,43 +213,43 @@ export { html, render };
 For ~30 lines of code, that actually does a whole lot! Let’s enumerate what this
 currently _does_ and _doesn’t_ do…
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It’s got the right functional interface.**<br>
 The `html` and `render` functions offer the ergonomics we want.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Hydration is idiomatic JS.**<br>
 You interpolate your data via a simple tagged template interface.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It’s composable.**<br>
 Nesting, looping, and conditionals all work.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Content can be interpolated between tags.**<br>
 You can add text / content which ends up as text / content in the DOM.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Attributes can be interpolated inside opening tags.**<br>
 You can set attributes which end up as real attributes in the DOM.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **It doesn’t actually understand html.**<br>
 It’s just concatenating strings together… this risks unsafe injection, etc.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Boolean attributes (`?`) and typed properties (`.`) don’t work.**<br>
 There’s no way to set a templated element’s _properties_ yet. Only attributes.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Nothing is cached and the DOM is thrashed.**<br>
 There is currently no intelligent / performant management of DOM manipulation.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Some scripted implementation details are leaking out.**<br>
 E.g., the `html` result should be opaque, but we expose `{ strings, values }`.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **No change-by-value detection.**<br>
 DOM manipulation is expensive! We should guard against unnecessary updates.
 
@@ -415,51 +415,51 @@ export { html, render };
 
 Up to ~150 lines of code now… but let’s check out our new pros / cons list.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It’s got the right functional interface.**<br>
 The `html` and `render` functions offer the ergonomics we want.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Hydration is idiomatic JS.**<br>
 You interpolate your data via a simple tagged template interface.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It’s composable.**<br>
 Nesting, looping, and conditionals all work.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Content can be interpolated between tags.**<br>
 You can add text / content which ends up as text / content in the DOM.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Attributes can be interpolated inside opening tags.**<br>
 You can set attributes which end up as real attributes in the DOM.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It understands html.**<br>
 Rather than simply do string manipulation, we are leveraging DOM apis.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Boolean attributes (`?`) and typed properties (`.`) work.**<br>
 This opens up a new world where we can pass typed values to managed DOM nodes.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Nothing is cached and the DOM is thrashed.**<br>
 There is currently no intelligent / performant management of DOM manipulation.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Some scripted implementation details are leaking out.**<br>
 E.g., the `html` result should be opaque, but we expose `{ strings, values }`.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **No change-by-value detection.**<br>
 DOM manipulation is expensive! We should guard against unnecessary updates.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Some markup abstractions are leaking.**<br>
 You get comment (`<!---->`) nodes in the DOM, which are implementation details.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Many edge cases are not considered.**<br>
 Some examples… a `textarea` cannot actually contain anything other than text,
 but we don’t guard against it. It’s still possible to get script injections via
@@ -712,51 +712,51 @@ export { html, render };
 Phew! About ~220 lines now… but this is approaching something that could be
 valuable in real-world scenarios.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It’s got the right functional interface.**<br>
 The `html` and `render` functions offer the ergonomics we want.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Hydration is idiomatic JS.**<br>
 You interpolate your data via a simple tagged template interface.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It’s composable.**<br>
 Nesting, looping, and conditionals all work.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Content can be interpolated between tags.**<br>
 You can add text / content which ends up as text / content in the DOM.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Attributes can be interpolated inside opening tags.**<br>
 You can set attributes which end up as real attributes in the DOM.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **It understands html.**<br>
 Rather than simply do string manipulation, we are leveraging DOM apis.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Boolean attributes (`?`) and typed properties (`.`) work.**<br>
 This opens up a new world where we can pass typed values to managed DOM nodes.
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **Work to create re-usable templates and DOM are cached.**<br>
 This enables animations to work and persists DOM state (e.g., `input` controls).
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **All scripted implementation details are internalized.**<br>
 Integrators just see an opaque `symbol` now (versus `{ strings, values }`).
 
-<span style="color: #2ECC40;">✔</span>
+:white_check_mark:
 **DOM manipulation is guarded with change-by-value detection.**<br>
 E.g., setting `` html`<div>{'sames'}</div>` `` over-and-over is now idempotent.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Some markup abstractions are _still_ leaking.**<br>
 You get comment (`<!---->`) nodes in the DOM, which are implementation details.
 
-<span style="color: #FF4136;">✘</span>
+:x:
 **Many edge cases are not _still_ considered.**<br>
 Some examples… a `textarea` cannot actually contain anything other than text,
 but we don’t guard against it. It’s still possible to get script injections via
