@@ -6,13 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2024-10-18
+
 ### Added
 
-- New support for static `styles` getter for `adoptedStyleSheets` ergonomics (#52).
+- New support for static `styles` getter for `adoptedStyleSheets` ergonomics
+  (#52).
 
 ### Fixed
 
-- The `map` function now works with properties / attributes bound across template contexts (#179).
+- The `map` function now works with properties / attributes bound across
+  template contexts (#179).
 - The `x-element.d.ts` file now reflects the actual interface. Previously, it
   has some issues (e.g., improper module export).
 
