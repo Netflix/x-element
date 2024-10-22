@@ -1010,7 +1010,7 @@ export default class XElement extends HTMLElement {
 
 /** Internal implementation details for template engine. */
 class TemplateEngine {
-  static #UNSET = Symbol('unset'); // Ensures a unique, initial comparison.
+  static #UNSET = Symbol(); // Ensures a unique, initial comparison.
   static #ATTRIBUTE_PREFIXES = {
     attribute: 'x-element-attribute-',
     boolean: 'x-element-boolean-',
@@ -1027,8 +1027,8 @@ class TemplateEngine {
   static #interface = null;
   static #stateMap = new WeakMap(); // Maps nodes to internal state.
   static #analysisMap = new WeakMap(); // Maps strings to cached computations.
-  static #resultMap = new WeakMap(); // Maps references to results.
-  static #updaterMap = new WeakMap(); // Maps references to updaters.
+  static #resultMap = new WeakMap(); // Maps symbols to results.
+  static #updaterMap = new WeakMap(); // Maps symbols to updaters.
 
   /**
    * Declare HTML markup to be interpolated.
@@ -1040,10 +1040,10 @@ class TemplateEngine {
    * @returns {any}
    */
   static html(strings, ...values) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const result = TemplateEngine.#createResult('html', strings, values);
-    TemplateEngine.#resultMap.set(reference, result);
-    return reference;
+    TemplateEngine.#resultMap.set(symbol, result);
+    return symbol;
   }
 
   /**
@@ -1056,10 +1056,10 @@ class TemplateEngine {
    * @returns {any}
    */
   static svg(strings, ...values) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const result = TemplateEngine.#createResult('svg', strings, values);
-    TemplateEngine.#resultMap.set(reference, result);
-    return reference;
+    TemplateEngine.#resultMap.set(symbol, result);
+    return symbol;
   }
 
   /**
@@ -1097,11 +1097,11 @@ class TemplateEngine {
    * @returns {any}
    */
   static ifDefined(value) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const updater = (type, lastValue, details) => TemplateEngine.#ifDefined(type, value, lastValue, details);
     updater.value = value;
-    TemplateEngine.#updaterMap.set(reference, updater);
-    return reference;
+    TemplateEngine.#updaterMap.set(symbol, updater);
+    return symbol;
   }
 
   /**
@@ -1115,11 +1115,11 @@ class TemplateEngine {
    * @returns {any}
    */
   static nullish(value) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const updater = (type, lastValue, details) => TemplateEngine.#nullish(type, value, lastValue, details);
     updater.value = value;
-    TemplateEngine.#updaterMap.set(reference, updater);
-    return reference;
+    TemplateEngine.#updaterMap.set(symbol, updater);
+    return symbol;
   }
 
   /**
@@ -1135,11 +1135,11 @@ class TemplateEngine {
    * @returns {any}
    */
   static live(value) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const updater = (type, lastValue, details) => TemplateEngine.#live(type, value, lastValue, details);
     updater.value = value;
-    TemplateEngine.#updaterMap.set(reference, updater);
-    return reference;
+    TemplateEngine.#updaterMap.set(symbol, updater);
+    return symbol;
   }
 
   /**
@@ -1153,11 +1153,11 @@ class TemplateEngine {
    * @returns {any}
    */
   static unsafeHTML(value) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const updater = (type, lastValue, details) => TemplateEngine.#unsafeHTML(type, value, lastValue, details);
     updater.value = value;
-    TemplateEngine.#updaterMap.set(reference, updater);
-    return reference;
+    TemplateEngine.#updaterMap.set(symbol, updater);
+    return symbol;
   }
 
   /**
@@ -1175,11 +1175,11 @@ class TemplateEngine {
    * @returns {any}
    */
   static unsafeSVG(value) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const updater = (type, lastValue, details) => TemplateEngine.#unsafeSVG(type, value, lastValue, details);
     updater.value = value;
-    TemplateEngine.#updaterMap.set(reference, updater);
-    return reference;
+    TemplateEngine.#updaterMap.set(symbol, updater);
+    return symbol;
   }
 
   /**
@@ -1260,12 +1260,12 @@ class TemplateEngine {
   }
 
   static #mapOrRepeat(value, identify, callback, name) {
-    const reference = TemplateEngine.#createReference();
+    const symbol = Symbol();
     const context = { identify, callback };
     const updater = (type, lastValue, details) => TemplateEngine.#map(type, value, lastValue, details, context, name);
     updater.value = value;
-    TemplateEngine.#updaterMap.set(reference, updater);
-    return reference;
+    TemplateEngine.#updaterMap.set(symbol, updater);
+    return symbol;
   }
 
   static #exhaustString(string, state) {
@@ -1754,10 +1754,6 @@ class TemplateEngine {
     for (const key of Object.keys(object)) {
       delete object[key];
     }
-  }
-
-  static #createReference() {
-    return Object.create(null);
   }
 
   static #setIfMissing(map, key, callback) {
