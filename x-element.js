@@ -1074,12 +1074,14 @@ class TemplateEngine {
       const result = TemplateEngine.#resultMap.get(resultReference);
       if (TemplateEngine.#cannotReuseResult(state.result, result)) {
         TemplateEngine.#removeWithin(container);
-        state.result = result;
+        TemplateEngine.#ready(result);
+        TemplateEngine.#commit(result);
         TemplateEngine.#inject(result, container);
+        state.result = result;
       } else {
         TemplateEngine.#assign(state.result, result);
+        TemplateEngine.#commit(state.result);
       }
-      TemplateEngine.#commit(state.result);
     } else {
       TemplateEngine.#clearObject(state);
       TemplateEngine.#removeWithin(container);
@@ -1464,12 +1466,14 @@ class TemplateEngine {
         if (TemplateEngine.#cannotReuseResult(state.result, result)) {
           TemplateEngine.#removeBetween(startNode, node);
           TemplateEngine.#clearObject(state);
-          state.result = result;
+          TemplateEngine.#ready(result);
+          TemplateEngine.#commit(result);
           TemplateEngine.#inject(result, node, { before: true });
+          state.result = result;
         } else {
           TemplateEngine.#assign(state.result, result);
+          TemplateEngine.#commit(state.result);
         }
-        TemplateEngine.#commit(state.result);
       } else if (Array.isArray(value)) {
         TemplateEngine.#mapInner(state, node, startNode, null, null, value, 'array');
       } else {
@@ -1566,8 +1570,11 @@ class TemplateEngine {
         const result = TemplateEngine.#resultMap.get(reference);
         if (result) {
           const id = identify ? identify(input, index) : String(index);
-          state.map.set(id, { id, ...TemplateEngine.#createItem(result, node) });
+          const cursors = TemplateEngine.#createCursors(node);
+          TemplateEngine.#ready(result);
           TemplateEngine.#commit(result);
+          TemplateEngine.#inject(result, cursors.node, { before: true });
+          state.map.set(id, { id, result, ...cursors });
         } else {
           throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
         }
@@ -1585,14 +1592,23 @@ class TemplateEngine {
           if (state.map.has(id)) {
             const item = state.map.get(id);
             if (TemplateEngine.#cannotReuseResult(item.result, result)) {
-              const itemClone = { ...item };
-              Object.assign(item, TemplateEngine.#createItem(result, itemClone.startNode));
-              TemplateEngine.#removeThrough(itemClone.startNode, itemClone.node);
+              // Add new comment cursors before removing old comment cursors.
+              const cursors = TemplateEngine.#createCursors(item.startNode);
+              TemplateEngine.#removeThrough(item.startNode, item.node);
+              TemplateEngine.#ready(result);
+              TemplateEngine.#commit(result);
+              TemplateEngine.#inject(result, cursors.node, { before: true });
+              Object.assign(item, { result, ...cursors });
             } else {
               TemplateEngine.#assign(item.result, result);
+              TemplateEngine.#commit(item.result);
             }
           } else {
-            const item = { id, ...TemplateEngine.#createItem(result, node) };
+            const cursors = TemplateEngine.#createCursors(node);
+            TemplateEngine.#ready(result);
+            TemplateEngine.#commit(result);
+            TemplateEngine.#inject(result, cursors.node, { before: true });
+            const item = { id, result, ...cursors };
             state.map.set(id, item);
           }
           const item = state.map.get(id);
@@ -1640,13 +1656,12 @@ class TemplateEngine {
     return { type, strings, values, lastValues, injected };
   }
 
-  static #createItem(result, referenceNode) {
+  static #createCursors(referenceNode) {
     const startNode = document.createComment('');
     const node = document.createComment('');
     referenceNode.parentNode.insertBefore(startNode, referenceNode);
-    TemplateEngine.#inject(result, referenceNode, { before: true });
     referenceNode.parentNode.insertBefore(node, referenceNode);
-    return { result, startNode, node };
+    return { startNode, node };
   }
 
   static #getAnalysis(result) {
@@ -1662,7 +1677,7 @@ class TemplateEngine {
     return analysis;
   }
 
-  static #inject(result, node, options) {
+  static #ready(result) {
     if (result.injected) {
       throw new Error(`Unexpected re-injection of template result.`);
     }
@@ -1670,13 +1685,18 @@ class TemplateEngine {
     const { initialElement, initialDirections } = TemplateEngine.#getAnalysis(result);
     const element = initialElement.cloneNode(true);
     result.directions = TemplateEngine.#getFinalDirections(initialDirections, element.content);
+    result.element = element;
+  }
+
+  static #inject(result, node, options) {
     options?.before
       ? result.type === 'svg'
-        ? TemplateEngine.#insertAllBefore(element.content.firstChild.childNodes, node)
-        : TemplateEngine.#insertAllBefore(element.content.childNodes, node)
+        ? TemplateEngine.#insertAllBefore(result.element.content.firstChild.childNodes, node)
+        : TemplateEngine.#insertAllBefore(result.element.content.childNodes, node)
       : result.type === 'svg'
-        ? node.append(...element.content.firstChild.childNodes)
-        : node.append(element.content);
+        ? node.append(...result.element.content.firstChild.childNodes)
+        : node.append(result.element.content);
+    result.element = null;
   }
 
   static #assign(result, newResult) {
