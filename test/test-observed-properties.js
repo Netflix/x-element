@@ -188,3 +188,38 @@ it('x-element observed properties', async () => {
     'no re-entrance for observed, reflected properties'
   );
 });
+
+it('child properties are bound before initialization', () => {
+  const observations = [];
+  class TestInner extends XElement {
+    static get properties() {
+      return {
+        foo: {
+          type: Boolean,
+          observe: (host, value) => observations.push(value),
+          default: false,
+        },
+      };
+    }
+  }
+  customElements.define('test-inner', TestInner);
+  class TestOuter extends XElement {
+    static get properties() {
+      return {
+        foo: {
+          type: Boolean,
+          default: true,
+        },
+      };
+    }
+    static template(html) {
+      return ({ foo }) => html`<test-inner .foo="${foo}"></test-inner>`;
+    }
+  }
+  customElements.define('test-outer', TestOuter);
+  const el = document.createElement('test-outer');
+  document.body.append(el);
+  assert(observations[0] === true, observations[0]);
+  assert(observations.length === 1, observations);
+  el.remove();
+});

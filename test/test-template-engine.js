@@ -622,6 +622,60 @@ describe('html updaters', () => {
     container.remove();
   });
 
+  it('map: renders depth-first', async () => {
+    const updates = [];
+    class TestDepthFirstOuter extends HTMLElement {
+      #item = null;
+      set item(value) { updates.push(`outer-${value}`); this.#item = value; }
+      get item() { return this.#item; }
+      connectedCallback() {
+        // Prevent property shadowing by deleting before setting on connect.
+        const item = this.item ?? '???';
+        Reflect.deleteProperty(this, 'item');
+        Reflect.set(this, 'item', item);
+      }
+    }
+    customElements.define('test-depth-first-outer', TestDepthFirstOuter);
+    class TestDepthFirstInner extends HTMLElement {
+      #item = null;
+      set item(value) { updates.push(`inner-${value}`); this.#item = value; }
+      get item() { return this.#item; }
+      connectedCallback() {
+        // Prevent property shadowing by deleting before setting on connect.
+        const item = this.item ?? '???';
+        Reflect.deleteProperty(this, 'item');
+        Reflect.set(this, 'item', item);
+      }
+    }
+    customElements.define('test-depth-first-inner', TestDepthFirstInner);
+
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${map(items, item => item.id, item => {
+            return html`
+              <test-depth-first-outer class="outer" .item="${item.id}">
+                <test-depth-first-inner class="inner" .item="${item.id}">
+                </test-depth-first-inner>
+              </test-depth-first-outer>
+            `;
+          })}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const items = [{ id: 'foo' }, { id: 'bar'}];
+    render(container, getTemplate({ items }));
+    await Promise.resolve();
+    assert(updates[0] === 'outer-foo', updates[0]);
+    assert(updates[1] === 'inner-foo', updates[1]);
+    assert(updates[2] === 'outer-bar', updates[2]);
+    assert(updates[3] === 'inner-bar', updates[3]);
+    assert(updates.length === 4, updates);
+    container.remove();
+  });
+
   it('map: re-renders each time', () => {
     const getTemplate = ({ items, lookup }) => {
       return html`
