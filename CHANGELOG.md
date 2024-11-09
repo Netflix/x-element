@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The default template engine now renders _fully_ depth-first. Previously, this
+  could lead to bugs where a child element’s `connectedCallback` would be called
+  before initial dom updates could be applied. In particular, this caused issues
+  with default initial values causing unexpected `observe` callbacks (#197).
+
 ## [1.1.0] - 2024-10-18
 
 ### Added
