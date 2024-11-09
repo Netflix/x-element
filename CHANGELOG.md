@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2024-11-09
+
 ### Fixed
 
 - The default template engine now renders _fully_ depth-first. Previously, this
