@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Template errors now include approximate line numbers from the offending
+  template. They also print the registered custom element tag name (#201).
+
 ## [1.1.1] - 2024-11-09
 
 ### Fixed

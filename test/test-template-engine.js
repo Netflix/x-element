@@ -856,12 +856,12 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template string "<div id="target" not-ok=" at " not-ok=".`, error.message);
+      assert(error?.message === `Found invalid template on or after line 1 in substring \`<div id="target" not-ok=\`. Failed to parse \` not-ok=\`.`, error.message);
       container.remove();
     });
 
     it('throws for single-quoted attributes', () => {
-      const templateResultReference = html`<div id="target" not-ok='${'foo'}'>Gotta double-quote those.</div>`;
+      const templateResultReference = html`\n<div id="target" not-ok='${'foo'}'>Gotta double-quote those.</div>`;
       const container = document.createElement('div');
       document.body.append(container);
       let error;
@@ -870,12 +870,12 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template string "<div id="target" not-ok='" at " not-ok='".`, error.message);
+      assert(error?.message === `Found invalid template on or after line 2 in substring \`\n<div id="target" not-ok='\`. Failed to parse \` not-ok='\`.`, error.message);
       container.remove();
     });
 
     it('throws for unquoted properties', () => {
-      const templateResultReference = html`<div id="target" .notOk=${'foo'}>Gotta double-quote those.</div>`;
+      const templateResultReference = html`\n\n\n<div id="target" .notOk=${'foo'}>Gotta double-quote those.</div>`;
       const container = document.createElement('div');
       document.body.append(container);
       let error;
@@ -884,7 +884,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template string "<div id="target" .notOk=" at " .notOk=".`, error.message);
+      assert(error?.message === `Found invalid template on or after line 4 in substring \`\n\n\n<div id="target" .notOk=\`. Failed to parse \` .notOk=\`.`, error.message);
       container.remove();
     });
 
@@ -898,7 +898,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === `Found invalid template string "<div id="target" .notOk='" at " .notOk='".`, error.message);
+      assert(error?.message === `Found invalid template on or after line 1 in substring \`<div id="target" .notOk='\`. Failed to parse \` .notOk='\`.`, error.message);
       container.remove();
     });
 
