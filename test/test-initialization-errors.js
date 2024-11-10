@@ -106,7 +106,7 @@ it('errors are thrown in connectedCallback when template result fails to render'
   try {
     el.connectedCallback();
   } catch (error) {
-    const expected = ' — Invalid template for "TestElement" at path "test-element-3"';
+    const expected = 'Invalid template for "TestElement" / <test-element-3> at path "test-element-3".';
     message = error.message;
     passed = error.message.endsWith(expected);
   }
@@ -142,7 +142,7 @@ it('errors are thrown in connectedCallback when template result fails to render 
   try {
     el.connectedCallback();
   } catch (error) {
-    const expected = ' — Invalid template for "TestElement" at path "test-element-4[id="testing"][class="foo bar"][boolean][variation="primary"]"';
+    const expected = 'Invalid template for "TestElement" / <test-element-4> at path "test-element-4[id="testing"][class="foo bar"][boolean][variation="primary"]".';
     message = error.message;
     passed = error.message.endsWith(expected);
   }

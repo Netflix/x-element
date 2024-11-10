@@ -207,7 +207,9 @@ export default class XElement extends HTMLElement {
       render(renderRoot, result);
     } catch (error) {
       const pathString = XElement.#toPathString(this);
-      const message = `${error.message} — Invalid template for "${this.constructor.name}" at path "${pathString}"`;
+      // @ts-ignore — TypeScript doesn’t get that this can accept any class.
+      const tagName = customElements.getName(this.constructor);
+      const message = `Invalid template for "${this.constructor.name}" / <${tagName}> at path "${pathString}".`;
       throw new Error(message, { cause: error });
     }
   }
@@ -1385,7 +1387,10 @@ class TemplateEngine {
             string = string.slice(0, -3 - name.length) + `${TemplateEngine.#ATTRIBUTE_PREFIXES.property}${iii}="${name}`;
             state.index = 1; // Accounts for an expected quote character next.
           } else {
-            throw new Error(`Found invalid template string "${string}" at "${string.slice(state.index)}".`);
+            // It’s “on or after” because interpolated JS can span multiple lines.
+            const handled = [...strings.slice(0, iii), string.slice(0, state.index)].join('');
+            const lineCount = handled.split('\n').length;
+            throw new Error(`Found invalid template on or after line ${lineCount} in substring \`${string}\`. Failed to parse \`${string.slice(state.index)}\`.`);
           }
         }
       } else {
