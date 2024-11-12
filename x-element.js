@@ -1488,10 +1488,11 @@ class TemplateEngine {
         }
         const previousSibling = node.previousSibling;
         if (previousSibling === startNode) {
-          const textNode = document.createTextNode(value ?? '');
+          const textNode = document.createTextNode('');
+          textNode.textContent = value;
           node.parentNode.insertBefore(textNode, node);
         } else {
-          previousSibling.textContent = value ?? '';
+          previousSibling.textContent = value;
         }
       }
     }

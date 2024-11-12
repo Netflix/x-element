@@ -23,6 +23,9 @@ class TestElement extends XElement {
         type: String,
         default: null,
       },
+      undefinedProperty: {
+        type: String,
+      },
       typelessProperty: {},
       typelessPropertyWithCustomAttribute: {
         attribute: 'custom-attribute-typeless',
@@ -33,12 +36,13 @@ class TestElement extends XElement {
     };
   }
   static template(html) {
-    return ({ normalProperty, camelCaseProperty, numericProperty, nullProperty }) => {
+    return ({ normalProperty, camelCaseProperty, numericProperty, nullProperty, undefinedProperty }) => {
       return html`
         <div id="normal">${normalProperty}</div>
         <span id="camel">${camelCaseProperty}</span>
         <span id="num">${numericProperty}</span>
         <span id="nul">${nullProperty}</span>
+        <span id="undef">${undefinedProperty}</span>
       `;
     };
   }
@@ -58,6 +62,12 @@ it('renders an empty string in place of null value', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.shadowRoot.getElementById('nul').textContent === '');
+});
+
+it('renders an empty string in place of undefined value', () => {
+  const el = document.createElement('test-element');
+  document.body.append(el);
+  assert(el.shadowRoot.getElementById('undef').textContent === '');
 });
 
 it('property setter updates on next micro tick after connect', async () => {
@@ -99,6 +109,7 @@ it('observes all dash-cased versions of public, typeless, serializable, and decl
     'camel-case-property',
     'numeric-property',
     'null-property',
+    'undefined-property',
     'typeless-property',
     'custom-attribute-typeless',
   ];
