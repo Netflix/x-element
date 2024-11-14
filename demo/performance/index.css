@@ -10,6 +10,11 @@
   height: calc(20px * 3);
 }
 
+#fixture {
+  height: calc(20px * 9);
+  color: gray;
+}
+
 p {
   width: 70ch;
 }

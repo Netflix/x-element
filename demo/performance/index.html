@@ -2,9 +2,21 @@
 <html>
   <head>
     <meta charset="UTF-8">
+    <script type="importmap">
+      {
+        "imports": {
+          "lit-html": "https://esm.sh/lit-html@3.2.1",
+          "uhtml": "https://esm.sh/uhtml@4.5.11"
+        }
+      }
+    </script>
     <link rel="stylesheet" href="./index.css">
   </head>
   <body>
+    <div>
+      <div class="label">test fixture</div>
+      <pre id="fixture" class="output"></pre>
+    </div>
     <div>
       <div class="label">default</div>
       <pre id="default" class="output"></pre>

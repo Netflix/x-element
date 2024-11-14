@@ -8,11 +8,7 @@ export default [
     ...NetflixCommon,
     files: ['**/*.js'],
     languageOptions: { globals: globals.browser },
-    ignores: [
-      'server.js',
-      'test.js',
-      'demo/react/*',
-    ],
+    ignores: ['server.js', 'test.js'],
   },
   {
     files: ['x-element.js', 'etc/ready.js'],
@@ -22,11 +18,6 @@ export default [
       'jsdoc/require-property-description': 'off',
       'jsdoc/require-returns-description': 'off',
     },
-  },
-  {
-    ...NetflixCommon,
-    files: ['demo/react/**/*.js'],
-    languageOptions: { globals: { ...globals.browser, React: 'readonly', ReactDOM: 'readonly' } },
   },
   {
     ...NetflixCommon,
