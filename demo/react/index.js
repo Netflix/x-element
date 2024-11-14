@@ -1,4 +1,6 @@
 import ready from '../../etc/ready.js';
+import React from 'react';
+import ReactDOMClient from 'react-dom/client';
 
 class ChessPiece extends React.Component {
   render() {
@@ -17,11 +19,12 @@ ready(document).then(() => {
   let counter = 0;
 
   const root = document.getElementById('root');
-  ReactDOM.render(React.createElement(ChessPiece, { rank: ranks[0] }, null), root);
+  const reactRoot = ReactDOMClient.createRoot(root);
+  reactRoot.render(React.createElement(ChessPiece, { rank: ranks[0] }, null));
 
   setInterval(() => {
     const rank = ranks[counter % ranks.length];
     counter += 1;
-    ReactDOM.render(React.createElement(ChessPiece, { rank: rank }, null), root);
+    reactRoot.render(React.createElement(ChessPiece, { rank: rank }, null));
   }, 1250);
 });

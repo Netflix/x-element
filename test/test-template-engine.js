@@ -2,10 +2,13 @@ import XElement from '../x-element.js';
 import { assert, describe, it } from './x-test.js';
 
 // Long-term interface.
-const { render, html, svg, map, nullish } = XElement.templateEngine;
+const { render, html, svg, map, unsafe } = XElement.templateEngine;
 
-// Migration-related interface. We may or may not keep these.
-const { live, unsafeHTML, unsafeSVG, ifDefined, repeat } = XElement.templateEngine;
+// Tentative interface. We may or may not keep these.
+const { live } = XElement.templateEngine;
+
+// Deprecated interface. We will eventually delete these.
+const { ifDefined, nullish, repeat, unsafeHTML, unsafeSVG } = XElement.templateEngine;
 
 describe('html rendering', () => {
   it('renders basic string', () => {
@@ -15,6 +18,7 @@ describe('html rendering', () => {
     const container = document.createElement('div');
     document.body.append(container);
     render(container, getTemplate());
+    assert(container.childNodes.length === 1);
     assert(container.querySelector('#target').textContent === 'No interpolation.');
     container.remove();
   });
@@ -128,6 +132,31 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').getAttribute('attr') === null);
     render(container, getTemplate({ attr: true }));
     assert(container.querySelector('#target').getAttribute('attr') === '');
+    container.remove();
+  });
+
+  it('renders defined attributes', () => {
+    const getTemplate = ({ attr }) => {
+      return html`<div id="target" ??attr="${attr}"></div>`;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, getTemplate({ attr: 'foo' }));
+    assert(container.querySelector('#target').getAttribute('attr') === 'foo');
+    render(container, getTemplate({ attr: '' }));
+    assert(container.querySelector('#target').getAttribute('attr') === '');
+    render(container, getTemplate({ attr: 'bar' }));
+    assert(container.querySelector('#target').getAttribute('attr') === 'bar');
+    render(container, getTemplate({ attr: undefined }));
+    assert(container.querySelector('#target').getAttribute('attr') === null);
+    render(container, getTemplate({ attr: 'baz' }));
+    assert(container.querySelector('#target').getAttribute('attr') === 'baz');
+    render(container, getTemplate({ attr: null }));
+    assert(container.querySelector('#target').getAttribute('attr') === null);
+    render(container, getTemplate({ attr: false }));
+    assert(container.querySelector('#target').getAttribute('attr') === 'false');
+    render(container, getTemplate({ attr: true }));
+    assert(container.querySelector('#target').getAttribute('attr') === 'true');
     container.remove();
   });
 
@@ -245,6 +274,40 @@ describe('html rendering', () => {
     container.remove();
   });
 
+  it('renders lists of lists', () => {
+    const getTemplate = ({ items }) => {
+      return html`<div id="target">${items.map(item => {
+        return html`${item.items.map(subItem => {
+          return html`<div>${`:${item.text}-${subItem.text}:`}</div>`;
+        })}`;
+      })}</div>`;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, getTemplate({
+      items: [
+        { text: 'foo', items: [{ text: 'one' }] },
+      ],
+    }));
+    assert(container.querySelector('#target').textContent === ':foo-one:');
+    render(container, getTemplate({
+      items: [
+        { text: 'foo', items: [{ text: 'one' }, { text: 'two' }] },
+        { text: 'bar', items: [{ text: 'one' }, { text: 'two' }] },
+      ],
+    }));
+    assert(container.querySelector('#target').textContent === ':foo-one::foo-two::bar-one::bar-two:');
+    render(container, getTemplate({
+      items: [
+        { text: 'foo', items: [{ text: 'one' }, { text: 'two' }] },
+        { text: 'bar', items: [{ text: 'one' }, { text: 'two' }] },
+        { text: 'baz', items: [{ text: 'one' }, { text: 'two' }] },
+      ],
+    }));
+    assert(container.querySelector('#target').textContent === ':foo-one::foo-two::bar-one::bar-two::baz-one::baz-two:');
+    container.remove();
+  });
+
   it('renders multiple templates', () => {
     const getTemplate = ({ content }) => {
       if (content) {
@@ -291,8 +354,8 @@ describe('html rendering', () => {
           id="svg"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
-          width="${ifDefined(width)}"
-          height="${ifDefined(height)}">
+          ??width="${width}"
+          ??height="${height}">
           <circle id="circle" r="${width / 2}" cx="${width / 2}" cy="${height / 2}"></circle>
         </svg>`;
     };
@@ -319,8 +382,8 @@ describe('html rendering', () => {
           class="<><></></>"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
-          width="${ifDefined(width)}"
-          height="${ifDefined(height)}">
+          ??width="${width}"
+          ??height="${height}">
           <circle id="circle" r="${width / 2}" cx="${width / 2}" cy="${height / 2}"></circle>
         </svg>`;
     };
@@ -340,7 +403,7 @@ describe('html rendering', () => {
 
   it('self-closing tags work', () => {
     const getTemplate = ({ type }) => {
-      return html`<input type="${nullish(type)}"/>`;
+      return html`<input ??type="${type}"/>`;
     };
     const container = document.createElement('div');
     document.body.append(container);
@@ -361,6 +424,18 @@ describe('html rendering', () => {
     assert(container.querySelector('textarea').value === 'foo');
     container.remove();
   });
+
+  it('renders instantiated elements as dumb text', () => {
+    const getTemplate = ({ element }) => {
+      return html`${element}`;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, getTemplate({ element: document.createElement('input') }));
+    assert(container.childElementCount === 0);
+    assert(container.textContent === '[object HTMLInputElement]');
+    container.remove();
+  });
 });
 
 describe('html updaters', () => {
@@ -377,10 +452,8 @@ describe('html updaters', () => {
     assert(container.querySelector('#target').getAttribute('maybe') === null);
     render(container, getTemplate({ maybe: false }));
     assert(container.querySelector('#target').getAttribute('maybe') === 'false');
-
-    // This is correct, but perhaps unexpected.
     render(container, getTemplate({ maybe: null }));
-    assert(container.querySelector('#target').getAttribute('maybe') === 'null');
+    assert(container.querySelector('#target').getAttribute('maybe') === null);
     container.remove();
   });
 
@@ -417,6 +490,19 @@ describe('html updaters', () => {
     render(container, getTemplate({ alive: 'lively', dead: 'deadly' }));
     assert(container.querySelector('#target').alive === 'lively');
     assert(container.querySelector('#target').dead === 'changed');
+    container.remove();
+  });
+
+  it('unsafe html', () => {
+    const getTemplate = ({ content }) => {
+      return html`<div id="target">${unsafe(content, 'html')}</div>`;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, getTemplate({ content: '<div id="injected">oh hai</div>' }));
+    assert(!!container.querySelector('#injected'));
+    render(container, getTemplate({ content: '<div id="booster">oh hai, again</div>' }));
+    assert(!!container.querySelector('#booster'));
     container.remove();
   });
 
@@ -729,6 +815,107 @@ describe('html updaters', () => {
     assert(container.querySelector('#target').children[0] !== foo);
     container.remove();
   });
+
+  describe('changing content updaters', () => {
+    // The template engine needs to clear content between cursors if the updater
+    //  changes — it‘d be far too complex to try and allow one updater try and
+    //  take over from a different one.
+    const resolve = (type, value) => {
+      switch(type) {
+        case 'map': return map(value, item => item.id, item => html`<div id="${item.id}"></div>`);
+        case 'html': return unsafe(value, 'html');
+        default: return value; // E.g., an array, some text, null, undefined, etc.
+      }
+    };
+    const getTemplate = ({ type, value }) => html`<div id="target">${resolve(type, value)}</div>`;
+    const run = (...transitions) => {
+      const container = document.createElement('div');
+      document.body.append(container);
+      for (const transition of transitions) {
+        transition(container);
+      }
+      container.remove();
+    };
+    const toUndefinedContent = container => {
+      render(container, getTemplate({ type: undefined, value: undefined }));
+      assert(!!container.querySelector('#target'));
+      assert(container.querySelector('#target').childElementCount === 0);
+    };
+    const toNullContent = container => {
+      render(container, getTemplate({ type: undefined, value: null }));
+      assert(!!container.querySelector('#target'));
+      assert(container.querySelector('#target').childElementCount === 0);
+    };
+    const toTextContent = container => {
+      render(container, getTemplate({ type: undefined, value: 'hi there' }));
+      assert(!!container.querySelector('#target'));
+      assert(container.querySelector('#target').childElementCount === 0);
+      assert(container.querySelector('#target').textContent === 'hi there');
+    };
+    const toArrayContent = container => {
+      const getArrayTemplate = ({ id }) => html`<div id="${id}"></div>`;
+      render(container, getTemplate({
+        type: undefined,
+        value: [{ id: 'moo' }, { id: 'mar' }, { id: 'maz' }].map(item => getArrayTemplate(item)),
+      }));
+      assert(!!container.querySelector('#target'));
+      assert(!!container.querySelector('#moo'));
+      assert(!!container.querySelector('#mar'));
+      assert(!!container.querySelector('#maz'));
+      assert(container.querySelector('#target').childElementCount === 3);
+      assert(container.querySelector('#target').textContent === '', container.querySelector('#target').textContent);
+    };
+    const toUnsafeHtml = container => {
+      render(container, getTemplate({ type: 'html', value: '<div id="unsafe-html"></div>' }));
+      assert(!!container.querySelector('#target'));
+      assert(!!container.querySelector('#unsafe-html'));
+      assert(container.querySelector('#target').textContent === '');
+    };
+    const toMap = container => {
+      render(container, getTemplate({ type: 'map', value: [{ id: 'foo' }, { id: 'bar' }] }));
+      assert(!!container.querySelector('#target'));
+      assert(!!container.querySelector('#foo'));
+      assert(!!container.querySelector('#bar'));
+      assert(container.querySelector('#target').childElementCount === 2);
+      assert(container.querySelector('#target').textContent === '');
+    };
+
+    it('can change from undefined content to null content', () => run(toUndefinedContent, toNullContent));
+    it('can change from undefined content to text content', () => run(toUndefinedContent, toTextContent));
+    it('can change from undefined content to array content', () => run(toUndefinedContent, toArrayContent));
+    it('can change from undefined content to map', () => run(toUndefinedContent, toMap));
+    it('can change from undefined content to unsafe html', () => run(toUndefinedContent, toUnsafeHtml));
+
+    it('can change from null content to undefined content', () => run(toNullContent, toUndefinedContent));
+    it('can change from null content to text content', () => run(toNullContent, toTextContent));
+    it('can change from null content to array content', () => run(toNullContent, toArrayContent));
+    it('can change from null content to map', () => run(toNullContent, toMap));
+    it('can change from null content to unsafe html', () => run(toNullContent, toUnsafeHtml));
+
+    it('can change from text content to undefined content', () => run(toTextContent, toUndefinedContent));
+    it('can change from text content to null content', () => run(toTextContent, toNullContent));
+    it('can change from text content to array content', () => run(toTextContent, toArrayContent));
+    it('can change from text content to map', () => run(toTextContent, toMap));
+    it('can change from text content to unsafe html', () => run(toTextContent, toUnsafeHtml));
+
+    it('can change from array content to undefined content', () => run(toArrayContent, toUndefinedContent));
+    it('can change from array content to null content', () => run(toArrayContent, toNullContent));
+    it('can change from array content to text content', () => run(toArrayContent, toTextContent));
+    it('can change from array content to map', () => run(toArrayContent, toMap));
+    it('can change from array content to unsafe html', () => run(toArrayContent, toUnsafeHtml));
+
+    it('can change from map to undefined content', () => run(toMap, toUndefinedContent));
+    it('can change from map to null content', () => run(toMap, toNullContent));
+    it('can change from map to text content', () => run(toMap, toTextContent));
+    it('can change from map to array content', () => run(toMap, toArrayContent));
+    it('can change from map to unsafe html', () => run(toMap, toUnsafeHtml));
+
+    it('can change from unsafeHtml to undefined content', () => run(toUnsafeHtml, toUndefinedContent));
+    it('can change from unsafeHtml to null content', () => run(toUnsafeHtml, toNullContent));
+    it('can change from unsafeHtml to text content', () => run(toUnsafeHtml, toTextContent));
+    it('can change from unsafeHtml to array content', () => run(toUnsafeHtml, toArrayContent));
+    it('can change from unsafeHtml to map', () => run(toUnsafeHtml, toMap));
+  });
 });
 
 describe('svg rendering', () => {
@@ -776,6 +963,31 @@ describe('svg rendering', () => {
 });
 
 describe('svg updaters', () => {
+  it('unsafe svg', () => {
+    const getTemplate = ({ content }) => {
+      return html`
+        <svg
+          id="target"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 100 100"
+          style="width: 100px; height: 100px;">
+          ${unsafe(content, 'svg')}
+        </svg>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, getTemplate({ content: '<circle id="injected" r="10" cx="50" cy="50"></circle>' }));
+    assert(!!container.querySelector('#injected'));
+    assert(container.querySelector('#injected').getBoundingClientRect().height = 20);
+    assert(container.querySelector('#injected').getBoundingClientRect().width = 20);
+    render(container, getTemplate({ content: '<circle id="injected" r="5" cx="50" cy="50"></circle>' }));
+    assert(!!container.querySelector('#injected'));
+    assert(container.querySelector('#injected').getBoundingClientRect().height = 10);
+    assert(container.querySelector('#injected').getBoundingClientRect().width = 10);
+    container.remove();
+  });
+
   it('unsafeSVG', () => {
     const getTemplate = ({ content }) => {
       return html`
@@ -1106,6 +1318,24 @@ describe('rendering errors', () => {
       container.remove();
     });
 
+    it('throws if used on a "defined"', () => {
+      const expected = 'The live update must be used on a property, not on a defined attribute.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" ??maybe="${live(maybe)}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
     it('throws if used with "content"', () => {
       const expected = 'The live update must be used on a property, not on content.';
       const getTemplate = ({ maybe }) => {
@@ -1143,6 +1373,137 @@ describe('rendering errors', () => {
     });
   });
 
+
+  describe('unsafe', () => {
+    it('throws if used on an unexpected language', () => {
+      const expected = 'Unexpected unsafe language "css". Expected "html" or "svg".';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" maybe="${unsafe(maybe, 'css')}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws if used on an "attribute"', () => {
+      const expected = 'The unsafe update must be used on content, not on an attribute.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" maybe="${unsafe(maybe, 'html')}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws if used on a "boolean"', () => {
+      const expected = 'The unsafe update must be used on content, not on a boolean attribute.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" ?maybe="${unsafe(maybe, 'html')}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws if used on a "defined"', () => {
+      const expected = 'The unsafe update must be used on content, not on a defined attribute.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" ??maybe="${unsafe(maybe, 'html')}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws if used with a "property"', () => {
+      const expected = 'The unsafe update must be used on content, not on a property.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" .maybe="${unsafe(maybe, 'html')}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws if used with "text"', () => {
+      const expected = 'The unsafe update must be used on content, not on text content.';
+      const getTemplate = ({ maybe }) => {
+        return html`<textarea id="target">${unsafe(maybe, 'html')}</textarea>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws for non-string value', () => {
+      const getTemplate = ({ content }) => {
+        return html`
+          <div id="target">
+            ${unsafe(content, 'html')}
+          </div>
+        `;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ content: null }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === 'Unexpected unsafe value "null".', error?.message);
+      container.remove();
+    });
+  });
+
   describe('unsafeHTML', () => {
     it('throws if used on an "attribute"', () => {
       const expected = 'The unsafeHTML update must be used on content, not on an attribute.';
@@ -1166,6 +1527,24 @@ describe('rendering errors', () => {
       const expected = 'The unsafeHTML update must be used on content, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
         return html`<div id="target" ?maybe="${unsafeHTML(maybe)}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws if used on a "defined"', () => {
+      const expected = 'The unsafeHTML update must be used on content, not on a defined attribute.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" ??maybe="${unsafeHTML(maybe)}"></div>`;
       };
       const container = document.createElement('div');
       document.body.append(container);
@@ -1274,6 +1653,24 @@ describe('rendering errors', () => {
       container.remove();
     });
 
+    it('throws if used on a "defined"', () => {
+      const expected = 'The unsafeSVG update must be used on content, not on a defined attribute.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" ??maybe="${unsafeSVG(maybe)}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: 'yes' }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
     it('throws if used with a "property"', () => {
       const expected = 'The unsafeSVG update must be used on content, not on a property.';
       const getTemplate = ({ maybe }) => {
@@ -1341,7 +1738,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1359,7 +1756,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1377,7 +1774,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1395,7 +1792,25 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
+      container.remove();
+    });
+
+    it('throws if used on a "defined"', () => {
+      const expected = 'The map update must be used on content, not on a defined attribute.';
+      const getTemplate = ({ maybe }) => {
+        return html`<div id="target" ??maybe="${map(maybe, () => {}, () => {})}"></div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1413,7 +1828,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1431,7 +1846,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1456,7 +1871,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === 'Unexpected map value "5".', error?.message);
+      assert(error?.message === 'Unexpected map items "5" provided, expected an array.', error?.message);
       container.remove();
     });
 
@@ -1512,7 +1927,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1530,7 +1945,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1548,7 +1963,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1566,7 +1981,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1584,7 +1999,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1602,7 +2017,7 @@ describe('rendering errors', () => {
       document.body.append(container);
       let actual;
       try {
-        render(container, getTemplate({ maybe: 'yes' }));
+        render(container, getTemplate({ maybe: ['yes'] }));
       } catch (error) {
         actual = error.message;
       }
@@ -1627,7 +2042,7 @@ describe('rendering errors', () => {
       } catch (e) {
         error = e;
       }
-      assert(error?.message === 'Unexpected repeat value "5".', error?.message);
+      assert(error?.message === 'Unexpected repeat items "5" provided, expected an array.', error?.message);
       container.remove();
     });
 
