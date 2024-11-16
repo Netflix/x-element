@@ -1018,6 +1018,7 @@ class TemplateEngine {
   static #DEFINED_PREFIX = 'x-element-defined';
   static #PROPERTY_PREFIX = 'x-element-property';
   static #CONTENT_PREFIX = 'x-element-content';
+  static #ATTRIBUTE_PADDING = 6;
 
   // Patterns to find special edges in original html strings.
   static #OPEN_REGEX = /<[a-z][a-z0-9-]*(?=\s)/g;
@@ -1475,6 +1476,9 @@ class TemplateEngine {
     TemplateEngine.#mapInner(node, startNode, identify, callback, value, 'repeat');
   }
 
+  // Walk through each string from our tagged template function “strings” array
+  //  in a stateful way so that we know what kind of bindings are implied at
+  //  each interpolated value.
   static #exhaustString(string, state) {
     if (!state.inside) {
       // We're outside the opening tag.
@@ -1502,6 +1506,29 @@ class TemplateEngine {
     }
   }
 
+  // Flesh out an html string from our tagged template function “strings” array
+  //  and add special markers that we can detect later, after instantiation.
+  //
+  // E.g., the user might have passed this interpolation:
+  //
+  // <div
+  //   id="foo-bar-baz"
+  //   foo="${foo}"
+  //   bar="${bar}"
+  //   .baz="${baz}">
+  //   ${content}
+  // </div>
+  //
+  // … and we would instrument it as follows:
+  //
+  // <div
+  //   id="foo-bar-baz"
+  //   x-element-attribute-000001="foo"
+  //   x-element-attribute-000002="bar"
+  //   x-element-property-000003="baz">
+  //   <!--x-element-content-->
+  // </div>
+  //
   static #createHtml(type, strings) {
     const htmlStrings = [];
     const state = { inside: false, index: 0 };
@@ -1527,13 +1554,15 @@ class TemplateEngine {
               case '??': prefix = TemplateEngine.#DEFINED_PREFIX; syntax = 4; break;
               case '?': prefix = TemplateEngine.#BOOLEAN_PREFIX; syntax = 3; break;
             }
-            string = string.slice(0, -syntax - attribute.length) + `${prefix}-${iii}="${attribute}`;
+            const index = String(iii).padStart(TemplateEngine.#ATTRIBUTE_PADDING, '0');
+            string = string.slice(0, -syntax - attribute.length) + `${prefix}-${index}="${attribute}`;
           } else {
             // We found a match like this: html`<div .title="${value}"></div>`.
             // The syntax takes up 3 characters: `.${property}="`.
             const syntax = 3;
             const prefix = TemplateEngine.#PROPERTY_PREFIX;
-            string = string.slice(0, -syntax - property.length) + `${prefix}-${iii}="${property}`;
+            const index = String(iii).padStart(TemplateEngine.#ATTRIBUTE_PADDING, '0');
+            string = string.slice(0, -syntax - property.length) + `${prefix}-${index}="${property}`;
           }
           state.index = 1; // Accounts for an expected quote character next.
         } else {
@@ -1563,8 +1592,35 @@ class TemplateEngine {
     return template.content;
   }
 
-  static #findLookups(node, nodeType = Node.DOCUMENT_FRAGMENT_NODE, path = []) {
-    const lookups = [];
+  // Walk through our fragment that we added special markers to and collect
+  //  paths to each future target. We use “paths” because each future instance
+  //  will clone this fragment and so paths are all we can really cache. And,
+  //  while we go through, clean up our bespoke markers.
+  // Note that we are always walking the interpolated strings and the resulting,
+  //  instantiated DOM _in the same depth-first manner_. This means that the
+  //  ordering is fairly reliable. The only special handling we need to do is to
+  //  ensure that we don’t rely on the ordering of NamedNodeMap objects since
+  //  the spec doesn’t guarantee anything there (though in practice, it would
+  //  probably work…).
+  //
+  // For example, we walk this structure:
+  //
+  // <div
+  //   id="foo-bar-baz"
+  //   x-element-attribute-000001="foo"
+  //   x-element-attribute-000002="bar"
+  //   x-element-property-000003="baz">
+  //   <!--x-element-content-->
+  // </div>
+  //
+  // And end up with this (which is ready to be injected into a container):
+  //
+  // <div id="foo-bar-baz">
+  //   <!---->
+  //   <!---->
+  // </div>
+  //
+  static #findLookups(node, nodeType = Node.DOCUMENT_FRAGMENT_NODE, lookups = [], path = []) {
     // @ts-ignore — TypeScript doesn’t seem to understand the nodeType param.
     if (nodeType === Node.ELEMENT_NODE) {
       // Copy the live NamedNodeMap since we need to mutate it during iteration.
@@ -1581,8 +1637,9 @@ class TemplateEngine {
                 ? 'defined'
                 : null;
         if (type) {
+          const index = Number(name.slice(-TemplateEngine.#ATTRIBUTE_PADDING));
           const value = attribute.value;
-          lookups.push({ path, type, name: value });
+          lookups[index] = { path, type, name: value };
           node.removeAttribute(name);
         }
       }
@@ -1593,13 +1650,14 @@ class TemplateEngine {
         node.textContent.includes(TemplateEngine.#CONTENT_PREFIX)
       ) {
         throw new Error(`Interpolation of "${localName}" tags is not allowed.`);
-      } else if (
-        localName === 'plaintext' ||
-        localName === 'textarea' ||
-        localName === 'title'
-      ) {
+      } else if (localName === 'textarea' || localName === 'title') {
         if (node.textContent.includes(TemplateEngine.#CONTENT_PREFIX)) {
-          lookups.push({ path, type: 'text' });
+          if (node.textContent === `<!--${TemplateEngine.#CONTENT_PREFIX}-->`) {
+            node.textContent = '';
+            lookups.push({ path, type: 'text' });
+          } else {
+            throw new Error(`Only basic interpolation of "${localName}" tags is allowed.`);
+          }
         }
       }
     } else if (
@@ -1621,13 +1679,18 @@ class TemplateEngine {
       for (const childNode of node.childNodes) {
         const childNodeType = childNode.nodeType;
         if (childNodeType === Node.ELEMENT_NODE || Node.COMMENT_NODE) {
-          lookups.push(...TemplateEngine.#findLookups(childNode, childNodeType, [...path, iii++]));
+          TemplateEngine.#findLookups(childNode, childNodeType, lookups, [...path, iii++]);
         }
       }
     }
-    return lookups;
+    if (nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      return lookups;
+    }
   }
 
+  // After cloning our common fragment, we use the “lookups” to cache live
+  //  references to DOM nodes so that we can surgically perform updates later in
+  //  an efficient manner. Lookups are like directions to find our real targets.
   static #findTargets(fragment, lookups) {
     const targets = [];
     const cache = new Map();
@@ -1659,6 +1722,7 @@ class TemplateEngine {
     return targets;
   }
 
+  // Create and prepare a document fragment to be injected into some container.
   static #ready(result) {
     if (result.readied) {
       throw new Error(`Unexpected re-injection of template result.`);
@@ -1676,16 +1740,6 @@ class TemplateEngine {
     const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
     const entries = Object.entries(targets);
     Object.assign(result, { fragment, entries });
-  }
-
-  static #inject(result, node, options) {
-    const nodes = result.type === 'svg'
-      ? result.fragment.firstChild.childNodes
-      : result.fragment.childNodes;
-    options?.before
-      ? TemplateEngine.#insertAllBefore(node.parentNode, node, nodes)
-      : TemplateEngine.#insertAllBefore(node, null, nodes);
-    result.fragment = null;
   }
 
   static #assign(result, newResult) {
@@ -1845,6 +1899,8 @@ class TemplateEngine {
     }
   }
 
+  // Bind the current values from a result by walking through each target and
+  //  updating the DOM if things have changed.
   static #commit(result) {
     result.lastValues ??= result.values.map(() => TemplateEngine.#UNSET);
     const { entries, values, lastValues } = result;
@@ -1860,6 +1916,18 @@ class TemplateEngine {
         case 'text': TemplateEngine.#commitText(target.node, value, lastValue); break;
       }
     }
+  }
+
+  // Attach a document fragment into some container. Note that all the DOM in
+  //  the fragment will already have values correctly bound.
+  static #inject(result, node, options) {
+    const nodes = result.type === 'svg'
+      ? result.fragment.firstChild.childNodes
+      : result.fragment.childNodes;
+    options?.before
+      ? TemplateEngine.#insertAllBefore(node.parentNode, node, nodes)
+      : TemplateEngine.#insertAllBefore(node, null, nodes);
+    result.fragment = null;
   }
 
   static #throwUpdaterError(updater, type) {

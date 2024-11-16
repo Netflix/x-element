@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `ifDefined` updater now deletes the attribute on `null` in addition to
   `undefined`. This makes it behave identically to `nullish`. However, both
   updaters are deprecated and the `??attr` binding should be used instead.
+- Interpolation of `textarea` is stricter. This used to be handled with some
+  leniency — `<textarea>\n ${value} \n</textarea>`. Now, you have to fit the
+  interpolation exactly — `<textarea></textarea>`.
 
 ### Deprecated
 
@@ -27,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   syntax like `??foo="${bar}"`.
 - The `repeat` updater is deprecated, use `map` instead.
 - The `unsafeHTML` and `unsafeSVG` updaters are deprecated, use `unsafe`.
+- The `plaintext` tag is no longer handled. This is a deprecated html tag which
+  required special handling… but it’s unlikely that anyone is using that.
 
 ### Fixed
 

@@ -65,6 +65,75 @@ describe('html rendering', () => {
     container.remove();
   });
 
+  // Unlike a NodeList, a NamedNodeMap (i.e., “.attributes”) is not technically
+  //  ordered in any way. This test just confirms that the template engine logic
+  //  doesn’t get confused in any way post-parse.
+  it('renders elements with many attributes in a weird order', () => {
+    const getTemplate = ({
+      property1,
+      z99,
+      defined,
+      dataFoo,
+      property2,
+      title,
+      dataBar,
+      className,
+      property3,
+      boolean,
+      ariaLabel,
+      content,
+    }) => {
+      return html`
+        <div
+          id="target"
+          .property1="${property1}"
+          z-99="${z99}"
+          ??defined="${defined}"
+          data-foo="${dataFoo}"
+          .property2="${property2}"
+          title="${title}"
+          static="just hanging"
+          data-bar="${dataBar}"
+          class="${className}"
+          .property3="${property3}"
+          ?boolean="${boolean}"
+          aria-label="${ariaLabel}">
+          ${content}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, getTemplate({
+      property1: null,
+      z99: true,
+      defined: false,
+      dataFoo: 10,
+      property2: -1,
+      title: 'a title',
+      dataBar: 'data attribute',
+      className: 'a b c',
+      property3: new URL('https://github.com/Netflix/x-element'),
+      boolean: 'yes',
+      ariaLabel: 'this is what it does',
+      content: 'influencing',
+    }));
+    const target = container.querySelector('#target');
+    assert(target.property1 === null);
+    assert(target.getAttribute('z-99') === 'true');
+    assert(target.getAttribute('defined') === 'false');
+    assert(target.getAttribute('data-foo') === '10');
+    assert(target.property2 === -1);
+    assert(target.getAttribute('title') === 'a title');
+    assert(target.getAttribute('data-bar') === 'data attribute');
+    assert(target.getAttribute('class') === 'a b c');
+    assert(target.property3.href === 'https://github.com/Netflix/x-element');
+    assert(target.getAttribute('boolean') === '');
+    assert(target.getAttribute('aria-label') === 'this is what it does');
+    assert(target.textContent.trim() === 'influencing');
+    container.remove();
+  });
+
   it('renders multiple, interpolated content', () => {
     const getTemplate = ({ one, two }) => {
       return html`
@@ -1055,6 +1124,38 @@ describe('rendering errors', () => {
         error = e;
       }
       assert(error?.message === `Interpolation of "script" tags is not allowed.`, error.message);
+      container.remove();
+    });
+
+    it('throws when attempting non-trivial interpolation of a textarea tag', () => {
+      const getTemplate = ({ content }) => {
+        return html`<textarea id="target">please ${content} no</textarea>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ content: 'foo' }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Only basic interpolation of "textarea" tags is allowed.`, error.message);
+      container.remove();
+    });
+
+    it('throws when attempting non-trivial interpolation of a title tag', () => {
+      const getTemplate = ({ content }) => {
+        return html`<title id="target">please ${content} no</title>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ defaultValue: 'foo' }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === `Only basic interpolation of "title" tags is allowed.`, error.message);
       container.remove();
     });
 
