@@ -21,49 +21,19 @@ static template(html, { map }) {
 }
 ```
 
-The following binding types are supported:
+The following bindings are supported:
 
-| Type                | Example                                    |
-| :------------------ | :----------------------------------------- |
-| attribute           | `<span id="target" foo="${bar}"></span>`   |
-| attribute (boolean) | `<span id="target" ?foo="${bar}"></span>`  |
-| attribute (defined) | `<span id="target" ??foo="${bar}"></span>` |
-| property            | `<span id="target" .foo="${bar}"></span>`  |
-| content             | `<span id="target">${foo}</span>`          |
-
-Emulates:
-
-```javascript
-const el = document.createElement('div');
-el.attachShadow({ mode: 'open' });
-el.innerHTML = '<span id="target"></span>';
-const target = el.shadowRoot.getElementById('target');
-
-// attribute value bindings set the attribute value
-target.setAttribute('foo', bar);
-
-// attribute boolean bindings set the attribute to an empty string or remove
-target.setAttribute('foo', ''); // when bar is truthy
-target.removeAttribute('foo'); // when bar is falsy
-
-// attribute defined bindings set the attribute if the value is non-nullish
-target.setAttribute('foo', bar); // when bar is non-nullish
-target.removeAttribute('foo'); // when bar is nullish
-
-// property bindings assign the value to the property of the node
-target.foo = bar;
-
-// content bindings create text nodes for basic content
-const text = document.createTextNode('');
-text.textContent = foo;
-target.append(text);
-
-// content bindings append a child for singular, nested content
-target.append(foo);
-
-// content binding maps and appends children for arrays of nested content
-target.append(...foo);
-```
+| Binding             | Template                     | Emulates                                                      |
+| :------------------ | :--------------------------- | :------------------------------------------------------------ |
+| --                  | --                           | `const el = document.createElement('div');`                   |
+| attribute           | `<div foo="${bar}"></div>`   | `el.setAttribute('foo', bar);`                                |
+| attribute (boolean) | `<div ?foo="${bar}"></div>`  | `el.setAttribute('foo', ''); // if  “bar” is truthy`          |
+| --                  | --                           | `el.removeAttribute('foo'); // if  “bar” is falsy`            |
+| attribute (defined) | `<div ??foo="${bar}"></div>` | `el.setAttribute('foo', bar); // if  “bar” is non-nullish`    |
+| --                  | --                           | `el.removeAttribute('foo'); // if  “bar” is nullish`          |
+| property            | `<div .foo="${bar}"></div>`  | `el.foo = bar;`                                               |
+| content             | `<div>${foo}</div>`          | `el.append(document.createTextNode(foo)) // if “bar” is text` |
+| --                  | --                           | (see [content binding](#content-binding) for composition)     |
 
 **Important note on serialization during data binding:**
 
@@ -81,8 +51,6 @@ The following template languages are supported:
 The following value updaters are supported:
 
 * `map` (can be used with content bindings)
-* `unsafe` (can be used with content bindings)
-* `live` (can be used with property bindings)
 
 **A note on non-primitive data:**
 
@@ -216,23 +184,6 @@ html`<div .foo="${bar}"></div>`;
 // el.foo = bar;
 ```
 
-#### The `live` property binding
-
-You can wrap the property being bound in the `live` updater to ensure that each
-`render` call will sync the template‘s value into the DOM. This is primarily
-used to control form inputs.
-
-```js
-const bar = 'something';
-html`<input .value="${live(bar)}">`;
-// <input>
-// el.value = bar;
-```
-
-The key difference to note is that the basic property binding will not attempt
-to perform an update if `value === lastValue`. The `live` binding will instead
-check if `value === el.value` whenever a `render` is kicked off.
-
 ### Content binding
 
 The content binding does different things based on the value type passed in.
@@ -322,35 +273,6 @@ const callback = item => html`<span>${item.text}</span>`;
 const bar = map(items, identify, callback);
 html`<div>${bar}</div>`;
 // <div><span>♥1</span>…<span>♣A</span></div>
-```
-
-#### The `unsafe` content binding
-
-The `unsafe` content binding allows you to parse / instantiate text from a
-trusted source. This should _only_ be used to inject trusted content — never
-user content.
-
-```js
-const bar = '<script>console.prompt("can you hear me now?")</script>';
-html`<div>${unsafe(bar, 'html')}</div>`;
-// <div><script>console.prompt("can you hear me now?")</script></div>
-// console.prompt('can you hear me now?');
-
-const bar = '<circle cx="50" cy="50" r="50"></circle>';
-html`
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 100 100">
-    ${unsafe(bar, 'svg')}
-  </svg>
-`;
-//
-// <svg
-//   xmlns="http://www.w3.org/2000/svg"
-//   viewBox="0 0 100 100">
-//   <circle cx="50" cy="50" r="50"></circle>
-// </svg>
-//
 ```
 
 ## Customizing your base class

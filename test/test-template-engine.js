@@ -2,13 +2,30 @@ import XElement from '../x-element.js';
 import { assert, describe, it } from './x-test.js';
 
 // Long-term interface.
-const { render, html, svg, map, unsafe } = XElement.templateEngine;
-
-// Tentative interface. We may or may not keep these.
-const { live } = XElement.templateEngine;
+const { render, html, svg, map } = XElement.templateEngine;
 
 // Deprecated interface. We will eventually delete these.
-const { ifDefined, nullish, repeat, unsafeHTML, unsafeSVG } = XElement.templateEngine;
+const { ifDefined, nullish, repeat, live, unsafeHTML, unsafeSVG } = XElement.templateEngine;
+
+// Overwrite console warn for testing so we don’t get spammed with our own
+//  deprecation warnings.
+const seen = new Set();
+const warn = console.warn; // eslint-disable-line no-console
+const localMessages = [
+  'Deprecated "ifDefined" from default templating engine interface.',
+  'Deprecated "nullish" from default templating engine interface.',
+  'Deprecated "live" from default templating engine interface.',
+  'Deprecated "unsafeHTML" from default templating engine interface.',
+  'Deprecated "unsafeSVG" from default templating engine interface.',
+  'Deprecated "repeat" from default templating engine interface.',
+];
+console.warn = (...args) => { // eslint-disable-line no-console
+  if (!localMessages.includes(args[0]?.message)) {
+    warn(...args);
+  } else {
+    seen.add(args[0].message);
+  }
+};
 
 describe('html rendering', () => {
   it('renders basic string', () => {
@@ -505,6 +522,24 @@ describe('html rendering', () => {
     assert(container.textContent === '[object HTMLInputElement]');
     container.remove();
   });
+
+  it('renders DocumentFragment nodes with simple append action', () => {
+    const getTemplate = ({ fragment }) => {
+      return html`${fragment}`;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const template = document.createElement('template');
+    template.innerHTML = '<input>';
+    render(container, getTemplate({ fragment: template.content.cloneNode(true) }));
+    assert(container.childElementCount === 1);
+    assert(container.children[0].localName === 'input');
+    template.innerHTML = '<textarea></textarea>';
+    render(container, getTemplate({ fragment: template.content.cloneNode(true) }));
+    assert(container.childElementCount === 1);
+    assert(container.children[0].localName === 'textarea');
+    container.remove();
+  });
 });
 
 describe('html updaters', () => {
@@ -559,19 +594,6 @@ describe('html updaters', () => {
     render(container, getTemplate({ alive: 'lively', dead: 'deadly' }));
     assert(container.querySelector('#target').alive === 'lively');
     assert(container.querySelector('#target').dead === 'changed');
-    container.remove();
-  });
-
-  it('unsafe html', () => {
-    const getTemplate = ({ content }) => {
-      return html`<div id="target">${unsafe(content, 'html')}</div>`;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ content: '<div id="injected">oh hai</div>' }));
-    assert(!!container.querySelector('#injected'));
-    render(container, getTemplate({ content: '<div id="booster">oh hai, again</div>' }));
-    assert(!!container.querySelector('#booster'));
     container.remove();
   });
 
@@ -892,8 +914,7 @@ describe('html updaters', () => {
     const resolve = (type, value) => {
       switch(type) {
         case 'map': return map(value, item => item.id, item => html`<div id="${item.id}"></div>`);
-        case 'html': return unsafe(value, 'html');
-        default: return value; // E.g., an array, some text, null, undefined, etc.
+        default: return value; // E.g., an array, some text, null, undefined, fragment, etc.
       }
     };
     const getTemplate = ({ type, value }) => html`<div id="target">${resolve(type, value)}</div>`;
@@ -921,6 +942,15 @@ describe('html updaters', () => {
       assert(container.querySelector('#target').childElementCount === 0);
       assert(container.querySelector('#target').textContent === 'hi there');
     };
+    const toFragmentContent = container => {
+      const fragment = new DocumentFragment();
+      fragment.append(document.createElement('p'), document.createElement('p'));
+      render(container, getTemplate({ type: undefined, value: fragment }));
+      assert(!!container.querySelector('#target'));
+      assert(container.querySelector('#target').childElementCount === 2);
+      assert(container.querySelector('#target').children[0].localName === 'p');
+      assert(container.querySelector('#target').children[1].localName === 'p');
+    };
     const toArrayContent = container => {
       const getArrayTemplate = ({ id }) => html`<div id="${id}"></div>`;
       render(container, getTemplate({
@@ -934,12 +964,6 @@ describe('html updaters', () => {
       assert(container.querySelector('#target').childElementCount === 3);
       assert(container.querySelector('#target').textContent === '', container.querySelector('#target').textContent);
     };
-    const toUnsafeHtml = container => {
-      render(container, getTemplate({ type: 'html', value: '<div id="unsafe-html"></div>' }));
-      assert(!!container.querySelector('#target'));
-      assert(!!container.querySelector('#unsafe-html'));
-      assert(container.querySelector('#target').textContent === '');
-    };
     const toMap = container => {
       render(container, getTemplate({ type: 'map', value: [{ id: 'foo' }, { id: 'bar' }] }));
       assert(!!container.querySelector('#target'));
@@ -951,39 +975,39 @@ describe('html updaters', () => {
 
     it('can change from undefined content to null content', () => run(toUndefinedContent, toNullContent));
     it('can change from undefined content to text content', () => run(toUndefinedContent, toTextContent));
+    it('can change from undefined content to fragment content', () => run(toUndefinedContent, toFragmentContent));
     it('can change from undefined content to array content', () => run(toUndefinedContent, toArrayContent));
     it('can change from undefined content to map', () => run(toUndefinedContent, toMap));
-    it('can change from undefined content to unsafe html', () => run(toUndefinedContent, toUnsafeHtml));
 
     it('can change from null content to undefined content', () => run(toNullContent, toUndefinedContent));
     it('can change from null content to text content', () => run(toNullContent, toTextContent));
+    it('can change from null content to fragment content', () => run(toNullContent, toFragmentContent));
     it('can change from null content to array content', () => run(toNullContent, toArrayContent));
     it('can change from null content to map', () => run(toNullContent, toMap));
-    it('can change from null content to unsafe html', () => run(toNullContent, toUnsafeHtml));
 
     it('can change from text content to undefined content', () => run(toTextContent, toUndefinedContent));
     it('can change from text content to null content', () => run(toTextContent, toNullContent));
+    it('can change from text content to fragment content', () => run(toTextContent, toFragmentContent));
     it('can change from text content to array content', () => run(toTextContent, toArrayContent));
     it('can change from text content to map', () => run(toTextContent, toMap));
-    it('can change from text content to unsafe html', () => run(toTextContent, toUnsafeHtml));
+
+    it('can change from fragment content to undefined content', () => run(toFragmentContent, toUndefinedContent));
+    it('can change from fragment content to null content', () => run(toFragmentContent, toNullContent));
+    it('can change from fragment content to text content', () => run(toFragmentContent, toTextContent));
+    it('can change from fragment content to array content', () => run(toFragmentContent, toArrayContent));
+    it('can change from fragment content to map', () => run(toFragmentContent, toMap));
 
     it('can change from array content to undefined content', () => run(toArrayContent, toUndefinedContent));
     it('can change from array content to null content', () => run(toArrayContent, toNullContent));
     it('can change from array content to text content', () => run(toArrayContent, toTextContent));
+    it('can change from array content to fragment content', () => run(toArrayContent, toFragmentContent));
     it('can change from array content to map', () => run(toArrayContent, toMap));
-    it('can change from array content to unsafe html', () => run(toArrayContent, toUnsafeHtml));
 
     it('can change from map to undefined content', () => run(toMap, toUndefinedContent));
     it('can change from map to null content', () => run(toMap, toNullContent));
     it('can change from map to text content', () => run(toMap, toTextContent));
+    it('can change from map to fragment content', () => run(toMap, toFragmentContent));
     it('can change from map to array content', () => run(toMap, toArrayContent));
-    it('can change from map to unsafe html', () => run(toMap, toUnsafeHtml));
-
-    it('can change from unsafeHtml to undefined content', () => run(toUnsafeHtml, toUndefinedContent));
-    it('can change from unsafeHtml to null content', () => run(toUnsafeHtml, toNullContent));
-    it('can change from unsafeHtml to text content', () => run(toUnsafeHtml, toTextContent));
-    it('can change from unsafeHtml to array content', () => run(toUnsafeHtml, toArrayContent));
-    it('can change from unsafeHtml to map', () => run(toUnsafeHtml, toMap));
   });
 });
 
@@ -1032,31 +1056,6 @@ describe('svg rendering', () => {
 });
 
 describe('svg updaters', () => {
-  it('unsafe svg', () => {
-    const getTemplate = ({ content }) => {
-      return html`
-        <svg
-          id="target"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 100 100"
-          style="width: 100px; height: 100px;">
-          ${unsafe(content, 'svg')}
-        </svg>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ content: '<circle id="injected" r="10" cx="50" cy="50"></circle>' }));
-    assert(!!container.querySelector('#injected'));
-    assert(container.querySelector('#injected').getBoundingClientRect().height = 20);
-    assert(container.querySelector('#injected').getBoundingClientRect().width = 20);
-    render(container, getTemplate({ content: '<circle id="injected" r="5" cx="50" cy="50"></circle>' }));
-    assert(!!container.querySelector('#injected'));
-    assert(container.querySelector('#injected').getBoundingClientRect().height = 10);
-    assert(container.querySelector('#injected').getBoundingClientRect().width = 10);
-    container.remove();
-  });
-
   it('unsafeSVG', () => {
     const getTemplate = ({ content }) => {
       return html`
@@ -1212,6 +1211,24 @@ describe('rendering errors', () => {
         error = e;
       }
       assert(error?.message === `Found invalid template on or after line 1 in substring \`<div id="target" .notOk='\`. Failed to parse \` .notOk='\`.`, error.message);
+      container.remove();
+    });
+
+    it('throws for empty DocumentFragment value binding', () => {
+      const expected = 'Unexpected child element count of zero for given DocumentFragment.';
+      const getTemplate = ({ fragment }) => {
+        return html`<div id="target">${fragment}</div>`;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let actual;
+      try {
+        render(container, getTemplate({ fragment: new DocumentFragment() }));
+      } catch (error) {
+        actual = error.message;
+      }
+      assert(!!actual, 'No error was thrown.');
+      assert(actual === expected, actual);
       container.remove();
     });
 
@@ -1470,137 +1487,6 @@ describe('rendering errors', () => {
       }
       assert(!!actual, 'No error was thrown.');
       assert(actual === expected, actual);
-      container.remove();
-    });
-  });
-
-
-  describe('unsafe', () => {
-    it('throws if used on an unexpected language', () => {
-      const expected = 'Unexpected unsafe language "css". Expected "html" or "svg".';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${unsafe(maybe, 'css')}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on an "attribute"', () => {
-      const expected = 'The unsafe update must be used on content, not on an attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${unsafe(maybe, 'html')}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on a "boolean"', () => {
-      const expected = 'The unsafe update must be used on content, not on a boolean attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ?maybe="${unsafe(maybe, 'html')}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on a "defined"', () => {
-      const expected = 'The unsafe update must be used on content, not on a defined attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ??maybe="${unsafe(maybe, 'html')}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with a "property"', () => {
-      const expected = 'The unsafe update must be used on content, not on a property.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" .maybe="${unsafe(maybe, 'html')}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with "text"', () => {
-      const expected = 'The unsafe update must be used on content, not on text content.';
-      const getTemplate = ({ maybe }) => {
-        return html`<textarea id="target">${unsafe(maybe, 'html')}</textarea>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws for non-string value', () => {
-      const getTemplate = ({ content }) => {
-        return html`
-          <div id="target">
-            ${unsafe(content, 'html')}
-          </div>
-        `;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let error;
-      try {
-        render(container, getTemplate({ content: null }));
-      } catch (e) {
-        error = e;
-      }
-      assert(error?.message === 'Unexpected unsafe value "null".', error?.message);
       container.remove();
     });
   });
@@ -1956,6 +1842,47 @@ describe('rendering errors', () => {
       container.remove();
     });
 
+    it('throws for duplicate identify responses on initial render', () => {
+      const getTemplate = ({ array }) => {
+        return html`
+          <div id="target">
+            ${map(array, () => 'foo', () => html``)}
+          </div>
+        `;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      try {
+        render(container, getTemplate({ array: [1, 2, 3] }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === 'Unexpected duplicate value returned from identify callback "foo".', error?.message);
+      container.remove();
+    });
+
+    it('throws for duplicate identify responses on subsequent render', () => {
+      const getTemplate = ({ array }) => {
+        return html`
+          <div id="target">
+            ${map(array, item => item, () => html``)}
+          </div>
+        `;
+      };
+      const container = document.createElement('div');
+      document.body.append(container);
+      let error;
+      render(container, getTemplate({ array: [1, 2, 3] }));
+      try {
+        render(container, getTemplate({ array: [1, 2, 3, 4, 4] }));
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message === 'Unexpected duplicate value returned from identify callback "4".', error?.message);
+      container.remove();
+    });
+
     it('throws for non-array value', () => {
       const getTemplate = ({ array }) => {
         return html`
@@ -2250,5 +2177,11 @@ describe('interface migration errors', () => {
       assert(!!actual, 'No error was thrown.');
       assert(actual === expected, actual);
     });
+  }
+});
+
+it('confirm that deprecation warnings are still necessary', () => {
+  for (const message of localMessages) {
+    assert(seen.has(message), `Unused deprecation warning: ${message}`);
   }
 });

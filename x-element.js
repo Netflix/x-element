@@ -1054,17 +1054,14 @@ class TemplateEngine {
     html: TemplateEngine.html,
     svg: TemplateEngine.svg,
     map: TemplateEngine.map,
-    unsafe: TemplateEngine.unsafe,
-
-    // Tentative interface.
-    live: TemplateEngine.live,
 
     // Deprecated interface.
-    unsafeHTML: TemplateEngine.unsafeHTML,
-    unsafeSVG: TemplateEngine.unsafeSVG,
-    ifDefined: TemplateEngine.ifDefined,
-    nullish: TemplateEngine.nullish,
-    repeat: TemplateEngine.repeat,
+    live: TemplateEngine.#interfaceDeprecated('live', TemplateEngine.live),
+    unsafeHTML: TemplateEngine.#interfaceDeprecated('unsafeHTML', TemplateEngine.unsafeHTML),
+    unsafeSVG: TemplateEngine.#interfaceDeprecated('unsafeSVG', TemplateEngine.unsafeSVG),
+    ifDefined: TemplateEngine.#interfaceDeprecated('ifDefined', TemplateEngine.ifDefined),
+    nullish: TemplateEngine.#interfaceDeprecated('nullish', TemplateEngine.nullish),
+    repeat: TemplateEngine.#interfaceDeprecated('repeat', TemplateEngine.repeat),
 
     // Removed interface.
     asyncAppend: TemplateEngine.#interfaceRemoved('asyncAppend'),
@@ -1122,13 +1119,10 @@ class TemplateEngine {
       const result = TemplateEngine.#symbolToResult.get(resultReference);
       if (TemplateEngine.#cannotReuseResult(state.result, result)) {
         TemplateEngine.#removeWithin(container);
-        TemplateEngine.#ready(result);
-        TemplateEngine.#commit(result);
         TemplateEngine.#inject(result, container);
         state.result = result;
       } else {
-        TemplateEngine.#assign(state.result, result);
-        TemplateEngine.#commit(state.result);
+        TemplateEngine.#update(state.result, result);
       }
     } else {
       TemplateEngine.#clearObject(state);
@@ -1182,6 +1176,7 @@ class TemplateEngine {
    * ```js
    * html`<input .value="${live(obj.value)}"/>`;
    * ```
+   * @deprecated
    * @param {any} value
    * @returns {any}
    */
@@ -1189,28 +1184,6 @@ class TemplateEngine {
     const symbol = Object.create(null);
     const updater = TemplateEngine.#live;
     const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
-   * Updater to inject trusted “html” or “svg” into the DOM.
-   * Use with caution. The "unsafe" updater allows arbitrary input to be
-   * parsed and injected into the DOM.
-   * ```js
-   * html`<div>${unsafe(obj.trustedMarkup, 'html')}</div>`;
-   * ```
-   * @param {any} value
-   * @param {'html'|'svg'} language
-   * @returns {any}
-   */
-  static unsafe(value, language) {
-    if (language !== 'html' && language !== 'svg') {
-      throw new Error(`Unexpected unsafe language "${language}". Expected "html" or "svg".`);
-    }
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#unsafe;
-    const update = { updater, value, language };
     TemplateEngine.#symbolToUpdate.set(symbol, update);
     return symbol;
   }
@@ -1336,28 +1309,10 @@ class TemplateEngine {
     }
   }
 
+  // Deprecated. Will remove in future release.
   static #live(node, name, value) {
     if (node[name] !== value) {
       node[name] = value;
-    }
-  }
-
-  static #unsafe(node, startNode, value, lastValue, language) {
-    if (value !== lastValue) {
-      if (typeof value === 'string') {
-        const template = document.createElement('template');
-        if (language === 'html') {
-          template.innerHTML = value;
-          TemplateEngine.#removeBetween(startNode, node);
-          TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.childNodes);
-        } else {
-          template.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${value}</svg>`;
-          TemplateEngine.#removeBetween(startNode, node);
-          TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.firstChild.childNodes);
-        }
-      } else {
-        throw new Error(`Unexpected unsafe value "${value}".`);
-      }
     }
   }
 
@@ -1389,91 +1344,13 @@ class TemplateEngine {
     }
   }
 
-  static #mapInner(node, startNode, identify, callback, inputs, name) {
-    const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
-    if (!state.map) {
-      TemplateEngine.#clearObject(state);
-      state.map = new Map();
-      let index = 0;
-      for (const input of inputs) {
-        const reference = callback ? callback(input, index) : input;
-        const result = TemplateEngine.#symbolToResult.get(reference);
-        if (result) {
-          const id = identify ? identify(input, index) : String(index);
-          const cursors = TemplateEngine.#createCursors(node);
-          TemplateEngine.#ready(result);
-          TemplateEngine.#commit(result);
-          TemplateEngine.#inject(result, cursors.node, { before: true });
-          state.map.set(id, { id, result, ...cursors });
-        } else {
-          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
-        }
-        index++;
-      }
-    } else {
-      let lastItem;
-      const ids = new Set();
-      let index = 0;
-      for (const input of inputs) {
-        const reference = callback ? callback(input, index) : input;
-        const result = TemplateEngine.#symbolToResult.get(reference);
-        if (result) {
-          const id = identify ? identify(input, index) : String(index);
-          if (state.map.has(id)) {
-            const item = state.map.get(id);
-            if (TemplateEngine.#cannotReuseResult(item.result, result)) {
-              // Add new comment cursors before removing old comment cursors.
-              const cursors = TemplateEngine.#createCursors(item.startNode);
-              TemplateEngine.#removeThrough(item.startNode, item.node);
-              TemplateEngine.#ready(result);
-              TemplateEngine.#commit(result);
-              TemplateEngine.#inject(result, cursors.node, { before: true });
-              Object.assign(item, { result, ...cursors });
-            } else {
-              TemplateEngine.#assign(item.result, result);
-              TemplateEngine.#commit(item.result);
-            }
-          } else {
-            const cursors = TemplateEngine.#createCursors(node);
-            TemplateEngine.#ready(result);
-            TemplateEngine.#commit(result);
-            TemplateEngine.#inject(result, cursors.node, { before: true });
-            const item = { id, result, ...cursors };
-            state.map.set(id, item);
-          }
-          const item = state.map.get(id);
-          const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
-          if (referenceNode !== item.startNode) {
-            const nodesToMove = [item.startNode];
-            while (nodesToMove[nodesToMove.length - 1] !== item.node) {
-              nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
-            }
-            TemplateEngine.#insertAllBefore(referenceNode.parentNode, referenceNode, nodesToMove);
-          }
-          TemplateEngine.#commit(item.result);
-          ids.add(item.id);
-          lastItem = item;
-        } else {
-          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
-        }
-        index++;
-      }
-      for (const [id, item] of state.map.entries()) {
-        if (!ids.has(id)) {
-          TemplateEngine.#removeThrough(item.startNode, item.node);
-          state.map.delete(id);
-        }
-      }
-    }
-  }
-
   static #map(node, startNode, value, identify, callback) {
-    TemplateEngine.#mapInner(node, startNode, identify, callback, value, 'map');
+    TemplateEngine.#mapInputs(node, startNode, identify, callback, value, 'map');
   }
 
   // Deprecated. Will remove in future release.
   static #repeat(node, startNode, value, identify, callback) {
-    TemplateEngine.#mapInner(node, startNode, identify, callback, value, 'repeat');
+    TemplateEngine.#mapInputs(node, startNode, identify, callback, value, 'repeat');
   }
 
   // Walk through each string from our tagged template function “strings” array
@@ -1722,29 +1599,85 @@ class TemplateEngine {
     return targets;
   }
 
-  // Create and prepare a document fragment to be injected into some container.
-  static #ready(result) {
-    if (result.readied) {
-      throw new Error(`Unexpected re-injection of template result.`);
+  // Loops over given inputs to either create-or-update a list of nodes.
+  static #mapInputs(node, startNode, identify, callback, inputs, name) {
+    const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
+    if (!state.map) {
+      // There is no mapping in our state — we have a clean slate to work with.
+      TemplateEngine.#clearObject(state);
+      state.map = new Map();
+      const ids = new Set();
+      let index = 0;
+      for (const input of inputs) {
+        const reference = callback ? callback(input, index) : input;
+        const result = TemplateEngine.#symbolToResult.get(reference);
+        if (result) {
+          const id = identify ? identify(input, index) : String(index);
+          if (ids.has(id)) {
+            throw new Error(`Unexpected duplicate value returned from identify callback "${id}".`);
+          }
+          ids.add(id);
+          const cursors = TemplateEngine.#createCursors(node);
+          TemplateEngine.#inject(result, cursors.node, true);
+          state.map.set(id, { id, result, ...cursors });
+        } else {
+          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
+        }
+        index++;
+      }
+    } else {
+      // A mapping has already been created — we need to update the items.
+      let lastItem;
+      const ids = new Set();
+      let index = 0;
+      for (const input of inputs) {
+        const reference = callback ? callback(input, index) : input;
+        const result = TemplateEngine.#symbolToResult.get(reference);
+        if (result) {
+          const id = identify ? identify(input, index) : String(index);
+          if (ids.has(id)) {
+            throw new Error(`Unexpected duplicate value returned from identify callback "${id}".`);
+          }
+          ids.add(id);
+          if (state.map.has(id)) {
+            const item = state.map.get(id);
+            if (TemplateEngine.#cannotReuseResult(item.result, result)) {
+              // Add new comment cursors before removing old comment cursors.
+              const cursors = TemplateEngine.#createCursors(item.startNode);
+              TemplateEngine.#removeThrough(item.startNode, item.node);
+              TemplateEngine.#inject(result, cursors.node, true);
+              Object.assign(item, { result, ...cursors });
+            } else {
+              TemplateEngine.#update(item.result, result);
+            }
+          } else {
+            const cursors = TemplateEngine.#createCursors(node);
+            TemplateEngine.#inject(result, cursors.node, true);
+            const item = { id, result, ...cursors };
+            state.map.set(id, item);
+          }
+          const item = state.map.get(id);
+          const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
+          if (referenceNode !== item.startNode) {
+            const nodesToMove = [item.startNode];
+            while (nodesToMove[nodesToMove.length - 1] !== item.node) {
+              nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
+            }
+            TemplateEngine.#insertAllBefore(referenceNode.parentNode, referenceNode, nodesToMove);
+          }
+          lastItem = item;
+        } else {
+          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
+        }
+        index++;
+      }
+      for (const [id, item] of state.map.entries()) {
+        if (!ids.has(id)) {
+          TemplateEngine.#removeThrough(item.startNode, item.node);
+          state.map.delete(id);
+        }
+      }
     }
-    result.readied = true;
-    const { type, strings } = result;
-    const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
-    if (!analysis.done) {
-      analysis.done = true;
-      const fragment = TemplateEngine.#createFragment(type, strings);
-      const lookups = TemplateEngine.#findLookups(fragment);
-      Object.assign(analysis, { fragment, lookups });
-    }
-    const fragment = analysis.fragment.cloneNode(true);
-    const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
-    const entries = Object.entries(targets);
-    Object.assign(result, { fragment, entries });
-  }
-
-  static #assign(result, newResult) {
-    result.lastValues = result.values;
-    result.values = newResult.values;
   }
 
   static #commitAttribute(node, name, value, lastValue) {
@@ -1812,30 +1745,30 @@ class TemplateEngine {
   }
 
   static #commitContent(node, startNode, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    const lastUpdate = TemplateEngine.#symbolToUpdate.get(lastValue);
+    const introspection = TemplateEngine.#getValueIntrospection(value);
+    const lastIntrospection = TemplateEngine.#getValueIntrospection(lastValue);
     if (
       lastValue !== TemplateEngine.#UNSET && (
-        !!Array.isArray(value) !== !!Array.isArray(lastValue) ||
-        !!update !== !!lastUpdate ||
-        update?.updater !== lastUpdate?.updater
+        introspection?.category !== lastIntrospection?.category ||
+        introspection?.update?.updater !== lastIntrospection?.update?.updater
       )
     ) {
       // Reset content under certain conditions. E.g., `map(…)` >> `null`.
+      const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToState, node, () => ({}));
+      const arrayState = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
       TemplateEngine.#removeBetween(startNode, node);
-      const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
       TemplateEngine.#clearObject(state);
+      TemplateEngine.#clearObject(arrayState);
     }
-    if (update) {
+    if (introspection?.category === 'update') {
+      const { update } = introspection;
+      const lastUpdate = lastIntrospection?.update;
       switch (update.updater) {
         case TemplateEngine.#map:
           TemplateEngine.#map(node, startNode, update.value, update.identify, update.callback);
           break;
         case TemplateEngine.#repeat:
           TemplateEngine.#repeat(node, startNode, update.value, update.identify, update.callback);
-          break;
-        case TemplateEngine.#unsafe:
-          TemplateEngine.#unsafe(node, startNode, update.value, lastUpdate?.value, update.language);
           break;
         case TemplateEngine.#unsafeHTML:
           TemplateEngine.#unsafeHTML(node, startNode, update.value, lastUpdate?.value);
@@ -1849,28 +1782,29 @@ class TemplateEngine {
       }
     } else {
       if (value !== lastValue) {
-        if (TemplateEngine.#symbolToResult.has(value)) {
-          const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
-          const result = TemplateEngine.#symbolToResult.get(value);
+        if (introspection?.category === 'result') {
+          const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToState, node, () => ({}));
+          const { result } = introspection;
           if (TemplateEngine.#cannotReuseResult(state.result, result)) {
             TemplateEngine.#removeBetween(startNode, node);
             TemplateEngine.#clearObject(state);
-            TemplateEngine.#ready(result);
-            TemplateEngine.#commit(result);
-            TemplateEngine.#inject(result, node, { before: true });
+            TemplateEngine.#inject(result, node, true);
             state.result = result;
           } else {
-            TemplateEngine.#assign(state.result, result);
-            TemplateEngine.#commit(state.result);
+            TemplateEngine.#update(state.result, result);
           }
-        } else if (Array.isArray(value)) {
-          TemplateEngine.#mapInner(node, startNode, null, null, value, 'array');
-        } else {
-          const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
-          if (state.result) {
+        } else if (introspection?.category === 'array') {
+          TemplateEngine.#mapInputs(node, startNode, null, null, value, 'array');
+        } else if (introspection?.category === 'fragment') {
+          if (value.childElementCount === 0) {
+            throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
+          }
+          const previousSibling = node.previousSibling;
+          if (previousSibling !== startNode) {
             TemplateEngine.#removeBetween(startNode, node);
-            TemplateEngine.#clearObject(state);
           }
+          node.parentNode.insertBefore(value, node);
+        } else {
           const previousSibling = node.previousSibling;
           if (previousSibling === startNode) {
             // The `?? ''` is a shortcut for creating a text node and then
@@ -1918,28 +1852,80 @@ class TemplateEngine {
     }
   }
 
-  // Attach a document fragment into some container. Note that all the DOM in
-  //  the fragment will already have values correctly bound.
-  static #inject(result, node, options) {
+  // Inject a given result into a node for the first time. If we’ve never seen
+  //  the template “strings” before, we also have to generate html, parse it,
+  //  and find out binding targets. Then, we commit the values by iterating over
+  //  our targets. Finally, we actually attach our new DOM into our node.
+  static #inject(result, node, before) {
+    // If we see the _exact_ same result again… that’s an error. We don’t allow
+    //  integrators to reuse template results.
+    if (result.readied) {
+      throw new Error(`Unexpected re-injection of template result.`);
+    }
+
+    // Create and prepare a document fragment to be injected.
+    result.readied = true;
+    const { type, strings } = result;
+    const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
+    if (!analysis.done) {
+      analysis.done = true;
+      const fragment = TemplateEngine.#createFragment(type, strings);
+      const lookups = TemplateEngine.#findLookups(fragment);
+      Object.assign(analysis, { fragment, lookups });
+    }
+    const fragment = analysis.fragment.cloneNode(true);
+    const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
+    const entries = Object.entries(targets);
+    Object.assign(result, { fragment, entries });
+
+    // Bind values via our live targets into our disconnected DOM.
+    TemplateEngine.#commit(result);
+
+    // Attach a document fragment into the node. Note that all the DOM in the
+    //  fragment will already have values correctly committed on the line above.
     const nodes = result.type === 'svg'
       ? result.fragment.firstChild.childNodes
       : result.fragment.childNodes;
-    options?.before
+    before
       ? TemplateEngine.#insertAllBefore(node.parentNode, node, nodes)
       : TemplateEngine.#insertAllBefore(node, null, nodes);
     result.fragment = null;
   }
 
+  static #update(result, newResult) {
+    Object.assign(result, { lastValues: result.values, values: newResult.values });
+    TemplateEngine.#commit(result);
+  }
+
+  // TODO: Revisit this concept when we delete deprecated interfaces. Once that
+  //  happens, the _only_ updater available for content is `map`, and we may be
+  //  able to make this more performant.
+  static #getValueIntrospection(value) {
+    if (Array.isArray(value)) {
+      return { category: 'array' };
+    } else if (value instanceof DocumentFragment) {
+      return { category: 'fragment' };
+    } else if (value !== null && typeof value === 'object') {
+      const result = TemplateEngine.#symbolToResult.get(value);
+      if (result) {
+        return { category: 'result', result };
+      } else {
+        const update = TemplateEngine.#symbolToUpdate.get(value);
+        if (update) {
+          return { category: 'update', update };
+        }
+      }
+    }
+  }
+
   static #throwUpdaterError(updater, type) {
     switch (updater) {
-      case TemplateEngine.#live:
-        throw new Error(`The live update must be used on ${TemplateEngine.#getTypeText('property')}, not on ${TemplateEngine.#getTypeText(type)}.`);
       case TemplateEngine.#map:
         throw new Error(`The map update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
-      case TemplateEngine.#unsafe:
-        throw new Error(`The unsafe update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
 
       // We’ll delete these updaters later.
+      case TemplateEngine.#live:
+        throw new Error(`The live update must be used on ${TemplateEngine.#getTypeText('property')}, not on ${TemplateEngine.#getTypeText(type)}.`);
       case TemplateEngine.#unsafeHTML:
         throw new Error(`The unsafeHTML update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
       case TemplateEngine.#unsafeSVG:
@@ -2021,6 +2007,19 @@ class TemplateEngine {
       case 'content': return 'content';
       case 'text': return 'text content';
     }
+  }
+
+  static #interfaceDeprecatedStacks = new Set();
+  static #interfaceDeprecated(name, callback) {
+    return (...args) => {
+      const error = new Error(`Deprecated "${name}" from default templating engine interface.`);
+      const stack = error.stack;
+      if (!this.#interfaceDeprecatedStacks.has(stack)) {
+        this.#interfaceDeprecatedStacks.add(stack);
+        console.warn(error); // eslint-disable-line no-console
+      }
+      return callback(...args);
+    };
   }
 
   static #interfaceRemoved(name) {
