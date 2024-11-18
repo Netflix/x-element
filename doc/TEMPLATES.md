@@ -21,49 +21,19 @@ static template(html, { map }) {
 }
 ```
 
-The following binding types are supported:
+The following bindings are supported:
 
-| Type                | Example                                    |
-| :------------------ | :----------------------------------------- |
-| attribute           | `<span id="target" foo="${bar}"></span>`   |
-| attribute (boolean) | `<span id="target" ?foo="${bar}"></span>`  |
-| attribute (defined) | `<span id="target" ??foo="${bar}"></span>` |
-| property            | `<span id="target" .foo="${bar}"></span>`  |
-| content             | `<span id="target">${foo}</span>`          |
-
-Emulates:
-
-```javascript
-const el = document.createElement('div');
-el.attachShadow({ mode: 'open' });
-el.innerHTML = '<span id="target"></span>';
-const target = el.shadowRoot.getElementById('target');
-
-// attribute value bindings set the attribute value
-target.setAttribute('foo', bar);
-
-// attribute boolean bindings set the attribute to an empty string or remove
-target.setAttribute('foo', ''); // when bar is truthy
-target.removeAttribute('foo'); // when bar is falsy
-
-// attribute defined bindings set the attribute if the value is non-nullish
-target.setAttribute('foo', bar); // when bar is non-nullish
-target.removeAttribute('foo'); // when bar is nullish
-
-// property bindings assign the value to the property of the node
-target.foo = bar;
-
-// content bindings create text nodes for basic content
-const text = document.createTextNode('');
-text.textContent = foo;
-target.append(text);
-
-// content bindings append a child for singular, nested content
-target.append(foo);
-
-// content binding maps and appends children for arrays of nested content
-target.append(...foo);
-```
+| Binding             | Template                     | Emulates                                                      |
+| :------------------ | :--------------------------- | :------------------------------------------------------------ |
+| --                  | --                           | `const el = document.createElement('div');`                   |
+| attribute           | `<div foo="${bar}"></div>`   | `el.setAttribute('foo', bar);`                                |
+| attribute (boolean) | `<div ?foo="${bar}"></div>`  | `el.setAttribute('foo', ''); // if  “bar” is truthy`          |
+| --                  | --                           | `el.removeAttribute('foo'); // if  “bar” is falsy`            |
+| attribute (defined) | `<div ??foo="${bar}"></div>` | `el.setAttribute('foo', bar); // if  “bar” is non-nullish`    |
+| --                  | --                           | `el.removeAttribute('foo'); // if  “bar” is nullish`          |
+| property            | `<div .foo="${bar}"></div>`  | `el.foo = bar;`                                               |
+| content             | `<div>${foo}</div>`          | `el.append(document.createTextNode(foo)) // if “bar” is text` |
+| --                  | --                           | (see [content binding](#content-binding) for composition)     |
 
 **Important note on serialization during data binding:**
 

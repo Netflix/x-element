@@ -8,42 +8,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- You can now bind attributes with `??foo="${bar}"` syntax. This is functionally
-  equivalent to the `nullish` updater and will replace that functionality later.
-- A new `unsafe` updater was added to replace `unsafeHTML` and `unsafeSVG`. You
-  use it like `unsafe(value, 'html')` and `unsafe(value, 'svg')`.
+- You can now bind attributes with `??foo="${bar}"` syntax in the default
+  template engine. This is functionally equivalent to the `nullish` updater from
+  the default template engine and will replace that functionality later.
+- A new `unsafe` updater was added to replace `unsafeHTML` in the default
+  template engine. You use it like `unsafe(value)`. Only unsafe html injection
+  will be supported in the default template engine.
 
 ### Changed
 
 - Template errors now include approximate line numbers from the offending
-  template. They also print the registered custom element tag name (#201).
+  template in the default template engine. They also print the registered custom
+  element tag name (#201).
 - The `ifDefined` updater now deletes the attribute on `null` in addition to
-  `undefined`. This makes it behave identically to `nullish`. However, both
-  updaters are deprecated and the `??attr` binding should be used instead.
-- Interpolation of `textarea` is stricter. This used to be handled with some
-  leniency — `<textarea>\n ${value} \n</textarea>`. Now, you have to fit the
-  interpolation exactly — `<textarea></textarea>`.
+  `undefined` in the default template engine. This makes it behave identically
+  to `nullish` in the default template engine. However, both updaters are
+  deprecated — the `??attr` binding should be used instead when using the
+  default template engine (#204).
+- Interpolation of `textarea` is more strict in the default template engine.
+  This used to be handled with some leniency for newlines in templates —
+  `<textarea>\n ${value} \n</textarea>`. Now, you have to interpolate exactly —
+  `<textarea>${value}</textarea>`.
 
 ### Deprecated
 
 - The `ifDefined` and `nullish` updaters are deprecated, update templates to use
   syntax like `??foo="${bar}"`.
-- The `repeat` updater is deprecated, use `map` instead.
-- The `unsafeHTML` and `unsafeSVG` updaters are deprecated, use `unsafe`.
+- The `repeat` updater is deprecated, use `map` instead (#204).
+- The `unsafeHTML` and `unsafeSVG` updaters are deprecated, use `unsafe` (#204).
 - The `plaintext` tag is no longer handled. This is a deprecated html tag which
   required special handling… but it’s unlikely that anyone is using that.
 
 ### Fixed
 
-- Transitions from different content values should all now work. For example,
-  you previously could not change from a text value to an array. Additionally,
-  state is properly cleared when going from one value type to another — e.g.,
-  when going from `unsafe` back to `null`.
-- The `map` updater throws immediately when given non-array input. Previously,
-  it only threw _just before_ it was bound as content.
-- Dummy content cursor is no longer appended to end of template. This was an
-  innocuous off-by-one error when creating instrumented html from the tagged
-  template strings.
+- Transitions from different content values should all now work for the default
+  template engine. For example, you previously could not change from a text
+  value to an array. Additionally, state is properly cleared when going from one
+  value type to another — e.g., when going from `unsafe` back to `null`.
+- The `map` updater throws immediately when given non-array input for the
+  default template engine. Previously, it only threw _just before_ it was bound.
+- Dummy content cursor is no longer appended to end of template for the default
+  template engine. This was an innocuous off-by-one error when creating
+  instrumented html from the tagged template strings.
 
 ## [1.1.1] - 2024-11-09
 

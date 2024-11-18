@@ -1122,13 +1122,10 @@ class TemplateEngine {
       const result = TemplateEngine.#symbolToResult.get(resultReference);
       if (TemplateEngine.#cannotReuseResult(state.result, result)) {
         TemplateEngine.#removeWithin(container);
-        TemplateEngine.#ready(result);
-        TemplateEngine.#commit(result);
         TemplateEngine.#inject(result, container);
         state.result = result;
       } else {
-        TemplateEngine.#assign(state.result, result);
-        TemplateEngine.#commit(state.result);
+        TemplateEngine.#update(state.result, result);
       }
     } else {
       TemplateEngine.#clearObject(state);
@@ -1194,23 +1191,19 @@ class TemplateEngine {
   }
 
   /**
-   * Updater to inject trusted “html” or “svg” into the DOM.
-   * Use with caution. The "unsafe" updater allows arbitrary input to be
-   * parsed and injected into the DOM.
+   * Updater to inject trusted “html” into the DOM.
+   * Use with caution. The "unsafe" updater allows arbitrary input to be parsed
+   * and injected into the DOM.
    * ```js
-   * html`<div>${unsafe(obj.trustedMarkup, 'html')}</div>`;
+   * html`<div>${unsafe(obj.trustedMarkup)}</div>`;
    * ```
    * @param {any} value
-   * @param {'html'|'svg'} language
    * @returns {any}
    */
-  static unsafe(value, language) {
-    if (language !== 'html' && language !== 'svg') {
-      throw new Error(`Unexpected unsafe language "${language}". Expected "html" or "svg".`);
-    }
+  static unsafe(value) {
     const symbol = Object.create(null);
     const updater = TemplateEngine.#unsafe;
-    const update = { updater, value, language };
+    const update = { updater, value };
     TemplateEngine.#symbolToUpdate.set(symbol, update);
     return symbol;
   }
@@ -1342,19 +1335,13 @@ class TemplateEngine {
     }
   }
 
-  static #unsafe(node, startNode, value, lastValue, language) {
+  static #unsafe(node, startNode, value, lastValue) {
     if (value !== lastValue) {
       if (typeof value === 'string') {
         const template = document.createElement('template');
-        if (language === 'html') {
-          template.innerHTML = value;
-          TemplateEngine.#removeBetween(startNode, node);
-          TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.childNodes);
-        } else {
-          template.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${value}</svg>`;
-          TemplateEngine.#removeBetween(startNode, node);
-          TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.firstChild.childNodes);
-        }
+        template.innerHTML = value;
+        TemplateEngine.#removeBetween(startNode, node);
+        TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.childNodes);
       } else {
         throw new Error(`Unexpected unsafe value "${value}".`);
       }
@@ -1389,91 +1376,13 @@ class TemplateEngine {
     }
   }
 
-  static #mapInner(node, startNode, identify, callback, inputs, name) {
-    const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
-    if (!state.map) {
-      TemplateEngine.#clearObject(state);
-      state.map = new Map();
-      let index = 0;
-      for (const input of inputs) {
-        const reference = callback ? callback(input, index) : input;
-        const result = TemplateEngine.#symbolToResult.get(reference);
-        if (result) {
-          const id = identify ? identify(input, index) : String(index);
-          const cursors = TemplateEngine.#createCursors(node);
-          TemplateEngine.#ready(result);
-          TemplateEngine.#commit(result);
-          TemplateEngine.#inject(result, cursors.node, { before: true });
-          state.map.set(id, { id, result, ...cursors });
-        } else {
-          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
-        }
-        index++;
-      }
-    } else {
-      let lastItem;
-      const ids = new Set();
-      let index = 0;
-      for (const input of inputs) {
-        const reference = callback ? callback(input, index) : input;
-        const result = TemplateEngine.#symbolToResult.get(reference);
-        if (result) {
-          const id = identify ? identify(input, index) : String(index);
-          if (state.map.has(id)) {
-            const item = state.map.get(id);
-            if (TemplateEngine.#cannotReuseResult(item.result, result)) {
-              // Add new comment cursors before removing old comment cursors.
-              const cursors = TemplateEngine.#createCursors(item.startNode);
-              TemplateEngine.#removeThrough(item.startNode, item.node);
-              TemplateEngine.#ready(result);
-              TemplateEngine.#commit(result);
-              TemplateEngine.#inject(result, cursors.node, { before: true });
-              Object.assign(item, { result, ...cursors });
-            } else {
-              TemplateEngine.#assign(item.result, result);
-              TemplateEngine.#commit(item.result);
-            }
-          } else {
-            const cursors = TemplateEngine.#createCursors(node);
-            TemplateEngine.#ready(result);
-            TemplateEngine.#commit(result);
-            TemplateEngine.#inject(result, cursors.node, { before: true });
-            const item = { id, result, ...cursors };
-            state.map.set(id, item);
-          }
-          const item = state.map.get(id);
-          const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
-          if (referenceNode !== item.startNode) {
-            const nodesToMove = [item.startNode];
-            while (nodesToMove[nodesToMove.length - 1] !== item.node) {
-              nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
-            }
-            TemplateEngine.#insertAllBefore(referenceNode.parentNode, referenceNode, nodesToMove);
-          }
-          TemplateEngine.#commit(item.result);
-          ids.add(item.id);
-          lastItem = item;
-        } else {
-          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
-        }
-        index++;
-      }
-      for (const [id, item] of state.map.entries()) {
-        if (!ids.has(id)) {
-          TemplateEngine.#removeThrough(item.startNode, item.node);
-          state.map.delete(id);
-        }
-      }
-    }
-  }
-
   static #map(node, startNode, value, identify, callback) {
-    TemplateEngine.#mapInner(node, startNode, identify, callback, value, 'map');
+    TemplateEngine.#mapInputs(node, startNode, identify, callback, value, 'map');
   }
 
   // Deprecated. Will remove in future release.
   static #repeat(node, startNode, value, identify, callback) {
-    TemplateEngine.#mapInner(node, startNode, identify, callback, value, 'repeat');
+    TemplateEngine.#mapInputs(node, startNode, identify, callback, value, 'repeat');
   }
 
   // Walk through each string from our tagged template function “strings” array
@@ -1722,29 +1631,77 @@ class TemplateEngine {
     return targets;
   }
 
-  // Create and prepare a document fragment to be injected into some container.
-  static #ready(result) {
-    if (result.readied) {
-      throw new Error(`Unexpected re-injection of template result.`);
+  // Loops over given inputs to either create-or-update a list of nodes.
+  static #mapInputs(node, startNode, identify, callback, inputs, name) {
+    const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
+    if (!state.map) {
+      // There is no mapping in our state — we have a clean slate to work with.
+      TemplateEngine.#clearObject(state);
+      state.map = new Map();
+      let index = 0;
+      for (const input of inputs) {
+        const reference = callback ? callback(input, index) : input;
+        const result = TemplateEngine.#symbolToResult.get(reference);
+        if (result) {
+          const id = identify ? identify(input, index) : String(index);
+          const cursors = TemplateEngine.#createCursors(node);
+          TemplateEngine.#inject(result, cursors.node, true);
+          state.map.set(id, { id, result, ...cursors });
+        } else {
+          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
+        }
+        index++;
+      }
+    } else {
+      // A mapping has already been created — we need to update the items.
+      let lastItem;
+      const ids = new Set();
+      let index = 0;
+      for (const input of inputs) {
+        const reference = callback ? callback(input, index) : input;
+        const result = TemplateEngine.#symbolToResult.get(reference);
+        if (result) {
+          const id = identify ? identify(input, index) : String(index);
+          if (state.map.has(id)) {
+            const item = state.map.get(id);
+            if (TemplateEngine.#cannotReuseResult(item.result, result)) {
+              // Add new comment cursors before removing old comment cursors.
+              const cursors = TemplateEngine.#createCursors(item.startNode);
+              TemplateEngine.#removeThrough(item.startNode, item.node);
+              TemplateEngine.#inject(result, cursors.node, true);
+              Object.assign(item, { result, ...cursors });
+            } else {
+              TemplateEngine.#update(item.result, result);
+            }
+          } else {
+            const cursors = TemplateEngine.#createCursors(node);
+            TemplateEngine.#inject(result, cursors.node, true);
+            const item = { id, result, ...cursors };
+            state.map.set(id, item);
+          }
+          const item = state.map.get(id);
+          const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
+          if (referenceNode !== item.startNode) {
+            const nodesToMove = [item.startNode];
+            while (nodesToMove[nodesToMove.length - 1] !== item.node) {
+              nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
+            }
+            TemplateEngine.#insertAllBefore(referenceNode.parentNode, referenceNode, nodesToMove);
+          }
+          ids.add(item.id);
+          lastItem = item;
+        } else {
+          throw new Error(`Unexpected ${name} value "${reference}" provided by callback.`);
+        }
+        index++;
+      }
+      for (const [id, item] of state.map.entries()) {
+        if (!ids.has(id)) {
+          TemplateEngine.#removeThrough(item.startNode, item.node);
+          state.map.delete(id);
+        }
+      }
     }
-    result.readied = true;
-    const { type, strings } = result;
-    const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
-    if (!analysis.done) {
-      analysis.done = true;
-      const fragment = TemplateEngine.#createFragment(type, strings);
-      const lookups = TemplateEngine.#findLookups(fragment);
-      Object.assign(analysis, { fragment, lookups });
-    }
-    const fragment = analysis.fragment.cloneNode(true);
-    const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
-    const entries = Object.entries(targets);
-    Object.assign(result, { fragment, entries });
-  }
-
-  static #assign(result, newResult) {
-    result.lastValues = result.values;
-    result.values = newResult.values;
   }
 
   static #commitAttribute(node, name, value, lastValue) {
@@ -1835,7 +1792,7 @@ class TemplateEngine {
           TemplateEngine.#repeat(node, startNode, update.value, update.identify, update.callback);
           break;
         case TemplateEngine.#unsafe:
-          TemplateEngine.#unsafe(node, startNode, update.value, lastUpdate?.value, update.language);
+          TemplateEngine.#unsafe(node, startNode, update.value, lastUpdate?.value);
           break;
         case TemplateEngine.#unsafeHTML:
           TemplateEngine.#unsafeHTML(node, startNode, update.value, lastUpdate?.value);
@@ -1855,16 +1812,13 @@ class TemplateEngine {
           if (TemplateEngine.#cannotReuseResult(state.result, result)) {
             TemplateEngine.#removeBetween(startNode, node);
             TemplateEngine.#clearObject(state);
-            TemplateEngine.#ready(result);
-            TemplateEngine.#commit(result);
-            TemplateEngine.#inject(result, node, { before: true });
+            TemplateEngine.#inject(result, node, true);
             state.result = result;
           } else {
-            TemplateEngine.#assign(state.result, result);
-            TemplateEngine.#commit(state.result);
+            TemplateEngine.#update(state.result, result);
           }
         } else if (Array.isArray(value)) {
-          TemplateEngine.#mapInner(node, startNode, null, null, value, 'array');
+          TemplateEngine.#mapInputs(node, startNode, null, null, value, 'array');
         } else {
           const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToArrayState, startNode, () => ({}));
           if (state.result) {
@@ -1918,16 +1872,49 @@ class TemplateEngine {
     }
   }
 
-  // Attach a document fragment into some container. Note that all the DOM in
-  //  the fragment will already have values correctly bound.
-  static #inject(result, node, options) {
+  // Inject a given result into a node for the first time. If we’ve never seen
+  //  the template “strings” before, we also have to generate html, parse it,
+  //  and find out binding targets. Then, we commit the values by iterating over
+  //  our targets. Finally, we actually attach our new DOM into our node.
+  static #inject(result, node, before) {
+    // If we see the _exact_ same result again… that’s an error. We don’t allow
+    //  integrators to reuse template results.
+    if (result.readied) {
+      throw new Error(`Unexpected re-injection of template result.`);
+    }
+
+    // Create and prepare a document fragment to be injected.
+    result.readied = true;
+    const { type, strings } = result;
+    const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
+    if (!analysis.done) {
+      analysis.done = true;
+      const fragment = TemplateEngine.#createFragment(type, strings);
+      const lookups = TemplateEngine.#findLookups(fragment);
+      Object.assign(analysis, { fragment, lookups });
+    }
+    const fragment = analysis.fragment.cloneNode(true);
+    const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
+    const entries = Object.entries(targets);
+    Object.assign(result, { fragment, entries });
+
+    // Bind values via our live targets into our disconnected DOM.
+    TemplateEngine.#commit(result);
+
+    // Attach a document fragment into the node. Note that all the DOM in the
+    //  fragment will already have values correctly committed on the line above.
     const nodes = result.type === 'svg'
       ? result.fragment.firstChild.childNodes
       : result.fragment.childNodes;
-    options?.before
+    before
       ? TemplateEngine.#insertAllBefore(node.parentNode, node, nodes)
       : TemplateEngine.#insertAllBefore(node, null, nodes);
     result.fragment = null;
+  }
+
+  static #update(result, newResult) {
+    Object.assign(result, { lastValues: result.values, values: newResult.values });
+    TemplateEngine.#commit(result);
   }
 
   static #throwUpdaterError(updater, type) {

@@ -564,7 +564,7 @@ describe('html updaters', () => {
 
   it('unsafe html', () => {
     const getTemplate = ({ content }) => {
-      return html`<div id="target">${unsafe(content, 'html')}</div>`;
+      return html`<div id="target">${unsafe(content)}</div>`;
     };
     const container = document.createElement('div');
     document.body.append(container);
@@ -892,7 +892,7 @@ describe('html updaters', () => {
     const resolve = (type, value) => {
       switch(type) {
         case 'map': return map(value, item => item.id, item => html`<div id="${item.id}"></div>`);
-        case 'html': return unsafe(value, 'html');
+        case 'html': return unsafe(value);
         default: return value; // E.g., an array, some text, null, undefined, etc.
       }
     };
@@ -1032,31 +1032,6 @@ describe('svg rendering', () => {
 });
 
 describe('svg updaters', () => {
-  it('unsafe svg', () => {
-    const getTemplate = ({ content }) => {
-      return html`
-        <svg
-          id="target"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 100 100"
-          style="width: 100px; height: 100px;">
-          ${unsafe(content, 'svg')}
-        </svg>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ content: '<circle id="injected" r="10" cx="50" cy="50"></circle>' }));
-    assert(!!container.querySelector('#injected'));
-    assert(container.querySelector('#injected').getBoundingClientRect().height = 20);
-    assert(container.querySelector('#injected').getBoundingClientRect().width = 20);
-    render(container, getTemplate({ content: '<circle id="injected" r="5" cx="50" cy="50"></circle>' }));
-    assert(!!container.querySelector('#injected'));
-    assert(container.querySelector('#injected').getBoundingClientRect().height = 10);
-    assert(container.querySelector('#injected').getBoundingClientRect().width = 10);
-    container.remove();
-  });
-
   it('unsafeSVG', () => {
     const getTemplate = ({ content }) => {
       return html`
@@ -1476,28 +1451,10 @@ describe('rendering errors', () => {
 
 
   describe('unsafe', () => {
-    it('throws if used on an unexpected language', () => {
-      const expected = 'Unexpected unsafe language "css". Expected "html" or "svg".';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${unsafe(maybe, 'css')}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
     it('throws if used on an "attribute"', () => {
       const expected = 'The unsafe update must be used on content, not on an attribute.';
       const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${unsafe(maybe, 'html')}"></div>`;
+        return html`<div id="target" maybe="${unsafe(maybe)}"></div>`;
       };
       const container = document.createElement('div');
       document.body.append(container);
@@ -1515,7 +1472,7 @@ describe('rendering errors', () => {
     it('throws if used on a "boolean"', () => {
       const expected = 'The unsafe update must be used on content, not on a boolean attribute.';
       const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ?maybe="${unsafe(maybe, 'html')}"></div>`;
+        return html`<div id="target" ?maybe="${unsafe(maybe)}"></div>`;
       };
       const container = document.createElement('div');
       document.body.append(container);
@@ -1533,7 +1490,7 @@ describe('rendering errors', () => {
     it('throws if used on a "defined"', () => {
       const expected = 'The unsafe update must be used on content, not on a defined attribute.';
       const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ??maybe="${unsafe(maybe, 'html')}"></div>`;
+        return html`<div id="target" ??maybe="${unsafe(maybe)}"></div>`;
       };
       const container = document.createElement('div');
       document.body.append(container);
@@ -1551,7 +1508,7 @@ describe('rendering errors', () => {
     it('throws if used with a "property"', () => {
       const expected = 'The unsafe update must be used on content, not on a property.';
       const getTemplate = ({ maybe }) => {
-        return html`<div id="target" .maybe="${unsafe(maybe, 'html')}"></div>`;
+        return html`<div id="target" .maybe="${unsafe(maybe)}"></div>`;
       };
       const container = document.createElement('div');
       document.body.append(container);
@@ -1569,7 +1526,7 @@ describe('rendering errors', () => {
     it('throws if used with "text"', () => {
       const expected = 'The unsafe update must be used on content, not on text content.';
       const getTemplate = ({ maybe }) => {
-        return html`<textarea id="target">${unsafe(maybe, 'html')}</textarea>`;
+        return html`<textarea id="target">${unsafe(maybe)}</textarea>`;
       };
       const container = document.createElement('div');
       document.body.append(container);
@@ -1588,7 +1545,7 @@ describe('rendering errors', () => {
       const getTemplate = ({ content }) => {
         return html`
           <div id="target">
-            ${unsafe(content, 'html')}
+            ${unsafe(content)}
           </div>
         `;
       };
