@@ -89,13 +89,13 @@ it('errors are thrown in connectedCallback when template result fails to render'
   class TestElement extends XElement {
     static get properties() {
       return {
-        strings: { default: () => [] },
+        strings: { default: () => ['one', 'two', 'three'] },
       };
     }
-    static template(html, { map }) {
+    static template(html) {
       return ({ strings }) => {
-        // In this case, "map" will fail when bound to an attribute.
-        return html`<div foo="${map(strings, () => {}, string => html`${string}`)}"></div>`;
+        // In this case, the array will fail if items are not template results.
+        return html`<div>${strings}</div>`;
       };
     }
   }
@@ -120,13 +120,13 @@ it('errors are thrown in connectedCallback when template result fails to render 
   class TestElement extends XElement {
     static get properties() {
       return {
-        strings: { default: () => [] },
+        strings: { default: () => ['one', 'two', 'three'] },
       };
     }
-    static template(html, { map }) {
+    static template(html) {
       return ({ strings }) => {
-        // In this case, "map" will fail when bound to an attribute.
-        return html`<div foo="${map(strings, () => {}, string => html`${string}`)}"></div>`;
+        // In this case, the array will fail if items are not template results.
+        return html`<div>${strings}</div>`;
       };
     }
   }
