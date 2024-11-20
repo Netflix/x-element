@@ -1041,38 +1041,18 @@ class TemplateEngine {
   // Mapping of opaque references to internal result objects.
   static #symbolToResult = new WeakMap();
 
-  // Mapping of opaque references to internal update objects.
-  static #symbolToUpdate = new WeakMap(); 
+  // Mapping of opaque references to internal mapping objects.
+  static #symbolToMapping = new WeakMap(); 
 
   /**
    * Default template engine interface — what you get inside “template”.
    * @type {{[key: string]: Function}}
    */
   static interface = Object.freeze({
-    // Long-term interface.
     render: TemplateEngine.render,
     html: TemplateEngine.html,
     svg: TemplateEngine.svg,
     map: TemplateEngine.map,
-
-    // Deprecated interface.
-    live: TemplateEngine.#interfaceDeprecated('live', TemplateEngine.live),
-    unsafeHTML: TemplateEngine.#interfaceDeprecated('unsafeHTML', TemplateEngine.unsafeHTML),
-    unsafeSVG: TemplateEngine.#interfaceDeprecated('unsafeSVG', TemplateEngine.unsafeSVG),
-    ifDefined: TemplateEngine.#interfaceDeprecated('ifDefined', TemplateEngine.ifDefined),
-    nullish: TemplateEngine.#interfaceDeprecated('nullish', TemplateEngine.nullish),
-    repeat: TemplateEngine.#interfaceDeprecated('repeat', TemplateEngine.repeat),
-
-    // Removed interface.
-    asyncAppend: TemplateEngine.#interfaceRemoved('asyncAppend'),
-    asyncReplace: TemplateEngine.#interfaceRemoved('asyncReplace'),
-    cache: TemplateEngine.#interfaceRemoved('cache'),
-    classMap: TemplateEngine.#interfaceRemoved('classMap'),
-    directive: TemplateEngine.#interfaceRemoved('directive'),
-    guard: TemplateEngine.#interfaceRemoved('guard'),
-    styleMap: TemplateEngine.#interfaceRemoved('styleMap'),
-    templateContent: TemplateEngine.#interfaceRemoved('templateContent'),
-    until: TemplateEngine.#interfaceRemoved('until'),
   });
 
   /**
@@ -1131,106 +1111,6 @@ class TemplateEngine {
   }
 
   /**
-   * Updater to manage an attribute which may be undefined.
-   * In the following example, the "ifDefined" updater will remove the
-   * attribute if it's undefined. Else, it sets the key-value pair.
-   * ```js
-   * html`<a href="${ifDefined(obj.href)}"></div>`;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static ifDefined(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#ifDefined;
-    TemplateEngine.#symbolToUpdate.set(symbol, { updater, value });
-    return symbol;
-  }
-
-  /**
-   * Updater to manage an attribute which may not exist.
-   * In the following example, the "nullish" updater will remove the
-   * attribute if it's nullish. Else, it sets the key-value pair.
-   * ```js
-   * html`<a href="${nullish(obj.href)}"></div>`;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static nullish(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#nullish;
-    const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
-   * Updater to manage a property which may change outside the template engine.
-   * Typically, properties are declaratively managed from state and efficient
-   * value checking is used (i.e., "value !== lastValue"). However, if DOM state
-   * is expected to change, the "live" updater can be used to essentially change
-   * this check to "value !== node[property]".
-   * ```js
-   * html`<input .value="${live(obj.value)}"/>`;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static live(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#live;
-    const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
-   * Updater to inject trusted HTML into the DOM.
-   * Use with caution. The "unsafeHTML" updater allows arbitrary input to be
-   * parsed as HTML and injected into the DOM.
-   * ```js
-   * html`<div>${unsafeHTML(obj.trustedMarkup)}</div>`;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static unsafeHTML(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#unsafeHTML;
-    const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
-   * Updater to inject trusted SVG into the DOM.
-   * Use with caution. The "unsafeSVG" updater allows arbitrary input to be
-   * parsed as SVG and injected into the DOM.
-   * ```js
-   * html`
-   *   <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
-   *     ${unsafeSVG(obj.trustedMarkup)}
-   *   </svg>
-   * `;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static unsafeSVG(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#unsafeSVG;
-    const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
    * Updater to manage a keyed array of templates (allows for DOM reuse).
    * ```js
    * html`
@@ -1256,101 +1136,13 @@ class TemplateEngine {
     }
     const symbol = Object.create(null);
     const value = items;
-    const updater = TemplateEngine.#map;
-    const update = { updater, value, identify, callback };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
+    const mapping = { value, identify, callback };
+    TemplateEngine.#symbolToMapping.set(symbol, mapping);
     return symbol;
-  }
-
-  /**
-   * Shim for prior "repeat" function. Use "map".
-   * @deprecated
-   * @param {any[]} items
-   * @param {Function} identify
-   * @param {Function} [callback]
-   * @returns {any}
-   */
-  static repeat(items, identify, callback) {
-    if (arguments.length === 2) {
-      callback = identify;
-      identify = null;
-    }
-    if (!Array.isArray(items)) {
-      throw new Error(`Unexpected repeat items "${items}" provided, expected an array.`);
-    }
-    if (arguments.length !== 2 && typeof identify !== 'function') {
-      throw new Error(`Unexpected repeat identify "${identify}" provided, expected a function.`);
-    } else if (typeof callback !== 'function') {
-      throw new Error(`Unexpected repeat callback "${callback}" provided, expected a function.`);
-    }
-    const symbol = Object.create(null);
-    const value = items;
-    const updater = TemplateEngine.#repeat;
-    const update = { updater, value, identify, callback };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  // Deprecated. Will remove in future release.
-  static #ifDefined(node, name, value, lastValue) {
-    if (value !== lastValue) {
-      value === undefined || value === null
-        ? node.removeAttribute(name)
-        : node.setAttribute(name, value);
-    }
-  }
-
-  // Deprecated. Will remove in future release.
-  static #nullish(node, name, value, lastValue) {
-    if (value !== lastValue) {
-      value === undefined || value === null
-        ? node.removeAttribute(name)
-        : node.setAttribute(name, value);
-    }
-  }
-
-  // Deprecated. Will remove in future release.
-  static #live(node, name, value) {
-    if (node[name] !== value) {
-      node[name] = value;
-    }
-  }
-
-  // Deprecated. Will remove in future release.
-  static #unsafeHTML(node, startNode, value, lastValue) {
-    if (value !== lastValue) {
-      if (typeof value === 'string') {
-        const template = document.createElement('template');
-        template.innerHTML = value;
-        TemplateEngine.#removeBetween(startNode, node);
-        TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.childNodes);
-      } else {
-        throw new Error(`Unexpected unsafeHTML value "${value}".`);
-      }
-    }
-  }
-
-  // Deprecated. Will remove in future release.
-  static #unsafeSVG(node, startNode, value, lastValue) {
-    if (value !== lastValue) {
-      if (typeof value === 'string') {
-        const template = document.createElement('template');
-        template.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${value}</svg>`;
-        TemplateEngine.#removeBetween(startNode, node);
-        TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.firstChild.childNodes);
-      } else {
-        throw new Error(`Unexpected unsafeSVG value "${value}".`);
-      }
-    }
   }
 
   static #map(node, startNode, value, identify, callback) {
     TemplateEngine.#mapInputs(node, startNode, identify, callback, value, 'map');
-  }
-
-  // Deprecated. Will remove in future release.
-  static #repeat(node, startNode, value, identify, callback) {
-    TemplateEngine.#mapInputs(node, startNode, identify, callback, value, 'repeat');
   }
 
   // Walk through each string from our tagged template function “strings” array
@@ -1681,66 +1473,28 @@ class TemplateEngine {
   }
 
   static #commitAttribute(node, name, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    const lastUpdate = TemplateEngine.#symbolToUpdate.get(lastValue);
-    if (update) {
-      switch (update.updater) {
-        case TemplateEngine.#ifDefined:
-          TemplateEngine.#ifDefined(node, name, update.value, lastUpdate?.value);
-          break;
-        case TemplateEngine.#nullish:
-          TemplateEngine.#nullish(node, name, update.value, lastUpdate?.value);
-          break;
-        default:
-          TemplateEngine.#throwUpdaterError(update.updater, 'attribute');
-          break;
-      }
-    } else {
-      if (value !== lastValue) {
-        node.setAttribute(name, value);
-      }
+    if (value !== lastValue) {
+      node.setAttribute(name, value);
     }
   }
 
   static #commitBoolean(node, name, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      TemplateEngine.#throwUpdaterError(update.updater, 'boolean');
-    } else {
-      if (value !== lastValue) {
-        value ? node.setAttribute(name, '') : node.removeAttribute(name);
-      }
+    if (value !== lastValue) {
+      value ? node.setAttribute(name, '') : node.removeAttribute(name);
     }
   }
 
   static #commitDefined(node, name, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      TemplateEngine.#throwUpdaterError(update.updater, 'defined');
-    } else {
-      if (value !== lastValue) {
-        value === undefined || value === null
-          ? node.removeAttribute(name)
-          : node.setAttribute(name, value);
-      }
+    if (value !== lastValue) {
+      value === undefined || value === null
+        ? node.removeAttribute(name)
+        : node.setAttribute(name, value);
     }
   }
 
   static #commitProperty(node, name, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      switch (update.updater) {
-        case TemplateEngine.#live:
-          TemplateEngine.#live(node, name, update.value);
-          break;
-        default:
-          TemplateEngine.#throwUpdaterError(update.updater, 'property');
-          break;
-      }
-    } else {
-      if (value !== lastValue) {
-        node[name] = value;
-      }
+    if (value !== lastValue) {
+      node[name] = value;
     }
   }
 
@@ -1748,10 +1502,8 @@ class TemplateEngine {
     const introspection = TemplateEngine.#getValueIntrospection(value);
     const lastIntrospection = TemplateEngine.#getValueIntrospection(lastValue);
     if (
-      lastValue !== TemplateEngine.#UNSET && (
-        introspection?.category !== lastIntrospection?.category ||
-        introspection?.update?.updater !== lastIntrospection?.update?.updater
-      )
+      lastValue !== TemplateEngine.#UNSET &&
+      introspection?.category !== lastIntrospection?.category
     ) {
       // Reset content under certain conditions. E.g., `map(…)` >> `null`.
       const state = TemplateEngine.#setIfMissing(TemplateEngine.#nodeToState, node, () => ({}));
@@ -1760,26 +1512,9 @@ class TemplateEngine {
       TemplateEngine.#clearObject(state);
       TemplateEngine.#clearObject(arrayState);
     }
-    if (introspection?.category === 'update') {
-      const { update } = introspection;
-      const lastUpdate = lastIntrospection?.update;
-      switch (update.updater) {
-        case TemplateEngine.#map:
-          TemplateEngine.#map(node, startNode, update.value, update.identify, update.callback);
-          break;
-        case TemplateEngine.#repeat:
-          TemplateEngine.#repeat(node, startNode, update.value, update.identify, update.callback);
-          break;
-        case TemplateEngine.#unsafeHTML:
-          TemplateEngine.#unsafeHTML(node, startNode, update.value, lastUpdate?.value);
-          break;
-        case TemplateEngine.#unsafeSVG:
-          TemplateEngine.#unsafeSVG(node, startNode, update.value, lastUpdate?.value);
-          break;
-        default:
-          TemplateEngine.#throwUpdaterError(update.updater, 'content');
-          break;
-      }
+    if (introspection?.category === 'mapping') {
+      const { mapping } = introspection;
+      TemplateEngine.#map(node, startNode, mapping.value, mapping.identify, mapping.callback);
     } else {
       if (value !== lastValue) {
         if (introspection?.category === 'result') {
@@ -1823,13 +1558,8 @@ class TemplateEngine {
   }
 
   static #commitText(node, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      TemplateEngine.#throwUpdaterError(update.updater, 'text');
-    } else {
-      if (value !== lastValue) {
-        node.textContent = value;
-      }
+    if (value !== lastValue) {
+      node.textContent = value;
     }
   }
 
@@ -1897,9 +1627,6 @@ class TemplateEngine {
     TemplateEngine.#commit(result);
   }
 
-  // TODO: Revisit this concept when we delete deprecated interfaces. Once that
-  //  happens, the _only_ updater available for content is `map`, and we may be
-  //  able to make this more performant.
   static #getValueIntrospection(value) {
     if (Array.isArray(value)) {
       return { category: 'array' };
@@ -1910,32 +1637,11 @@ class TemplateEngine {
       if (result) {
         return { category: 'result', result };
       } else {
-        const update = TemplateEngine.#symbolToUpdate.get(value);
-        if (update) {
-          return { category: 'update', update };
+        const mapping = TemplateEngine.#symbolToMapping.get(value);
+        if (mapping) {
+          return { category: 'mapping', mapping };
         }
       }
-    }
-  }
-
-  static #throwUpdaterError(updater, type) {
-    switch (updater) {
-      case TemplateEngine.#map:
-        throw new Error(`The map update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
-
-      // We’ll delete these updaters later.
-      case TemplateEngine.#live:
-        throw new Error(`The live update must be used on ${TemplateEngine.#getTypeText('property')}, not on ${TemplateEngine.#getTypeText(type)}.`);
-      case TemplateEngine.#unsafeHTML:
-        throw new Error(`The unsafeHTML update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
-      case TemplateEngine.#unsafeSVG:
-        throw new Error(`The unsafeSVG update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
-      case TemplateEngine.#ifDefined:
-        throw new Error(`The ifDefined update must be used on ${TemplateEngine.#getTypeText('attribute')}, not on ${TemplateEngine.#getTypeText(type)}.`);
-      case TemplateEngine.#nullish:
-        throw new Error(`The nullish update must be used on ${TemplateEngine.#getTypeText('attribute')}, not on ${TemplateEngine.#getTypeText(type)}.`);
-      case TemplateEngine.#repeat:
-        throw new Error(`The repeat update must be used on ${TemplateEngine.#getTypeText('content')}, not on ${TemplateEngine.#getTypeText(type)}.`);
     }
   }
 
@@ -1996,35 +1702,5 @@ class TemplateEngine {
       map.set(key, value);
     }
     return value;
-  }
-
-  static #getTypeText(type) {
-    switch (type) {
-      case 'attribute': return 'an attribute';
-      case 'boolean': return 'a boolean attribute';
-      case 'defined': return 'a defined attribute';
-      case 'property': return 'a property';
-      case 'content': return 'content';
-      case 'text': return 'text content';
-    }
-  }
-
-  static #interfaceDeprecatedStacks = new Set();
-  static #interfaceDeprecated(name, callback) {
-    return (...args) => {
-      const error = new Error(`Deprecated "${name}" from default templating engine interface.`);
-      const stack = error.stack;
-      if (!this.#interfaceDeprecatedStacks.has(stack)) {
-        this.#interfaceDeprecatedStacks.add(stack);
-        console.warn(error); // eslint-disable-line no-console
-      }
-      return callback(...args);
-    };
-  }
-
-  static #interfaceRemoved(name) {
-    return () => {
-      throw new Error(`Removed "${name}" from default templating engine interface. Import and plug-in "lit-html" as your element's templating engine if you want this functionality.`);
-    };
   }
 }
