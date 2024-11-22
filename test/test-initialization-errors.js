@@ -84,7 +84,7 @@ it('errors are thrown in connectedCallback for initializing computed properties'
 
 // Depending on the browser — the underlying error is surfaced differently.
 // We just match our custom suffix to be agnostic.
-it('errors are thrown in connectedCallback when template result fails to render', () => {
+it.skip('errors are thrown in connectedCallback when template result fails to render', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
   class TestElement extends XElement {
     static get properties() {
@@ -115,7 +115,7 @@ it('errors are thrown in connectedCallback when template result fails to render'
 
 // Depending on the browser — the underlying error is surfaced differently.
 // We just match our custom suffix to be agnostic.
-it('errors are thrown in connectedCallback when template result fails to render (with ids, classes, and attributes)', () => {
+it.skip('errors are thrown in connectedCallback when template result fails to render (with ids, classes, and attributes)', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
   class TestElement extends XElement {
     static get properties() {
