@@ -2,6 +2,24 @@ import XElement from '../x-element.js';
 import { assert, it } from './x-test.js';
 
 class TestElement extends XElement {
+  static get styles() {
+    const styleSheet = new CSSStyleSheet();
+    styleSheet.replaceSync(`\
+      :host #container {
+        transition-property: box-shadow;
+        transition-duration: 300ms;
+        transition-timing-function: linear;
+        box-shadow: 0 0 0 1px black;
+        padding: 10px;
+      }
+
+      :host([popped]) #container {
+        box-shadow: 0 0 10px 0 black;
+      }
+    `);
+    return [styleSheet];
+  }
+
   static get properties() {
     return {
       a: {
@@ -64,19 +82,6 @@ class TestElement extends XElement {
   static template(html) {
     return ({ changes }) => {
       return html`
-        <style>
-          :host #container {
-            transition-property: box-shadow;
-            transition-duration: 300ms;
-            transition-timing-function: linear;
-            box-shadow: 0 0 0 1px black;
-            padding: 10px;
-          }
-
-          :host([popped]) #container {
-            box-shadow: 0 0 10px 0 black;
-          }
-        </style>
         <div id="container">
           <div>Changes:</div>
           <ul>
