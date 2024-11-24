@@ -11,7 +11,7 @@ export default [
     ignores: ['server.js', 'test.js'],
   },
   {
-    files: ['x-element.js', 'x-template.js', 'etc/ready.js'],
+    files: ['x-element.js', 'x-parser.js', 'x-template.js', 'etc/ready.js'],
     plugins: { jsdoc },
     rules: {
       'jsdoc/require-param-description': 'off',

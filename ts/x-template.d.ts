@@ -8,13 +8,4 @@ export const unsafeSVG: any;
 export const ifDefined: any;
 export const nullish: any;
 export const repeat: any;
-export const asyncAppend: any;
-export const asyncReplace: any;
-export const cache: any;
-export const classMap: any;
-export const directive: any;
-export const guard: any;
-export const styleMap: any;
-export const templateContent: any;
-export const until: any;
 //# sourceMappingURL=x-template.d.ts.map

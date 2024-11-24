@@ -1,274 +1,4 @@
-/** Forgiving HTML parser which leverages innerHTML. */
-class Forgiving {
-  // Special markers added to markup enabling discovery post-instantiation.
-  static #NEXT_MARKER = 'forgiving-next:'; // The ":" helps for debugging.
-  static #CONTENT_MARKER = 'forgiving-content';
-
-  // Types of bindings that we can have.
-  static #ATTRIBUTE = 'attribute';
-  static #BOOLEAN = 'boolean';
-  static #DEFINED = 'defined';
-  static #PROPERTY = 'property';
-
-  // TODO: Could be more forgiving here!
-  // Patterns to find special edges in original html strings.
-  static #OPEN_REGEX = /<[a-z][a-z0-9-]*(?=\s)/g;
-  static #STEP_REGEX = /(?:\s+[a-z][a-z0-9-]*(?=[\s>])|\s+[a-z][a-zA-Z0-9-]*="[^"]*")+/y;
-  static #ATTRIBUTE_OR_PROPERTY_REGEX = /\s+(?:(?<questions>\?{0,2})?(?<attribute>([a-z][a-zA-Z0-9-]*))|\.(?<property>[a-z][a-zA-Z0-9_]*))="$/y;
-  static #CLOSE_REGEX = />/g;
-
-  // Walk through each string from our tagged template function “strings” array
-  //  in a stateful way so that we know what kind of bindings are implied at
-  //  each interpolated value.
-  static #exhaustString(string, state, context) {
-    if (!state.inside) {
-      // We're outside the opening tag.
-      Forgiving.#OPEN_REGEX.lastIndex = state.index;
-      const openMatch = Forgiving.#OPEN_REGEX.exec(string);
-      if (openMatch) {
-        state.inside = true;
-        state.index = Forgiving.#OPEN_REGEX.lastIndex;
-        state.lastOpenContext = context;
-        state.lastOpenIndex = openMatch.index;
-        Forgiving.#exhaustString(string, state, context);
-      }
-    } else {
-      // We're inside the opening tag.
-      Forgiving.#STEP_REGEX.lastIndex = state.index;
-      if (Forgiving.#STEP_REGEX.test(string)) {
-        state.index = Forgiving.#STEP_REGEX.lastIndex;
-      }
-      Forgiving.#CLOSE_REGEX.lastIndex = state.index;
-      if (Forgiving.#CLOSE_REGEX.test(string)) {
-        state.inside = false;
-        state.index = Forgiving.#CLOSE_REGEX.lastIndex;
-        Forgiving.#exhaustString(string, state, context);
-      }
-    }
-  }
-
-  // Flesh out an html string from our tagged template function “strings” array
-  //  and add special markers that we can detect later, after instantiation.
-  //
-  // E.g., the user might have passed this interpolation:
-  //
-  // <div id="foo-bar-baz" foo="${foo}" bar="${bar}" .baz="${baz}">
-  //   ${content}
-  // </div>
-  //
-  // … and we would instrument it as follows:
-  //
-  // <!--forgiving-next:attribute=foo,attribute=bar,attribute=baz--><div id="foo-bar-baz">
-  //   <!--forgiving-content-->
-  // </div>
-  //
-  static #createHtml(language, strings) {
-    const keyToKeyState = new Map();
-    const htmlStrings = [];
-    const state = { inside: false, index: 0, lastOpenContext: 0, lastOpenIndex: 0 };
-    // We don’t have to test the last string since it is already on the other
-    //  side of the last interpolation, by definition. Hence the “- 1” below.
-    //  Note that this final string is added just after the loop completes.
-    for (let iii = 0; iii < strings.length - 1; iii++) {
-      // The index may be set to “1” here, which indicates we are slicing off a
-      //  trailing quote character from a attribute-or-property match. After
-      //  slicing, we reset the index to zero so regular expressions know to
-      //  match from the start in “exhaustString”.
-      let string = strings[iii];
-      if (state.index !== 0) {
-        string = string.slice(state.index);
-        state.index = 0;
-      }
-      Forgiving.#exhaustString(string, state, iii);
-      if (state.inside) {
-        Forgiving.#ATTRIBUTE_OR_PROPERTY_REGEX.lastIndex = state.index;
-        const match = Forgiving.#ATTRIBUTE_OR_PROPERTY_REGEX.exec(string);
-        if (match) {
-          const { questions, attribute, property } = match.groups;
-          if (attribute) {
-            // We found a match like this: html`<div hidden="${value}"></div>`.
-            //                  … or this: html`<div ?hidden="${value}"></div>`.
-            //                  … or this: html`<div ??hidden="${value}"></div>`.
-            // Syntax is 3-5 characters: `${questions}${attribute}="` + `"`.
-            let syntax = 3;
-            let kind = Forgiving.#ATTRIBUTE;
-            switch (questions) {
-              case '??': kind = Forgiving.#DEFINED; syntax = 5; break;
-              case '?': kind = Forgiving.#BOOLEAN; syntax = 4; break;
-            }
-            string = string.slice(0, -syntax - attribute.length);
-            const key = state.lastOpenContext;
-            const keyState = Forgiving.#setIfMissing(keyToKeyState, key, () => ({ index: state.lastOpenIndex, items: [] }));
-            keyState.items.push(`${kind}=${attribute}`);
-          } else {
-            // We found a match like this: html`<div .title="${value}"></div>`.
-            // Syntax is 4 characters: `.${property}="` + `"`.
-            const syntax = 4;
-            const kind = Forgiving.#PROPERTY;
-            string = string.slice(0, -syntax - property.length);
-            const key = state.lastOpenContext;
-            const keyState = Forgiving.#setIfMissing(keyToKeyState, key, () => ({ index: state.lastOpenIndex, items: [] }));
-            keyState.items.push(`${kind}=${property}`);
-          }
-          state.index = 1; // Accounts for an expected quote character next.
-        } else {
-          // It’s “on or after” because interpolated JS can span multiple lines.
-          const handled = [...strings.slice(0, iii), string.slice(0, state.index)].join('');
-          const lineCount = handled.split('\n').length;
-          throw new Error(`Found invalid template on or after line ${lineCount} in substring \`${string}\`. Failed to parse \`${string.slice(state.index)}\`.`);
-        }
-      } else {
-        // Assume it’s a match like this: html`<div>${value}</div>`.
-        string += `<!--${Forgiving.#CONTENT_MARKER}-->`;
-        state.index = 0; // No characters to account for. Reset to zero.
-      }
-      htmlStrings[iii] = string;
-    }
-    // Again, there might be a quote we need to slice off here still.
-    let lastString = strings.at(-1);
-    if (state.index > 0) {
-      lastString = lastString.slice(state.index);
-    }
-    htmlStrings.push(lastString);
-    for (const [iii, { index, items }] of keyToKeyState.entries()) {
-      const comment = `<!--${Forgiving.#NEXT_MARKER}${items.join(',')}-->`;
-      const htmlString = htmlStrings[iii];
-      htmlStrings[iii] = `${htmlString.slice(0, index)}${comment}${htmlString.slice(index)}`;
-    }
-    const html = htmlStrings.join('');
-    return language === Forgiving.svg
-      ? `<svg xmlns="http://www.w3.org/2000/svg">${html}</svg>`
-      : html;
-  }
-
-  static #createFragment(language, strings) {
-    const template = document.createElement('template');
-    const html = Forgiving.#createHtml(language, strings);
-    template.innerHTML = html;
-    return template.content;
-  }
-
-  // Walk through our fragment that we added special markers to and notify
-  //  integrator when we hit target “paths”. The integrator can use this with
-  //  a subsequent clone of the fragment to establish “targets”. And, while we
-  //  walk, clean up our bespoke markers.
-  // Note that we are always walking the interpolated strings and the resulting,
-  //  instantiated DOM _in the same depth-first manner_. This means that the
-  //  ordering is fairly reliable.
-  //
-  // For example, we walk this structure:
-  //
-  // <!--forgiving-next:attribute=foo,attribute=bar,attribute=baz--><div id="foo-bar-baz">
-  //   <!--forgiving-content-->
-  // </div>
-  //
-  // And end up with this (which is ready to be injected into a container):
-  //
-  // <div id="foo-bar-baz">
-  //   <!---->
-  //   <!---->
-  // </div>
-  //
-  static #walkFragment(
-    onBoolean,
-    onDefined,
-    onAttribute,
-    onProperty,
-    onContent,
-    onText,
-    node,
-    nodeType = Node.DOCUMENT_FRAGMENT_NODE,
-    path = [],
-  ) {
-    // @ts-ignore — TypeScript doesn’t seem to understand the nodeType param.
-    if (nodeType === Node.ELEMENT_NODE) {
-      // Special case to handle elements which only allow text content (no comments).
-      const { localName } = node;
-      if (
-        (localName === 'style' || localName === 'script') &&
-        node.textContent.includes(Forgiving.#CONTENT_MARKER)
-      ) {
-        throw new Error(`Interpolation of <${localName}> tags is not allowed.`);
-      } else if (localName === 'textarea' || localName === 'title') {
-        if (node.textContent.includes(Forgiving.#CONTENT_MARKER)) {
-          if (node.textContent === `<!--${Forgiving.#CONTENT_MARKER}-->`) {
-            node.textContent = '';
-            onText(path);
-          } else {
-            throw new Error(`Only basic interpolation of <${localName}> tags is allowed.`);
-          }
-        }
-      }
-    }
-    if (nodeType === Node.DOCUMENT_FRAGMENT_NODE || nodeType === Node.ELEMENT_NODE) {
-      // It’s expensive to make a copy of “childNodes”. Instead, we carefully
-      //  manage our index as we iterate over the live collection.
-      const childNodes = node.childNodes;
-      for (let iii = 0; iii < childNodes.length; iii++) {
-        const childNode = childNodes[iii];
-        const childNodeType = childNode.nodeType;
-        if (childNodeType === Node.COMMENT_NODE) {
-          const textContent = childNode.textContent;
-          if (textContent.startsWith(Forgiving.#CONTENT_MARKER)) {
-            childNode.textContent = '';
-            const startNode = document.createComment('');
-            node.insertBefore(startNode, childNode);
-            iii++;
-            onContent([...path, iii]);
-          } else if (textContent.startsWith(Forgiving.#NEXT_MARKER)) {
-            const data = textContent.slice(Forgiving.#NEXT_MARKER.length);
-            const items = data.split(',');
-            for (const item of items) {
-              const [binding, name] = item.split('=');
-              switch (binding) {
-                case Forgiving.#ATTRIBUTE: onAttribute(name, [...path, iii]); break;
-                case Forgiving.#BOOLEAN:   onBoolean(name, [...path, iii]); break;
-                case Forgiving.#DEFINED:   onDefined(name, [...path, iii]); break;
-                case Forgiving.#PROPERTY:  onProperty(name, [...path, iii]); break;
-              }
-            }
-            iii--;
-            node.removeChild(childNode);
-          }
-        } else if (childNodeType === Node.ELEMENT_NODE) {
-          Forgiving.#walkFragment(
-            onBoolean,
-            onDefined,
-            onAttribute,
-            onProperty,
-            onContent,
-            onText,
-            childNode,
-            childNodeType,
-            [...path, iii],
-          );
-        }
-      }
-    }
-  }
-
-  // TODO: Replace with Map.prototype.getOrInsert when TC39 proposal lands.
-  //  https://github.com/tc39/proposal-upsert
-  static #setIfMissing(map, key, callback) {
-    // Values set in this file are ALL truthy, so "get" is used (versus "has").
-    let value = map.get(key);
-    if (!value) {
-      value = callback();
-      map.set(key, value);
-    }
-    return value;
-  }
-
-  // Languages.
-  static html = 'html';
-  static svg = 'svg';
-
-  static parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language) {
-    const fragment = Forgiving.#createFragment(language, strings);
-    Forgiving.#walkFragment(onBoolean, onDefined, onAttribute, onProperty, onContent, onText, fragment);
-    return fragment;
-  }
-}
+import { parse } from './x-parser.js';
 
 /** Internal implementation details for template engine. */
 class TemplateEngine {
@@ -283,6 +13,8 @@ class TemplateEngine {
   // Sentinel to hold internal result information. Also leveraged to determine
   //  whether a value is a raw result or not.
   static #ANALYSIS = Symbol();
+
+  // TODO: #236: Remove support for <svg> and always presume html.
   static #HTML = Symbol();
   static #SVG = Symbol();
 
@@ -297,7 +29,7 @@ class TemplateEngine {
   static #stringsToAnalysis = new WeakMap();
 
   // Mapping of opaque references to internal update objects.
-  static #symbolToUpdate = new WeakMap(); 
+  static #symbolToUpdate = new WeakMap();
 
   /**
    * Default template engine interface — what you get inside “template”.
@@ -307,9 +39,10 @@ class TemplateEngine {
     // Long-term interface.
     render: TemplateEngine.render,
     html: TemplateEngine.html,
-    svg: TemplateEngine.svg,
 
     // Deprecated interface.
+    // TODO: #236: Remove support for svg tagged template function.
+    svg: TemplateEngine.#interfaceDeprecated('svg', TemplateEngine.svg),
     map: TemplateEngine.#interfaceDeprecated('map', TemplateEngine.map),
     live: TemplateEngine.#interfaceDeprecated('live', TemplateEngine.live),
     unsafeHTML: TemplateEngine.#interfaceDeprecated('unsafeHTML', TemplateEngine.unsafeHTML),
@@ -317,17 +50,6 @@ class TemplateEngine {
     ifDefined: TemplateEngine.#interfaceDeprecated('ifDefined', TemplateEngine.ifDefined),
     nullish: TemplateEngine.#interfaceDeprecated('nullish', TemplateEngine.nullish),
     repeat: TemplateEngine.#interfaceDeprecated('repeat', TemplateEngine.repeat),
-
-    // Removed interface.
-    asyncAppend: TemplateEngine.#interfaceRemoved('asyncAppend'),
-    asyncReplace: TemplateEngine.#interfaceRemoved('asyncReplace'),
-    cache: TemplateEngine.#interfaceRemoved('cache'),
-    classMap: TemplateEngine.#interfaceRemoved('classMap'),
-    directive: TemplateEngine.#interfaceRemoved('directive'),
-    guard: TemplateEngine.#interfaceRemoved('guard'),
-    styleMap: TemplateEngine.#interfaceRemoved('styleMap'),
-    templateContent: TemplateEngine.#interfaceRemoved('templateContent'),
-    until: TemplateEngine.#interfaceRemoved('until'),
   });
 
   /**
@@ -343,11 +65,13 @@ class TemplateEngine {
     return TemplateEngine.#createRawResult(TemplateEngine.#HTML, strings, values);
   }
 
+  // TODO: #236: Remove support for “svg” tagged template function.
   /**
    * Declare SVG markup to be interpolated.
    * ```js
    * svg`<circle r="${obj.r}" cx="${obj.cx}" cy="${obj.cy}"></div>`;
    * ```
+   * @deprecated
    * @param {string[]} strings
    * @param {any[]} values
    * @returns {any}
@@ -796,6 +520,77 @@ class TemplateEngine {
     }
   }
 
+  // TODO: Future state here — we’ll eventually just guard against value changes
+  //  at a higher level and will remove all updater logic.
+  // static #commitAttribute(node, name, value) {
+  //   node.setAttribute(name, value);
+  // }
+  // static #commitBoolean(node, name, value) {
+  //   value ? node.setAttribute(name, '') : node.removeAttribute(name);
+  // }
+  // static #commitDefined(node, name, value) {
+  //   value === undefined || value === null
+  //     ? node.removeAttribute(name)
+  //     : node.setAttribute(name, value);
+  // }
+  // static #commitProperty(node, name, value) {
+  //   node[name] = value;
+  // }
+  // static #commitContent(node, startNode, value, lastValue) {
+  //   const category = TemplateEngine.#getCategory(value);
+  //   const lastCategory = TemplateEngine.#getCategory(lastValue);
+  //   if (category !== lastCategory && lastValue !== TemplateEngine.#UNSET) {
+  //     // Reset content under certain conditions. E.g., `map(…)` >> `null`.
+  //     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
+  //     const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
+  //     TemplateEngine.#removeBetween(startNode, node);
+  //     TemplateEngine.#clearObject(state);
+  //     TemplateEngine.#clearObject(arrayState);
+  //   }
+  //   if (category === 'result') {
+  //     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
+  //     const rawResult = value;
+  //     if (!TemplateEngine.#canReuseDom(state.preparedResult, rawResult)) {
+  //       TemplateEngine.#removeBetween(startNode, node);
+  //       TemplateEngine.#clearObject(state);
+  //       const preparedResult = TemplateEngine.#inject(rawResult, node, true);
+  //       state.preparedResult = preparedResult;
+  //     } else {
+  //       TemplateEngine.#update(state.preparedResult, rawResult);
+  //     }
+  //   } else if (category === 'array' || category === 'map') {
+  //     TemplateEngine.#list(node, startNode, value, category);
+  //   } else if (category === 'fragment') {
+  //     if (value.childElementCount === 0) {
+  //       throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
+  //     }
+  //     const previousSibling = node.previousSibling;
+  //     if (previousSibling !== startNode) {
+  //       TemplateEngine.#removeBetween(startNode, node);
+  //     }
+  //     node.parentNode.insertBefore(value, node);
+  //   } else {
+  //     // TODO: Is there a way to more-performantly skip this init step? E.g., if
+  //     //  the prior value here was not “unset” and we didn’t just reset? We
+  //     //  could cache the target node in these cases or something?
+  //     const previousSibling = node.previousSibling;
+  //     if (previousSibling === startNode) {
+  //       // The `?? ''` is a shortcut for creating a text node and then
+  //       //  setting its textContent. It’s exactly equivalent to the
+  //       //  following code, but faster.
+  //       // const textNode = document.createTextNode('');
+  //       // textNode.textContent = value;
+  //       const textNode = document.createTextNode(value ?? '');
+  //       node.parentNode.insertBefore(textNode, node);
+  //     } else {
+  //       previousSibling.textContent = value;
+  //     }
+  //   }
+  // }
+  // static #commitText(node, value) {
+  //   node.textContent = value;
+  // }
+
   static #commitContent(node, startNode, value, lastValue) {
     const introspection = TemplateEngine.#getValueIntrospection(value);
     const lastIntrospection = TemplateEngine.#getValueIntrospection(lastValue);
@@ -882,6 +677,23 @@ class TemplateEngine {
     }
   }
 
+  // TODO: Future state — we’ll later do change-by-reference detection here.
+  // // Bind the current values from a result by walking through each target and
+  // //  updating the DOM if things have changed.
+  // static #commit(preparedResult) {
+  //   preparedResult.values ??= preparedResult.rawResult.values;
+  //   preparedResult.lastValues ??= preparedResult.values.map(() => TemplateEngine.#UNSET);
+  //   const { targets, values, lastValues } = preparedResult;
+  //   for (let iii = 0; iii < targets.length; iii++) {
+  //     const value = values[iii];
+  //     const lastValue = lastValues[iii];
+  //     if (value !== lastValue) {
+  //       const target = targets[iii];
+  //       target(value, lastValue);
+  //     }
+  //   }
+  // }
+
   // Bind the current values from a result by walking through each target and
   //  updating the DOM if things have changed.
   static #commit(preparedResult) {
@@ -935,7 +747,7 @@ class TemplateEngine {
 
   // Inject a given result into a node for the first time.
   static #inject(rawResult, node, before) {
-    // Get fragment created from a tagged template function’s “strings”.
+    // Create and prepare a document fragment to be injected.
     const { [TemplateEngine.#ANALYSIS]: analysis } = rawResult;
     const fragment = analysis.fragment.cloneNode(true);
     const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
@@ -970,8 +782,9 @@ class TemplateEngine {
       const onProperty =  TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#PROPERTY);
       const onContent = TemplateEngine.#storeContentLookup.bind(null, lookups);
       const onText = TemplateEngine.#storeTextLookup.bind(null, lookups);
-      const forgivingLanguage = language === TemplateEngine.#SVG ? Forgiving.svg : Forgiving.html;
-      const fragment = Forgiving.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, forgivingLanguage);
+      // TODO: #236: No need to pass a namespace once svg tagged template function is removed.
+      const namespace = language === TemplateEngine.#SVG ? 'svg' : 'html';
+      const fragment = parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, namespace);
       analysis.fragment = fragment;
       analysis.lookups = lookups;
       analysis.done = true;
@@ -1059,6 +872,16 @@ class TemplateEngine {
     }
   }
 
+  // TODO: Future state — we may choose to iterate differently as an
+  //  optimization in later versions.
+  // static #removeWithin(node) {
+  //   let childNode = node.lastChild;
+  //   while (childNode) {
+  //     const nextChildNode = childNode.previousSibling;
+  //     node.removeChild(childNode);
+  //     childNode = nextChildNode;
+  //   }
+  // }
   static #removeWithin(node) {
     // Iterate backwards over the live node collection since we’re mutating it.
     const childNodes = node.childNodes;
@@ -1067,12 +890,31 @@ class TemplateEngine {
     }
   }
 
+  // TODO: Future state — we may choose to iterate differently as an
+  //  optimization in later versions.
+  // static #removeBetween(startNode, node, parentNode) {
+  //   parentNode ??= node.parentNode;
+  //   let childNode = node.previousSibling;
+  //   while(childNode !== startNode) {
+  //     const nextChildNode = childNode.previousSibling;
+  //     parentNode.removeChild(childNode);
+  //     childNode = nextChildNode;
+  //   }
+  // }
   static #removeBetween(startNode, node) {
     while(node.previousSibling !== startNode) {
       node.previousSibling.remove();
     }
   }
 
+  // TODO: Future state — we may choose to iterate differently as an
+  //  optimization in later versions.
+  // static #removeThrough(startNode, node, parentNode) {
+  //   parentNode ??= node.parentNode;
+  //   TemplateEngine.#removeBetween(startNode, node, parentNode);
+  //   parentNode.removeChild(startNode);
+  //   parentNode.removeChild(node);
+  // }
   static #removeThrough(startNode, node) {
     TemplateEngine.#removeBetween(startNode, node);
     startNode.remove();
@@ -1129,20 +971,14 @@ class TemplateEngine {
       return callback(...args);
     };
   }
-
-  static #interfaceRemoved(name) {
-    return () => {
-      throw new Error(`Removed "${name}" from default templating engine interface. Import and plug-in "lit-html" as your element's templating engine if you want this functionality.`);
-    };
-  }
 }
 
 // Long-term interface.
 export const render = TemplateEngine.interface.render.bind(TemplateEngine);
 export const html = TemplateEngine.interface.html.bind(TemplateEngine);
-export const svg = TemplateEngine.interface.svg.bind(TemplateEngine);
 
 // Deprecated interface.
+export const svg = TemplateEngine.interface.svg.bind(TemplateEngine);
 export const map = TemplateEngine.interface.map.bind(TemplateEngine);
 export const live = TemplateEngine.interface.live.bind(TemplateEngine);
 export const unsafeHTML = TemplateEngine.interface.unsafeHTML.bind(TemplateEngine);
@@ -1150,14 +986,3 @@ export const unsafeSVG = TemplateEngine.interface.unsafeSVG.bind(TemplateEngine)
 export const ifDefined = TemplateEngine.interface.ifDefined.bind(TemplateEngine);
 export const nullish = TemplateEngine.interface.nullish.bind(TemplateEngine);
 export const repeat = TemplateEngine.interface.repeat.bind(TemplateEngine);
-
-// Removed interface.
-export const asyncAppend = TemplateEngine.interface.asyncAppend.bind(TemplateEngine);
-export const asyncReplace = TemplateEngine.interface.asyncReplace.bind(TemplateEngine);
-export const cache = TemplateEngine.interface.cache.bind(TemplateEngine);
-export const classMap = TemplateEngine.interface.classMap.bind(TemplateEngine);
-export const directive = TemplateEngine.interface.directive.bind(TemplateEngine);
-export const guard = TemplateEngine.interface.guard.bind(TemplateEngine);
-export const styleMap = TemplateEngine.interface.styleMap.bind(TemplateEngine);
-export const templateContent = TemplateEngine.interface.templateContent.bind(TemplateEngine);
-export const until = TemplateEngine.interface.until.bind(TemplateEngine);

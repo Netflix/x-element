@@ -1,11 +1,12 @@
 {
   "files": [
     "./x-element.js",
+    "./x-parser.js",
     "./x-template.js",
     "./etc/ready.js"
   ],
   "compilerOptions": {
-    "target": "ES2023",
+    "target": "ESNext",
     // Beyond just organization, a “bug” in how JSDocs works causes a cyclic
     //  import to be detected by TypeScript when letting generated “*.d.ts”
     //  sit next to files.
