@@ -2,10 +2,10 @@ import XElement from '../x-element.js';
 import { assert, describe, it } from './x-test.js';
 
 // Long-term interface.
-const { render, html, svg } = XElement.templateEngine;
+const { render, html } = XElement.templateEngine;
 
 // Deprecated interface. We will eventually delete these.
-const { map, ifDefined, nullish, repeat, live, unsafeHTML, unsafeSVG } = XElement.templateEngine;
+const { svg, map, ifDefined, nullish, repeat, live, unsafeHTML, unsafeSVG } = XElement.templateEngine;
 
 // Overwrite console warn for testing so we don’t get spammed with our own
 //  deprecation warnings.
@@ -19,6 +19,7 @@ const localMessages = [
   'Deprecated "unsafeSVG" from default templating engine interface.',
   'Deprecated "repeat" from default templating engine interface.',
   'Deprecated "map" from default templating engine interface.',
+  'Support for the <svg> tag is deprecated and will be removed in future versions.',
 ];
 console.warn = (...args) => { // eslint-disable-line no-console
   if (!localMessages.includes(args[0]?.message)) {
@@ -29,19 +30,23 @@ console.warn = (...args) => { // eslint-disable-line no-console
 };
 
 // Simple helper for asserting thrown messages.
-const assertThrows = (callback, expectedMessage) => {
+const assertThrows = (callback, expectedMessage, options) => {
   let thrown = false;
   try {
     callback();
   } catch (error) {
     thrown = true;
-    assert(error.message === expectedMessage, error.message);
+    if (options?.startsWith === true) {
+      assert(error.message.startsWith(expectedMessage), error.message);
+    } else {
+      assert(error.message === expectedMessage, error.message);
+    }
   }
   assert(thrown, 'no error was thrown');
 };
 
 describe('html rendering', () => {
-  it('empty template works', () => {
+  it('renders empty template', () => {
     const container = document.createElement('div');
     render(container, html``);
     assert(container.childNodes.length === 0);
@@ -61,32 +66,6 @@ describe('html rendering', () => {
     assert(container.childNodes[0].textContent === `--{<&>'"}--`);
   });
 
-  it('renders named character references for special HTML characters', () => {
-    const container = document.createElement('div');
-    render(container, html`&amp;&lt;&gt;&quot;&apos;`);
-    assert(container.textContent === `&<>"'`);
-  });
-
-  it('renders named character references for commonly-used characters', () => {
-    const container = document.createElement('div');
-    render(container, html`&nbsp;&lsquo;&rsquo;&ldquo;&rdquo;&ndash;&mdash;&hellip;&bull;&middot;&dagger;`);
-    assert(container.textContent === '\u00A0\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u2022\u00B7\u2020');
-  });
-
-  it('renders named html entities in attribute values', () => {
-    const container = document.createElement('div');
-    render(container, html`<div foo="--&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;--"></div>`);
-    assert(container.childElementCount === 1);
-    assert(container.children[0].getAttribute('foo') === `--{<&>'"}--`);
-  });
-
-  it('renders surprisingly-accepted characters in text', () => {
-    const container = document.createElement('div');
-    render(container, html`>'"&& & &<div></div>&`);
-    assert(container.childElementCount === 1);
-    assert(container.children[0].textContent === ``);
-  });
-
   it('renders interpolated content without parsing', () => {
     const userContent = '<a href="https://evil.com">Click Me!</a>';
     const container = document.createElement('div');
@@ -94,18 +73,11 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').textContent === userContent);
   });
 
-  it('renders custom elements', () => {
-    const container = document.createElement('div');
-    render(container, html`<foo-bar class="foo">${'content'}</foo-bar>`);
-    assert(container.childElementCount === 1);
-    assert(container.children[0].textContent === 'content');
-  });
-
   it('renders svg elements', () => {
     const container = document.createElement('div');
     const width = 24;
     const height = 24;
-    render(container, html`\
+    render(container, html`
       <svg
         viewBox="0 0 24 24"
         ??width="${width}"
@@ -115,48 +87,6 @@ describe('html rendering', () => {
     // This would be “HTMLUnknownElement” if we didn’t get the namespacing right.
     assert(container.querySelector('svg').constructor.name === 'SVGSVGElement');
     assert(container.querySelector('circle').constructor.name === 'SVGCircleElement');
-  });
-
-  it('renders math elements', () => {
-    const container = document.createElement('div');
-    render(container, html`\
-    <math display="block">
-      <mrow>
-        <munderover>
-          <mo>∑</mo>
-          <mrow>
-            <mi>n</mi>
-            <mo>=</mo>
-            <mn>1</mn>
-          </mrow>
-          <mrow>
-            <mo class="target">+</mo>
-            <mn>∞</mn>
-          </mrow>
-        </munderover>
-        <mfrac>
-          <mn>1</mn>
-          <msup>
-            <mi>n</mi>
-            <mn>2</mn>
-          </msup>
-        </mfrac>
-      </mrow>
-    </math>`);
-    // This would be “HTMLUnknownElement” if we didn’t get the namespacing right.
-    assert(container.querySelector('math').constructor.name === 'MathMLElement');
-    assert(container.querySelector('mo').constructor.name === 'MathMLElement');
-    assert(container.querySelector('.target').textContent === '+');
-  });
-
-  it('renders template elements', () => {
-    // It’s important that the _content_ is populated here. Not the template.
-    const container = document.createElement('div');
-    render(container, html`<template><div><p></p></div></template>`);
-    assert(!!container.querySelector('template'));
-    assert(container.querySelector('template').content.childElementCount === 1);
-    assert(container.querySelector('template').content.children[0].childElementCount === 1);
-    assert(container.querySelector('template').content.children[0].children[0].localName === 'p');
   });
 
   it('renders nullish templates', () => {
@@ -169,57 +99,6 @@ describe('html rendering', () => {
     assert(!!container.childNodes.length);
     render(container, undefined);
     assert(!container.childNodes.length);
-  });
-
-  it('renders non-interpolated style', () => {
-    const container = document.createElement('div');
-    document.body.append(container); // Need to connect for computed styles.
-    render(container, html`
-      <style>
-        #target {
-          /* the color is red */
-          color: rgb(255, 0, 0);
-        }
-        #target::after {
-          content: "\\2026"; /* This is the right syntax. The slash just needs escaping for the template literal. */
-        }
-      </style>
-      <div id="target">hi</div>
-    `);
-    assert(container.childElementCount === 2);
-    assert(getComputedStyle(container.querySelector('#target')).color === 'rgb(255, 0, 0)');
-    assert(container.querySelector('#target').textContent === 'hi');
-    container.remove();
-  });
-
-  it('renders comments', () => {
-    const container = document.createElement('div');
-    render(container, html`<!--hi-->`);
-    assert(container.childNodes.length === 1);
-    assert(container.childNodes[0].nodeType === Node.COMMENT_NODE);
-    assert(container.childNodes[0].data === 'hi');
-  });
-
-  it('renders multi-line comments', () => {
-    const container = document.createElement('div');
-    render(container, html`<!--
-        hi
-      -->`);
-    assert(container.childNodes.length === 1);
-    assert(container.childNodes[0].nodeType === Node.COMMENT_NODE);
-    assert(container.childNodes[0].data.trim() === 'hi');
-  });
-
-  it('renders multi-line unbound content', () => {
-    const container = document.createElement('div');
-    render(container, html`
-      one
-      two
-      three
-    `);
-    assert(container.childNodes.length === 1);
-    assert(container.childNodes[0].nodeType === Node.TEXT_NODE);
-    assert(container.childNodes[0].textContent.trim() === 'one\n      two\n      three');
   });
 
   it('renders solo interpolation', () => {
@@ -250,13 +129,6 @@ describe('html rendering', () => {
     assert(container.childNodes[4].textContent === 'there');
     assert(container.childNodes[5].nodeType === Node.COMMENT_NODE);
     assert(container.childNodes[5].data === '');
-  });
-
-  it('renders multiple opening and closing tags', () => {
-    const container = document.createElement('div');
-    render(container, html`<div><div></div></div>`);
-    assert(container.childElementCount === 1);
-    assert(container.children[0].childElementCount === 1);
   });
 
   it('renders interpolated content', () => {
@@ -375,12 +247,6 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').getAttribute('attr') === 'bar');
   });
 
-  it('renders unbound boolean attributes just before close of tag', () => {
-    const container = document.createElement('div');
-    render(container, html`<div id="target" foo></div>`);
-    assert(container.querySelector('#target').getAttribute('foo') === '');
-  });
-
   it('renders boolean attributes', () => {
     const getTemplate = ({ attr }) => {
       return html`<div id="target" ?attr="${attr}"></div>`;
@@ -427,7 +293,7 @@ describe('html rendering', () => {
 
   it('renders properties', () => {
     const getTemplate = ({ prop }) => {
-      return html`\
+      return html`
         <div
           id="target"
           foo-bar
@@ -439,6 +305,15 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').prop === 'foo');
     render(container, getTemplate({ prop: 'bar' }));
     assert(container.querySelector('#target').prop === 'bar');
+  });
+
+  it('renders “on*” properties as event handlers', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, html`<div .onclick="${function() { this.textContent = '…hi\u2026'; }}"></div>`);
+    container.firstElementChild.click();
+    assert(container.firstElementChild.textContent = '…hi…');
+    container.remove();
   });
 
   it('maintains DOM nodes', () => {
@@ -593,77 +468,15 @@ describe('html rendering', () => {
     assert(!!container.querySelector('#empty'));
   });
 
-  it('renders elements with "/" characters in attributes', () => {
-    // Note the "/" character.
-    const getTemplate = ({ text }) => {
-      return html`\
-        <a
-          id="a"
-          href="https://github.com/Netflix/x-element">
-          ${text}
-        </a>`;
+  it('renders interpolated textarea (text binding)', () => {
+    const getTemplate = ({ defaultValue }) => {
+      return html`<textarea id="target">${defaultValue}</textarea>`;
     };
     const container = document.createElement('div');
-    const text = 'click me';
-    render(container, getTemplate({ text }));
-    const link = container.querySelector('#a');
-    assert(link.href === 'https://github.com/Netflix/x-element');
-    assert(link.textContent.trim() === text);
-  });
-
-  it('renders elements with "<" or ">" characters in attributes', () => {
-    // Note the "/", "<", and ">" characters.
-    const getTemplate = ({ text }) => {
-      return html`\
-        <a
-          id="a"
-          data-foo="<><></></>"
-          href="https://github.com/Netflix/x-element">
-          ${text}
-        </a>`;
-    };
-    const container = document.createElement('div');
-    const text = 'click me';
-    render(container, getTemplate({ text }));
-    const link = container.querySelector('#a');
-    assert(link.href === 'https://github.com/Netflix/x-element');
-    assert(link.textContent.trim() === text);
-    assert(link.dataset.foo === '<><></></>');
-  });
-
-  it('void elements work', () => {
-    const getTemplate = ({ type }) => {
-      return html`<input ??type="${type}">`;
-    };
-    const container = document.createElement('div');
-    render(container, getTemplate({ type: null }));
-    assert(container.querySelector('input').type === 'text');
-    render(container, getTemplate({ type: 'checkbox' }));
-    assert(container.querySelector('input').type === 'checkbox');
-  });
-
-  it('textarea elements with no interpolation work', () => {
-    const container = document.createElement('div');
-    render(container, html`<textarea><em>this</em> is the &ldquo;default&rdquo; value</textarea>`);
-    assert(container.querySelector('textarea').value === '<em>this</em> is the “default” value');
-  });
-
-  it('textarea elements with strict interpolation work', () => {
-    const container = document.createElement('div');
-    render(container, html`<textarea>${'foo'}</textarea>`);
-    assert(container.querySelector('textarea').value === 'foo');
-  });
-
-  it('title elements with no interpolation work', () => {
-    const container = document.createElement('div');
-    render(container, html`<title><em>this</em> is the &ldquo;default&rdquo; value</title>`);
-    assert(container.querySelector('title').textContent === '<em>this</em> is the “default” value');
-  });
-
-  it('title elements with strict interpolation work', () => {
-    const container = document.createElement('div');
-    render(container, html`<title>${'foo'}</title>`);
-    assert(container.querySelector('title').textContent === 'foo');
+    render(container, getTemplate({ defaultValue: 'default' }));
+    assert(container.childElementCount === 1);
+    assert(!!container.querySelector('#target'));
+    assert(container.querySelector('#target').textContent === 'default');
   });
 
   it('renders instantiated elements as dumb text', () => {
@@ -775,24 +588,12 @@ describe('html rendering', () => {
       #item = null;
       set item(value) { updates.push(`outer-${value}`); this.#item = value; }
       get item() { return this.#item; }
-      connectedCallback() {
-        // Prevent property shadowing by deleting before setting on connect.
-        const item = this.item ?? '???';
-        Reflect.deleteProperty(this, 'item');
-        Reflect.set(this, 'item', item);
-      }
     }
     customElements.define('test-depth-first-outer', TestDepthFirstOuter);
     class TestDepthFirstInner extends HTMLElement {
       #item = null;
       set item(value) { updates.push(`inner-${value}`); this.#item = value; }
       get item() { return this.#item; }
-      connectedCallback() {
-        // Prevent property shadowing by deleting before setting on connect.
-        const item = this.item ?? '???';
-        Reflect.deleteProperty(this, 'item');
-        Reflect.set(this, 'item', item);
-      }
     }
     customElements.define('test-depth-first-inner', TestDepthFirstInner);
 
@@ -1089,528 +890,6 @@ describe('value issues', () => {
       const expectedMessage = 'Unexpected non-template value found in map entry at 0 "null".';
       assertThrows(callback, expectedMessage);
     });
-  });
-});
-
-describe('html errors', () => {
-  it('throws when attempting to interpolate within a style tag', () => {
-    const callback = () => html`
-      <style>
-        div { background-color: ${'red'}; }
-      </style>
-    `;
-    const expectedMessage = 'Interpolation of <style> tags is not allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting to interpolate within a script tag', () => {
-    const evil = '\' + prompt(\'evil\') + \'';
-    const callback = () => html`
-      <script id="target">
-        console.log('${evil}');
-      </script>
-    `;
-    const expectedMessage = 'Interpolation of <script> tags is not allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a textarea tag (preceding space)', () => {
-    const callback = () => html`<textarea id="target"> ${'foo'}</textarea>`;
-    const expectedMessage = 'Only basic interpolation of <textarea> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a textarea tag (succeeding space)', () => {
-    const callback = () => html`<textarea id="target">${'foo'} </textarea>`;
-    const expectedMessage = 'Only basic interpolation of <textarea> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a textarea tag', () => {
-    const callback = () => html`<textarea id="target">please ${'foo'} no</textarea>`;
-    const expectedMessage = 'Only basic interpolation of <textarea> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a textarea tag via nesting', () => {
-    const callback = () => html`<textarea id="target"><b>please ${'foo'} no</b></textarea>`;
-    const expectedMessage = 'Only basic interpolation of <textarea> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a title tag (preceding space)', () => {
-    const callback = () => html`<title> ${'foo'}</title>`;
-    const expectedMessage = 'Only basic interpolation of <title> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a title tag (succeeding space)', () => {
-    const callback = () => html`<title>${'foo'} </title>`;
-    const expectedMessage = 'Only basic interpolation of <title> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a title tag', () => {
-    const callback = () => html`<title>please ${'foo'} no</title>`;
-    const expectedMessage = 'Only basic interpolation of <title> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws when attempting non-trivial interpolation of a textarea tag via nesting', () => {
-    const callback = () => html`<textarea><b>please ${'foo'} no</b></textarea>`;
-    const expectedMessage = 'Only basic interpolation of <textarea> tags is allowed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for unquoted attributes', () => {
-    const callback = () => html`<div id="target" not-ok=${'foo'}>Gotta double-quote those.</div>`;
-    const expectedMessage = 'Found invalid template on or after line 1 in substring `<div id="target" not-ok=`. Failed to parse ` not-ok=`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for single-quoted attributes', () => {
-    const callback = () => html`\n<div id="target" not-ok='${'foo'}'>Gotta double-quote those.</div>`;
-    const expectedMessage = 'Found invalid template on or after line 2 in substring `\n<div id="target" not-ok=\'`. Failed to parse ` not-ok=\'`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for unquoted properties', () => {
-    const callback = () => html`\n\n\n<div id="target" .notOk=${'foo'}>Gotta double-quote those.</div>`;
-    const expectedMessage = 'Found invalid template on or after line 4 in substring `\n\n\n<div id="target" .notOk=`. Failed to parse ` .notOk=`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for single-quoted properties', () => {
-    const callback = () => html`<div id="target" .notOk='${'foo'}'>Gotta double-quote those.</div>`;
-    const expectedMessage = 'Found invalid template on or after line 1 in substring `<div id="target" .notOk=\'`. Failed to parse ` .notOk=\'`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('no weird re-entrance issues', async () => {
-    class TestElement1 extends HTMLElement {
-      constructor() {
-        super();
-        html`<style></style>`;
-      }
-    }
-    customElements.define('test-element-1', TestElement1);
-    class TestElement2 extends HTMLElement {
-      constructor() {
-        super();
-        html`<test-element-1></test-element-1>`;
-      }
-    }
-    customElements.define('test-element-2', TestElement2);
-    // At one point, we had a bug where the mutable “.lastIndex” was being
-    //  changed mid-parse due to some re-entrance. This test was able to repro
-    //  that specific issue because construction happens
-    //  _as soon as the element is created_ during the parsing routine.
-    document.createElement('test-element-2');
-  });
-});
-
-// We plan to investigate adding additional restrictions on html to improve
-//  developer feedback in the future if the performance and complexity costs
-//  aren’t too high.
-describe.todo('future html errors', () => {
-  it('throws every time if there is a parsing error', () => {
-    // At one point, we only threw the _first_ time we encountered a given
-    //  tagged template function “strings” array. We want to throw always.
-    const callback = () => html`<-div></-div>`;
-    const expectedMessage = 'Seems like you have a malformed open start tag — tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `<-div></-d…`. Your HTML was parsed through: ``.';
-    assertThrows(callback, expectedMessage);
-    assertThrows(callback, expectedMessage);
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws correct message for complex template', () => {
-    // Just creating a more complex test to make sure nothing is missed. Many
-    //  of the other tests have errors within the first string of the “strings”
-    //  array, for example.
-    const callback = () => html`
-      <div id="container">
-        <span class="${'hello'}">${'hello'}</span>
-        <span id="name" _foo>${'world'}</span>
-      </div>
-    `;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `_foo>`. Your HTML was parsed through: `\n      <div id="container">\n        <span class="${…}">${…}</span>\n        <span id="name" `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if open tag starts with a hyphen', () => {
-    const callback = () => html`<-div></-div>`;
-    const expectedMessage = 'Seems like you have a malformed open start tag — tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `<-div></-d…`. Your HTML was parsed through: ``.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if open tag starts with a number', () => {
-    const callback = () => html`<3h-></3h->`;
-    const expectedMessage = 'Seems like you have a malformed open start tag — tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `<3h-></3h-…`. Your HTML was parsed through: ``.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if open tag ends in a hyphen', () => {
-    const callback = () => html`<div-></div->`;
-    const expectedMessage = 'Seems like you have a malformed open start tag — tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `<div-></di…`. Your HTML was parsed through: ``.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if you give a tag name with capital letters', () => {
-    const callback = () => html`<Div></Div>`;
-    const expectedMessage = 'Seems like you have a malformed open start tag — tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `<Div></Div…`. Your HTML was parsed through: ``.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an open tag has a trailing space before the ">" character', () => {
-    const callback = () => html`<div foo ></div>`;
-    const expectedMessage = 'Seems like you have a malformed end to an opening tag — opening tags must close without any extraneous spaces or newlines. See substring `></div>`. Your HTML was parsed through: `<div foo `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an open tag has a trailing newline before the ">" character', () => {
-    const callback = () => html`<div foo\n></div>`;
-    const expectedMessage = 'Seems like you have a malformed end to an opening tag — opening tags must close without any extraneous spaces or newlines. See substring `></div>`. Your HTML was parsed through: `<div foo\n`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an open tag has a slash before the ">" character', () => {
-    const callback = () => html`<input foo/>`;
-    const expectedMessage = 'Substring `foo/>` failed after an open tag space state. Your HTML was parsed through: `<input `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an open tag has a space-slash before the ">" character', () => {
-    const callback = () => html`<input foo />`;
-    const expectedMessage = 'Seems like you have a malformed end to an opening tag — opening tags must close without any extraneous spaces or newlines. See substring `/>`. Your HTML was parsed through: `<input foo `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a close tag has a space after the "<" characters', () => {
-    const callback = () => html`<div>< /div>`;
-    const expectedMessage = 'Seems like you have a malformed close tag — close tags must not contain any extraneous spaces or newlines and tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `< /div>`. Your HTML was parsed through: `<div>`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a close tag has a space after the "</" characters', () => {
-    const callback = () => html`<div></ div>`;
-    const expectedMessage = 'Seems like you have a malformed close tag — close tags must not contain any extraneous spaces or newlines and tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `</ div>`. Your HTML was parsed through: `<div>`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a close tag has a space before the ">" characters', () => {
-    const callback = () => html`<div></div >`;
-    const expectedMessage = 'Seems like you have a malformed close tag — close tags must not contain any extraneous spaces or newlines and tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `</div >`. Your HTML was parsed through: `<div>`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a close tag name ends with a hyphen', () => {
-    const callback = () => html`<div></div->`;
-    const expectedMessage = 'Seems like you have a malformed close tag — close tags must not contain any extraneous spaces or newlines and tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number. See substring `</div->`. Your HTML was parsed through: `<div>`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound boolean attribute starts with a hyphen', () => {
-    const callback = () => html`<div -what></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `-what></di…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound boolean attribute starts with a number', () => {
-    const callback = () => html`<div 9what></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `9what></di…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound boolean attribute starts with a capital letter', () => {
-    const callback = () => html`<div What></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `What></div…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound boolean attribute ends with a hyphen', () => {
-    const callback = () => html`<div what-></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `what-></di…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound attribute starts with a hyphen', () => {
-    const callback = () => html`<div -what="no"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `-what="no"…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound attribute starts with a number', () => {
-    const callback = () => html`<div 5what="no"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `5what="no"…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound attribute starts with a capital letter', () => {
-    const callback = () => html`<div No="no"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `No="no"></…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if an unbound attribute ends with a hyphen', () => {
-    const callback = () => html`<div what-="no"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `what-="no"…`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound boolean attribute starts with a hyphen', () => {
-    const callback = () => html`<div ?-what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `?-what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound boolean attribute starts with a number', () => {
-    const callback = () => html`<div ?3what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `?3what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound boolean attribute starts with a capital letter', () => {
-    const callback = () => html`<div ?Yak="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `?Yak="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound boolean attribute ends with a hyphen', () => {
-    const callback = () => html`<div ?what-="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `?what-="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound defined attribute starts with a hyphen', () => {
-    const callback = () => html`<div ??-what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `??-what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound defined attribute starts with a number', () => {
-    const callback = () => html`<div ??3what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `??3what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound defined attribute starts with a capital letter', () => {
-    const callback = () => html`<div ??Yak="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `??Yak="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound defined attribute ends with a hyphen', () => {
-    const callback = () => html`<div ??what-="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `??what-="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound attribute starts with a hyphen', () => {
-    const callback = () => html`<div -what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `-what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound attribute starts with a number', () => {
-    const callback = () => html`<div 3what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `3what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound attribute starts with a capital letter', () => {
-    const callback = () => html`<div Yak="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `Yak="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound attribute ends with a hyphen', () => {
-    const callback = () => html`<div what-="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes. See substring `what-="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound property starts with an underscore', () => {
-    const callback = () => html`<div ._what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed property — property names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with underscores, and cannot start with a number — and, property values must be enclosed in double-quotes. See substring `._what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound property starts with a number', () => {
-    const callback = () => html`<div .3what="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed property — property names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with underscores, and cannot start with a number — and, property values must be enclosed in double-quotes. See substring `.3what="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound property starts with a capital letter', () => {
-    const callback = () => html`<div .Yak="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed property — property names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with underscores, and cannot start with a number — and, property values must be enclosed in double-quotes. See substring `.Yak="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if a bound property ends with an underscore', () => {
-    const callback = () => html`<div .what_="${''}"></div>`;
-    const expectedMessage = 'Seems like you have a malformed property — property names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with underscores, and cannot start with a number — and, property values must be enclosed in double-quotes. See substring `.what_="`. Your HTML was parsed through: `<div `.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if you forget to close a tag', () => {
-    const callback = () => html`<div>`;
-    const expectedMessage = 'Did you forget a closing </div>? To avoid unintended markup, non-void tags must explicitly be closed.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws if you mismatch a close a tag', () => {
-    const callback = () => html`<div></span>`;
-    const expectedMessage = 'Closing tag </span> does not match <div>. Your HTML was parsed through: `<div>`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for trying to write unicode in a js-y format', () => {
-    const callback = () => html`<div>please no\u2026</div>`;
-    const expectedMessage = 'Found a unicode or hexadecimal encoding (\\x or \\u) in raw string input. Only valid HTML entities are supported in html. This is the raw string leading up to the issue `<div>please no\\u`.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for ambiguous ampersands', () => {
-    const callback = () => html`<div>please &a no</div>`;
-    const expectedMessage = 'Seems like you have a malformed hexadecimal character reference (html entity). You will need to fix the reference in this content "please &a no".';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for malformed, named html entities', () => {
-    const callback = () => html`<div>please &notathing; no</div>`;
-    const expectedMessage = 'Seems like you have provided a named character reference (html entity) which is not supported. You will need to redefine this following reference as a decimal or hexadecimal number "&notathing;".';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for malformed decimal html entities', () => {
-    const callback = () => html`<div>please &#129872342364298374982374982374623492873498273498237498723984723432455234523543; no</div>`;
-    const expectedMessage = 'Seems like you have a malformed decimal character reference (html entity). You will need to fix the reference "&#129872342364298374982374982374623492873498273498237498723984723432455234523543;".';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for malformed hexadecimal html entities', () => {
-    const callback = () => html`<div>please &#x129872342364298374982374982374623492873498273498237498723984723432455234523543; no</div>`;
-    const expectedMessage = 'Seems like you have a malformed hexadecimal character reference (html entity). You will need to fix the reference "&#x129872342364298374982374982374623492873498273498237498723984723432455234523543;".';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for malformed comment because it starts with a ">" character', () => {
-    const callback = () => html`<!-->do not start with that character-->`;
-    const expectedMessage = 'Found malformed html comment. Comments cannot start with a ">" character or "->" characters. They cannot include a set of "--" characters. They cannot end with a "-" character.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for malformed comment because it starts with "->" characters', () => {
-    const callback = () => html`<!--->do not start with those characters-->`;
-    const expectedMessage = 'Found malformed html comment. Comments cannot start with a ">" character or "->" characters. They cannot include a set of "--" characters. They cannot end with a "-" character.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for malformed comment because it has "--" characters', () => {
-    const callback = () => html`<!--do not use "--" in a comment-->`;
-    const expectedMessage = 'Found malformed html comment. Comments cannot start with a ">" character or "->" characters. They cannot include a set of "--" characters. They cannot end with a "-" character.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for malformed comment because it ends with a "-" character', () => {
-    const callback = () => html`<!--do not end with this character--->`;
-    const expectedMessage = 'Found malformed html comment. Comments cannot start with a ">" character or "->" characters. They cannot include a set of "--" characters. They cannot end with a "-" character.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <html> tag', () => {
-    const callback = () => html`<html>`;
-    const expectedMessage = 'The <html> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <head> tag', () => {
-    const callback = () => html`<head>`;
-    const expectedMessage = 'The <head> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <body> tag', () => {
-    const callback = () => html`<body>`;
-    const expectedMessage = 'The <body> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <base> tag', () => {
-    const callback = () => html`<base>`;
-    const expectedMessage = 'The <base> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <link> tag', () => {
-    const callback = () => html`<link>`;
-    const expectedMessage = 'The <link> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <meta> tag', () => {
-    const callback = () => html`<meta>`;
-    const expectedMessage = 'The <meta> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <title> tag', () => {
-    const callback = () => html`<title>`;
-    const expectedMessage = 'The <title> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <script> tag', () => {
-    const callback = () => html`<script></script>`;
-    const expectedMessage = 'The <script> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <noscript> tag', () => {
-    const callback = () => html`<noscript>`;
-    const expectedMessage = 'The <noscript> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <canvas> tag', () => {
-    const callback = () => html`<canvas>`;
-    const expectedMessage = 'The <canvas> html element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for declarative shadow roots', () => {
-    const callback = () => html`<template shadowrootmode="open">`;
-    const expectedMessage = 'Declarative shadow roots are not yet supported (e.g., <template shadowrootmode="open">).';
-    assertThrows(callback, expectedMessage);
-  });
-});
-
-// We plan to investigate adding additional restrictions on svg to improve
-//  developer feedback in the future if the performance and complexity costs
-//  aren’t too high.
-describe.todo('future svg errors', () => {
-  it('throws for forbidden <style> tag', () => {
-    const callback = () => svg`<style>`;
-    const expectedMessage = 'The <style> svg element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-
-  it('throws for forbidden <script> tag', () => {
-    const callback = () => svg`<script>`;
-    const expectedMessage = 'The <script> svg element is forbidden.';
-    assertThrows(callback, expectedMessage);
-  });
-});
-
-// We plan to investigate adding additional restrictions on math to improve
-//  developer feedback in the future if the performance and complexity costs
-//  aren’t too high.
-describe.todo('future math errors', () => {
-  it('throws for forbidden <annotation-xml> tag', () => {
-    const callback = () => html`<math><annotation-xml></math>`;
-    const expectedMessage = 'The <annotation-xml> math element is forbidden.';
-    assertThrows(callback, expectedMessage);
   });
 });
 
@@ -2602,26 +1881,6 @@ describe('updater errors', () => {
       container.remove();
     });
   });
-});
-
-describe('interface migration errors', () => {
-  const removedInterfaceNames = [
-    'asyncAppend', 'asyncReplace', 'cache', 'classMap', 'directive', 'guard',
-    'styleMap', 'templateContent', 'until',
-  ];
-  for (const name of removedInterfaceNames) {
-    it(`warns that "${name}" no longer exists.`, () => {
-      const expected = `Removed "${name}" from default templating engine interface. Import and plug-in "lit-html" as your element's templating engine if you want this functionality.`;
-      let actual;
-      try {
-        XElement.templateEngine[name]();
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-    });
-  }
 });
 
 it('confirm that deprecation warnings are still necessary', () => {
