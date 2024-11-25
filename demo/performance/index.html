@@ -6,6 +6,8 @@
       {
         "imports": {
           "lit-html": "https://esm.sh/lit-html@3.2.1",
+          "react": "https://esm.sh/react@18.3.1",
+          "react-dom/": "https://esm.sh/react-dom@18.3.1/",
           "uhtml": "https://esm.sh/uhtml@4.5.11"
         }
       }
@@ -13,56 +15,54 @@
     <link rel="stylesheet" href="./index.css">
   </head>
   <body>
-    <div>
-      <div class="label">test fixture</div>
-      <pre id="fixture" class="output"></pre>
+    <div id="inject" class="test">
+      <div class="label">inject</div>
+      <div class="output"></div>
     </div>
-    <div>
-      <div class="label">default</div>
-      <pre id="default" class="output"></pre>
+    <div id="initial" class="test">
+      <div class="label">initial</div>
+      <div class="output"></div>
     </div>
-    <div>
-      <div class="label">lit html</div>
-      <pre id="lit-html" class="output"></pre>
+    <div id="update" class="test">
+      <div class="label">update</div>
+      <div class="output"></div>
     </div>
-    <div>
-      <div class="label">µhtml</div>
-      <pre id="uhtml" class="output"></pre>
-    </div>
+    <p><b>
+      For simplicity, these tests do not run in a cross-origin isolated
+      environment. That means that &ldquo;performance.now&rdquo; timestamps will
+      only be accurate to roughly &ldquo;100 &micro;s&rdquo;. To combat this,
+      tests are run in batches so that each time delta is large enough so that
+      the cross-origin discrepancy would add at most ~2% of error.
+    </b></p>
+    <p><b>
+      Also, consider how developer tools windows or multiple tabs may impact
+      these tests &mdash; i.e., take all of this information with a major grain
+      of salt. The goal here is just to show the <em>relative</em> performance
+      of a handful of engines.
+    </b></p>
+    <p><b>
+      Each asterisk represents a percentile of the underlying data. The median
+      (p50) is highligted in the chart and printed next to the related
+      engine&rsquo;s name. The first and last few percentiles are omitted to
+      reduce jumpiness in the charts from run-to-run.
+    </b></p>
     <p>
-      This tests the performance of <code>html</code> and <code>render</code>.
-      By testing <em>only</em> these two functions, we isolate time spent by the
-      templating engine from time spent by the element base class.
+      The term &ldquo;inject&rdquo; test refers to the process of starting from
+      some completely-zero state. I.e., new container DOM and a fresh template.
+      The term &ldquo;initial&rdquo; test is nearly identical to
+      &ldquo;inject&rdquo; in setup, but it&rsquo;s possible that the package
+      has cached some computations related to the input template strings (note
+      that the container here is still created from scratch). The term
+      &ldquo;update&rdquo; test is the most fine-grained test (given a
+      pre-existing container that&rsquo;s already been set up, how long does it
+      take to simply <em>update</em> the managed DOM).
     </p>
     <p>
-      The term &ldquo;inject&rdquo; refers to the process of taking an array
-      of template strings, injecting special markup strings, instantiating a
-      <code>&lt;template&gt;</code> element, mapping DOM elements based on the
-      special markup previously injected, cloning that template element, and
-      finally rendering it within a container element. Injection happens only
-      <em>once per template function declaration</em>. This is the most
-      time-consuming step of the process, but it also is only typically needed
-      once per element base class definition.
-    </p>
-    <p>
-      The term &ldquo;initial&rdquo; refers to the process of taking a
-      template that&rsquo;s <em>already</em> been injected and rendering it into
-      a new container element. For example, if you render multiple elements in
-      the page, the templating function is likely shared &mdash; this means that
-      the engine can skip the <em>injection</em> phase altogether. This happens
-      whenever a new element of the same type is created (i.e., the same element
-      appearing in a list over-and-over again).
-    </p>
-    <p>
-      The term &ldquo;update&rdquo; refers to the process of changing the values
-      which are interpolated into a given template. This is the most common
-      thing the engine needs to do.
-    </p>
-    <p>
-      Finally, a note on how the tests work — they are batched up and run within
-      animation frames to guard against any interference that might occur when
-      an animation frame is skipped due to the main thread being busy. This is
-      why the tests all take the same amount of time to complete.
+      Finally, a note on how the tests work &mdash; they are batched up and run
+      within animation frames to guard against any interference that might occur
+      when an animation frame is skipped due to the main thread being busy. This
+      is why the tests all take the same amount of time to complete even though
+      the actual tasks they measure can differ.
     </p>
     <script type="module" src="./index.js"></script>
   </body>
