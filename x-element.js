@@ -121,6 +121,11 @@ export default class XElement extends HTMLElement {
     return {};
   }
 
+  // TODO: Not sure if we want to expose this sort of thing.
+  static get experimentalSynchronousRender() {
+    return false;
+  }
+
   /**
    * Customize shadow root initialization and optionally forgo encapsulation.
    * E.g., setup focus delegation or return host instead of host.shadowRoot.
@@ -297,7 +302,7 @@ export default class XElement extends HTMLElement {
 
   // Called once per class — kicked off from "static get observedAttributes".
   static #analyzeConstructor(constructor) {
-    const { styles, properties, listeners } = constructor;
+    const { styles, properties, listeners, experimentalSynchronousRender } = constructor;
     const propertiesEntries = Object.entries(properties);
     const listenersEntries = Object.entries(listeners);
     XElement.#validateProperties(constructor, properties, propertiesEntries);
@@ -323,7 +328,7 @@ export default class XElement extends HTMLElement {
     const listenerMap = new Map(listenersEntries);
     XElement.#constructors.set(constructor, {
       styles, propertyMap, internalPropertyMap, attributeMap, listenerMap,
-      propertiesTarget, internalTarget,
+      propertiesTarget, internalTarget, experimentalSynchronousRender,
     });
   }
 
@@ -634,7 +639,7 @@ export default class XElement extends HTMLElement {
     const computeMap = new Map();
     const observeMap = new Map();
     const defaultMap = new Map();
-    const { styles, propertyMap } = XElement.#constructors.get(host.constructor);
+    const { styles, propertyMap, experimentalSynchronousRender } = XElement.#constructors.get(host.constructor);
     if (styles.length > 0) {
       if (renderRoot === host.shadowRoot) {
         if (renderRoot.adoptedStyleSheets.length === 0) {
@@ -657,7 +662,7 @@ export default class XElement extends HTMLElement {
     XElement.#hosts.set(host, {
       initialized: false, reflecting: false, invalidProperties, listenerMap,
       renderRoot, render, template, properties, internal, computeMap,
-      observeMap, defaultMap, valueMap,
+      observeMap, defaultMap, valueMap, experimentalSynchronousRender,
     });
   }
 
@@ -898,21 +903,34 @@ export default class XElement extends HTMLElement {
       .join(' < ');
   }
 
-  static async #invalidateProperty(host, property) {
-    const { initialized, invalidProperties, computeMap } = XElement.#hosts.get(host);
+  static async #invalidateProperty(host, property, skipUpdate) {
+    const { initialized, invalidProperties, computeMap, experimentalSynchronousRender } = XElement.#hosts.get(host);
     if (initialized) {
-      for (const output of property.output) {
-        XElement.#invalidateProperty(host, output);
-      }
-      const queueUpdate = invalidProperties.size === 0;
-      invalidProperties.add(property);
-      if (property.compute) {
-        computeMap.get(property).valid = false;
-      }
-      if (queueUpdate) {
-        // Queue a microtask. Allows multiple, synchronous changes.
-        await Promise.resolve();
-        XElement.#updateHost(host);
+      if (experimentalSynchronousRender) {
+        for (const output of property.output) {
+          XElement.#invalidateProperty(host, output, true);
+        }
+        invalidProperties.add(property);
+        if (property.compute) {
+          computeMap.get(property).valid = false;
+        }
+        if (!skipUpdate) {
+          XElement.#updateHost(host);
+        }
+      } else {
+        for (const output of property.output) {
+          XElement.#invalidateProperty(host, output);
+        }
+        const queueUpdate = invalidProperties.size === 0;
+        invalidProperties.add(property);
+        if (property.compute) {
+          computeMap.get(property).valid = false;
+        }
+        if (queueUpdate) {
+          // Queue a microtask. Allows multiple, synchronous changes.
+          await Promise.resolve();
+          XElement.#updateHost(host);
+        }
       }
     }
   }
