@@ -45,7 +45,7 @@ npm install @netflix/x-element
 5. Follow web platform precedents whenever possible
 6. Remain compatible with any browser which fully supports custom elements
 7. Prioritize simple syntax and useful comments in the code itself
-8. Avoid requiring that developers learn new proprietary stuff
+8. Avoid making developers learn new proprietary stuff
 9. Zero dependencies
 
 ## Development:
