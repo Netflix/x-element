@@ -979,7 +979,7 @@ describe('changing content values', () => {
 describe('svg rendering', () => {
   it('renders a basic string', () => {
     const getTemplate = ({ r, cx, cy }) => {
-      return svg`<circle id="target" r="${r}" cx="${cx}" cy="${cy}"/>`;
+      return svg`<circle id="target" r="${r}" cx="${cx}" cy="${cy}"></circle>`;
     };
     const container = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     container.setAttribute('viewBox', '0 0 100 100');
@@ -1094,80 +1094,70 @@ describe('value issues', () => {
 
 describe('html errors', () => {
   it('throws when attempting to interpolate within a style tag', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`
+    const callback = () => html`
       <style>
         div { background-color: ${'red'}; }
       </style>
-    `);
+    `;
     const expectedMessage = 'Interpolation of "style" tags is not allowed.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws when attempting to interpolate within a script tag', () => {
     const evil = '\' + prompt(\'evil\') + \'';
-    const container = document.createElement('div');
-    const callback = () => render(container, html`
+    const callback = () => html`
       <script id="target">
         console.log('${evil}');
       </script>
-    `);
+    `;
     const expectedMessage = 'Interpolation of "script" tags is not allowed.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws when attempting non-trivial interpolation of a textarea tag', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`<textarea id="target">please ${'foo'} no</textarea>`);
+    const callback = () => html`<textarea id="target">please ${'foo'} no</textarea>`;
     const expectedMessage = 'Only basic interpolation of "textarea" tags is allowed.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws when attempting non-trivial interpolation of a textarea tag via nesting', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`<textarea id="target"><b>please ${'foo'} no</b></textarea>`);
+    const callback = () => html`<textarea id="target"><b>please ${'foo'} no</b></textarea>`;
     const expectedMessage = 'Only basic interpolation of "textarea" tags is allowed.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws when attempting non-trivial interpolation of a title tag', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`<title>please ${'foo'} no</title>`);
+    const callback = () => html`<title>please ${'foo'} no</title>`;
     const expectedMessage = 'Only basic interpolation of "title" tags is allowed.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws when attempting non-trivial interpolation of a title tag via nesting', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`<title><b>please ${'foo'} no</b></title>`);
+    const callback = () => html`<title><b>please ${'foo'} no</b></title>`;
     const expectedMessage = 'Only basic interpolation of "title" tags is allowed.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws for unquoted attributes', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`<div id="target" not-ok=${'foo'}>Gotta double-quote those.</div>`);
+    const callback = () => html`<div id="target" not-ok=${'foo'}>Gotta double-quote those.</div>`;
     const expectedMessage = 'Found invalid template on or after line 1 in substring `<div id="target" not-ok=`. Failed to parse ` not-ok=`.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws for single-quoted attributes', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`\n<div id="target" not-ok='${'foo'}'>Gotta double-quote those.</div>`);
+    const callback = () => html`\n<div id="target" not-ok='${'foo'}'>Gotta double-quote those.</div>`;
     const expectedMessage = 'Found invalid template on or after line 2 in substring `\n<div id="target" not-ok=\'`. Failed to parse ` not-ok=\'`.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws for unquoted properties', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`\n\n\n<div id="target" .notOk=${'foo'}>Gotta double-quote those.</div>`);
+    const callback = () => html`\n\n\n<div id="target" .notOk=${'foo'}>Gotta double-quote those.</div>`;
     const expectedMessage = 'Found invalid template on or after line 4 in substring `\n\n\n<div id="target" .notOk=`. Failed to parse ` .notOk=`.';
     assertThrows(callback, expectedMessage);
   });
 
   it('throws for single-quoted properties', () => {
-    const container = document.createElement('div');
-    const callback = () => render(container, html`<div id="target" .notOk='${'foo'}'>Gotta double-quote those.</div>`);
+    const callback = () => html`<div id="target" .notOk='${'foo'}'>Gotta double-quote those.</div>`;
     const expectedMessage = 'Found invalid template on or after line 1 in substring `<div id="target" .notOk=\'`. Failed to parse ` .notOk=\'`.';
     assertThrows(callback, expectedMessage);
   });
@@ -1199,6 +1189,16 @@ describe('html errors', () => {
 //  developer feedback in the future if the performance and complexity costs
 //  aren’t too high.
 describe.todo('future html errors', () => {
+  it('throws every time if there is a parsing error', () => {
+    // At one point, we only threw the _first_ time we encountered a given
+    //  tagged template function “strings” array. We want to throw always.
+    const callback = () => html`<-div></-div>`;
+    const expectedMessage = 'TODO — Write a better error message!';
+    assertThrows(callback, expectedMessage);
+    assertThrows(callback, expectedMessage);
+    assertThrows(callback, expectedMessage);
+  });
+
   it('throws if open tag starts with a hyphen', () => {
     const callback = () => html`<-div></-div>`;
     const expectedMessage = 'TODO — Write a better error message!';
