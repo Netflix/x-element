@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - You may now bind values of type `DocumentFragment` within the template engine.
   In particular, this was added to enable advanced flows without needing to
   bloat the default template engine interface (#207, #216).
+- Pull “x-template.js” into a separate file. Conceptually it solves a totally
+  different problem than “x-element” (#226).
 
 ### Deprecated
 

@@ -1,10 +1,12 @@
 import { test, coverage } from './x-test.js';
 
-// We import this here so we can see code coverage.
+// We import these here so we can see code coverage.
 import '../x-element.js';
+import '../x-template.js';
 
 // Set a high bar for code coverage!
 coverage(new URL('../x-element.js', import.meta.url).href, 100);
+coverage(new URL('../x-template.js', import.meta.url).href, 100);
 
 test('./test-analysis-errors.html');
 test('./test-initialization-errors.html');

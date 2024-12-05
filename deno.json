@@ -2,17 +2,22 @@
   "name": "@netflix/x-element",
   "version": "1.1.1",
   "exports": {
-    "./x-element.js":  "./x-element.js",
-    "./x-element.d.ts": "./x-element.d.ts",
+    "./x-element.js": "./x-element.js",
+    "./x-template.js": "./x-template.js",
     "./etc/ready.js": "./etc/ready.js",
-    "./etc/ready.d.ts": "./etc/ready.d.ts"
+    "./ts/x-element.d.ts": "./ts/x-element.d.ts",
+    "./ts/x-template.d.ts": "./ts/x-template.d.ts",
+    "./ts/etc/ready.d.ts": "./ts/etc/ready.d.ts"
   },
   "include": [
     "./x-element.js",
-    "./x-element.d.ts",
-    "./x-element.d.ts.map",
+    "./x-template.js",
     "./etc/ready.js",
-    "./etc/ready.d.ts",
-    "./etc/ready.d.ts.map"
+    "./ts/x-element.d.ts",
+    "./ts/x-element.d.ts.map",
+    "./ts/x-template.d.ts",
+    "./ts/x-template.d.ts.map",
+    "./ts/etc/ready.d.ts",
+    "./ts/etc/ready.d.ts.map"
   ]
 }
