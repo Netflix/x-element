@@ -2,68 +2,50 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <script type="importmap">
-      {
-        "imports": {
-          "lit-html": "https://esm.sh/lit-html@3.2.1",
-          "react": "https://esm.sh/react@18.3.1",
-          "react-dom/": "https://esm.sh/react-dom@18.3.1/",
-          "uhtml": "https://esm.sh/uhtml@4.5.11"
-        }
-      }
-    </script>
     <link rel="stylesheet" href="./index.css">
   </head>
   <body>
     <div id="inject" class="test">
-      <div class="label">inject</div>
+      <div class="label">Interpret &amp; Initialize</div>
+      <div class="description">
+        This calls <code>render(container, html`…`)</code>, where the expression
+        <code>html`…`</code> has never been executed before and
+        the <code>container</code> has never been initialized.
+      </div>
       <div class="output"></div>
     </div>
     <div id="initial" class="test">
-      <div class="label">initial</div>
+      <div class="label">Initialize Only</div>
+      <div class="description">
+        This calls <code>render(container, html`…`)</code>, where the expression
+        <code>html`…`</code> <em>has</em> been executed before, but the
+        <code>container</code> has never been initialized.
+      </div>
       <div class="output"></div>
     </div>
     <div id="update" class="test">
-      <div class="label">update</div>
+      <div class="label">Update Only</div>
+      <div class="description">
+        This calls <code>render(container, html`…`)</code>, where the expression
+        <code>html`…`</code> has been executed before and the
+        <code>container</code> has already been initialized.
+      </div>
       <div class="output"></div>
     </div>
-    <p><b>
-      For simplicity, these tests do not run in a cross-origin isolated
-      environment. That means that &ldquo;performance.now&rdquo; timestamps will
-      only be accurate to roughly &ldquo;100 &micro;s&rdquo;. To combat this,
-      tests are run in batches so that each time delta is large enough so that
-      the cross-origin discrepancy would add at most ~2% of error.
-    </b></p>
-    <p><b>
-      Also, consider how developer tools windows or multiple tabs may impact
-      these tests &mdash; i.e., take all of this information with a major grain
-      of salt. The goal here is just to show the <em>relative</em> performance
-      of a handful of engines.
-    </b></p>
-    <p><b>
-      Each asterisk represents a percentile of the underlying data. The median
-      (p50) is highligted in the chart and printed next to the related
-      engine&rsquo;s name. The first and last few percentiles are omitted to
-      reduce jumpiness in the charts from run-to-run.
-    </b></p>
-    <p>
-      The term &ldquo;inject&rdquo; test refers to the process of starting from
-      some completely-zero state. I.e., new container DOM and a fresh template.
-      The term &ldquo;initial&rdquo; test is nearly identical to
-      &ldquo;inject&rdquo; in setup, but it&rsquo;s possible that the package
-      has cached some computations related to the input template strings (note
-      that the container here is still created from scratch). The term
-      &ldquo;update&rdquo; test is the most fine-grained test (given a
-      pre-existing container that&rsquo;s already been set up, how long does it
-      take to simply <em>update</em> the managed DOM).
-    </p>
-    <p>
-      Finally, a note on how the tests work &mdash; they are batched up and run
-      within animation frames to guard against any interference that might occur
-      when an animation frame is skipped due to the main thread being busy. This
-      is why the tests all take the same amount of time to complete even though
-      the actual tasks they measure can differ.
-    </p>
+    <iframe id="frame"></iframe>
+    <details>
+      <summary>Explainer</summary>
+      <p>
+        Each row in each group is run in an iframe at a unique url &mdash;
+        one-by-one. Dots represent percentiles (20th-80th). The term
+        <b>interpretation</b> is the parsing of markup as instructions to
+        create dom. The term <b>initialize</b> refers to populating a given
+        container with dom nodes which have properties bound. The term
+        <b>update</b> is just the act of binding new <em>values</em> to
+        existing dom in an already-initialized container. See
+        <code>PERFORMANCE.md</code> for additional details.
+      </p>
+    </details>
     <script type="module" src="./index.js"></script>
   </body>
 </html>

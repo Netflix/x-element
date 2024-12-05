@@ -3,19 +3,26 @@
 }
 
 .test + .test {
-  margin-top: 32px;
+  margin-top: 40px;
 }
 
 .label {
   font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.description {
+  margin-bottom: 32px;
+  color: gray;
+  width: 600px;
 }
 
 .output {
-  width: 500px;
+  width: 600px;
   height: 92px;
 }
 .output:empty::before {
-  content: "Loading\2026";
+  content: "--";
 }
 
 .distribution {
@@ -23,6 +30,9 @@
   display: flex;
   gap: 12px;
   font-family: monospace;
+}
+.distribution[data-skipped] {
+  color: gray;
 }
 .distribution + .distribution {
   margin-top: 4px;
@@ -35,6 +45,11 @@
 .distribution .right {
   flex-grow: 1;
   box-shadow: inset 0 0 0 1px black;
+  padding: 0 4px;
+}
+.distribution[data-skipped] .right {
+  box-shadow: none;
+  padding: 0;
 }
 
 .distribution .percentile {
@@ -52,7 +67,7 @@
 .distribution .min {
   position: absolute;
   top: -24px;
-  left: 4px;
+  left: 0;
 }
 .distribution .min::after {
   content: " (min)";
@@ -61,7 +76,7 @@
 .distribution .max {
   position: absolute;
   top: -24px;
-  right: 4px;
+  right: 0;
 }
 .distribution .max::before {
   content: "(max) ";
@@ -72,10 +87,22 @@
   display: none;
 }
 
-p {
-  width: 70ch;
+#frame {
+  position: fixed;
+  top: 0;
+  right: 0;
+  background-color: white;
+  z-index: 1;
 }
 
-p:first-of-type {
-  margin-top: 2em;
+#frame:not([data-running]) {
+  display: none;
+}
+
+details {
+  margin-top: 32px;
+}
+
+p {
+  width: 600px;
 }
