@@ -20,9 +20,12 @@ class TemplateEngine {
 
   // Sentinel to hold raw result language. Also leveraged to determine whether a
   //  value is a raw result or not. Template engine supports html and svg.
-  static #LANGUAGE = Symbol();
   static #HTML = 'html';
   static #SVG = 'svg';
+
+  // Sentinel to hold internal result information. Also leveraged to determine
+  //  whether a value is a raw result or not.
+  static #ANALYSIS = Symbol();
 
   // Sentinel to initialize the “last values” array.
   static #UNSET = Symbol();
@@ -834,21 +837,11 @@ class TemplateEngine {
     }
   }
 
-  // Inject a given result into a node for the first time. If we’ve never seen
-  //  the template “strings” before, we also have to generate html, parse it,
-  //  and find out binding targets. Then, we commit the values by iterating over
-  //  our targets. Finally, we actually attach our new DOM into our node.
+  // Inject a given result into a node for the first time.
   static #inject(rawResult, node, before) {
-    // Create and prepare a document fragment to be injected.
-    const { [TemplateEngine.#LANGUAGE]: language, strings } = rawResult;
-    const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
-    if (!analysis.done) {
-      analysis.done = true;
-      const fragment = TemplateEngine.#createFragment(language, strings);
-      const lookups = TemplateEngine.#findLookups(fragment);
-      analysis.fragment = fragment;
-      analysis.lookups = lookups;
-    }
+    // Get fragment created from a tagged template function’s “strings”.
+    const { [TemplateEngine.#ANALYSIS]: analysis } = rawResult;
+    const language = analysis.language;
     const fragment = analysis.fragment.cloneNode(true);
     const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
     const preparedResult = { rawResult, fragment, targets };
@@ -875,11 +868,22 @@ class TemplateEngine {
   }
 
   static #createRawResult(language, strings, values) {
-    return { [TemplateEngine.#LANGUAGE]: language, strings, values };
+    const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
+    if (!analysis.done) {
+      const fragment = TemplateEngine.#createFragment(language, strings);
+      const lookups = TemplateEngine.#findLookups(fragment);
+      analysis.language = language;
+      analysis.fragment = fragment;
+      analysis.lookups = lookups;
+      analysis.done = true;
+    }
+    // This is a leaking implementation detail, but fixing the leak comes at
+    //  a non-negligible performance cost.
+    return { [TemplateEngine.#ANALYSIS]: analysis, strings, values };
   }
 
   static #isRawResult(value) {
-    return !!value?.[TemplateEngine.#LANGUAGE];
+    return !!value?.[TemplateEngine.#ANALYSIS];
   }
 
   // TODO: Revisit this concept when we delete deprecated interfaces. Once that
@@ -933,10 +937,9 @@ class TemplateEngine {
   }
 
   static #canReuseDom(preparedResult, rawResult) {
-    return (
-      preparedResult?.rawResult[TemplateEngine.#LANGUAGE] === rawResult?.[TemplateEngine.#LANGUAGE] &&
-      preparedResult?.rawResult.strings === rawResult?.strings
-    );
+    // TODO: Is it possible that we might have the same strings from a different
+    //  template language? Probably not. The following check should suffice.
+    return preparedResult?.rawResult.strings === rawResult?.strings;
   }
 
   static #createCursors(referenceNode) {

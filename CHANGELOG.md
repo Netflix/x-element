@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bloat the default template engine interface (#207, #216).
 - Pull “x-template.js” into a separate file. Conceptually it solves a totally
   different problem than “x-element” (#226).
+- Throw immediately with parsing errors in default template engine. This is done
+  as an improvement to developer feedback (#233).
 
 ### Deprecated
 
