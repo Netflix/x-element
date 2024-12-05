@@ -1016,14 +1016,13 @@ class TemplateEngine {
     }
   }
 
-  static #interfaceDeprecatedStacks = new Set();
+  static #interfaceDeprecatedMessages = new Set();
   static #interfaceDeprecated(name, callback) {
     return (...args) => {
-      const error = new Error(`Deprecated "${name}" from default templating engine interface.`);
-      const stack = error.stack;
-      if (!this.#interfaceDeprecatedStacks.has(stack)) {
-        this.#interfaceDeprecatedStacks.add(stack);
-        console.warn(error); // eslint-disable-line no-console
+      const message = `Deprecated "${name}" from default templating engine interface.`;
+      if (!this.#interfaceDeprecatedMessages.has(message)) {
+        this.#interfaceDeprecatedMessages.add(message);
+        console.warn(new Error(message)); // eslint-disable-line no-console
       }
       return callback(...args);
     };
