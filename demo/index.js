@@ -9,42 +9,45 @@ const logo = `\
 `;
 
 class HelloElement extends XElement {
+  static get styles() {
+    const styleSheet = new CSSStyleSheet();
+    styleSheet.replaceSync(`\
+      :host {
+        display: contents;
+      }
+
+      #container {
+        position: fixed;
+        --width: 150px;
+        --height: 150px;
+        --font-size: 13px;
+        font-weight: bold;
+        line-height: calc(var(--font-size) * 1.8);
+        font-size: var(--font-size);
+        top: calc(0px - var(--width) / 2);
+        left: calc(0px - var(--height) / 2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--width);
+        height: var(--height);
+        transform: translate(calc(0vw - var(--width)), 50vh) rotate(0deg);
+        opacity: 1;
+        transform-origin: center;
+        border-radius: 100vmax;
+        cursor: default;
+      }
+
+      #logo {
+        padding-bottom: var(--font-size);
+      }
+    `);
+    return [styleSheet];
+  }
+
   static template(html) {
     return () => {
-      return html`
-        <style>
-          :host {
-            display: contents;
-          }
-
-          #container {
-            position: fixed;
-            --width: 150px;
-            --height: 150px;
-            --font-size: 13px;
-            font-weight: bold;
-            line-height: calc(var(--font-size) * 1.8);
-            font-size: var(--font-size);
-            top: calc(0px - var(--width) / 2);
-            left: calc(0px - var(--height) / 2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: var(--width);
-            height: var(--height);
-            transform: translate(calc(0vw - var(--width)), 50vh) rotate(0deg);
-            opacity: 1;
-            transform-origin: center;
-            border-radius: 100vmax;
-            cursor: default;
-          }
-
-          #logo {
-            padding-bottom: var(--font-size);
-          }
-        </style>
-        <div id="container"><pre id="logo">${logo}</pre></div>
-      `;
+      return html`<div id="container"><pre id="logo">${logo}</pre></div>`;
     };
   }
 
