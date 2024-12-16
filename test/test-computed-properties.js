@@ -4,6 +4,29 @@ import { it, assert } from './x-test.js';
 let _count = 0;
 
 class TestElement extends XElement {
+  static get styles() {
+    const styleSheet = new CSSStyleSheet();
+    styleSheet.replaceSync(`\
+      #calculation {
+        background-color: lightgreen;
+        padding: 10px;
+      }
+
+      :host([negative]) #calculation {
+        background-color: lightcoral;
+      }
+
+      :host([underline]) #calculation {
+        text-decoration: underline;
+      }
+
+      :host([italic]) #calculation {
+        font-style: italic;
+      }
+    `);
+    return [styleSheet];
+  }
+
   static get properties() {
     return {
       c: {
@@ -84,27 +107,7 @@ class TestElement extends XElement {
 
   static template(html) {
     return ({ a, b, c }) => {
-      return html`
-        <style>
-          #calculation {
-            background-color: lightgreen;
-            padding: 10px;
-          }
-
-          :host([negative]) #calculation {
-            background-color: lightcoral;
-          }
-
-          :host([underline]) #calculation {
-            text-decoration: underline;
-          }
-
-          :host([italic]) #calculation {
-            font-style: italic;
-          }
-        </style>
-        <span id="calculation">${a} + ${b} = ${c}</span>
-      `;
+      return html`<span id="calculation">${a} + ${b} = ${c}</span>`;
     };
   }
 }

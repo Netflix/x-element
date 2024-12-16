@@ -188,14 +188,14 @@ class Forgiving {
         (localName === 'style' || localName === 'script') &&
         node.textContent.includes(Forgiving.#CONTENT_MARKER)
       ) {
-        throw new Error(`Interpolation of "${localName}" tags is not allowed.`);
+        throw new Error(`Interpolation of <${localName}> tags is not allowed.`);
       } else if (localName === 'textarea' || localName === 'title') {
         if (node.textContent.includes(Forgiving.#CONTENT_MARKER)) {
           if (node.textContent === `<!--${Forgiving.#CONTENT_MARKER}-->`) {
             node.textContent = '';
             onText(path);
           } else {
-            throw new Error(`Only basic interpolation of "${localName}" tags is allowed.`);
+            throw new Error(`Only basic interpolation of <${localName}> tags is allowed.`);
           }
         }
       }
