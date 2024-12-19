@@ -1,4 +1,5 @@
 /** Forgiving HTML parser which leverages innerHTML. */
+/*
 class Forgiving {
   // Special markers added to markup enabling discovery post-instantiation.
   static #NEXT_MARKER = 'forgiving-next:'; // The ":" helps for debugging.
@@ -266,6 +267,870 @@ class Forgiving {
   static parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language) {
     const fragment = Forgiving.#createFragment(language, strings);
     Forgiving.#walkFragment(onBoolean, onDefined, onAttribute, onProperty, onContent, onText, fragment);
+    return fragment;
+  }
+}
+*/
+
+// This document is a helpful summary of the spec as it relates to valid and
+//  invalid character patterns in different elements and nodes:
+//  https://w3c.github.io/html-reference/syntax.html
+//  … WHATWG also has a helpful breakdown here:
+//  https://html.spec.whatwg.org/multipage/syntax.html#elements-2
+
+// Here is a reference of all named html entities:
+//  https://html.spec.whatwg.org/multipage/named-characters.html
+//  https://html.spec.whatwg.org/entities.json
+
+// Here is a nicely-formatted list of valid HTML elements from MDN:
+//  https://developer.mozilla.org/en-US/docs/Web/HTML/Element
+//  … and a related WHATWG specification on the same:
+//  https://html.spec.whatwg.org/multipage/indices.html
+
+// TODO: Do we need to support CDATA?
+//  https://w3c.github.io/html-reference/syntax.html#cdata-sections
+//  https://developer.mozilla.org/en-US/docs/Web/API/CDATASection
+// TODO: Some of the validations around tag name, attribute name, and property
+//  name may be slow… should we be less strict? Is it the case that the browser
+//  would throw on any of these anyhow? Could we just let that happen?
+// TODO: HTML often assumed UTF-8, but JS strings (i think) are UTF-16. That
+//  means we can accept UTF-16 characters and inject them as text content, 
+// TODO: Come up with a way to test UTF-8 multi-byte sequence interop with
+//  multi-by UTF-16 surrogate pair interop. Maybe not a problem, but it would be
+//  important to know one way or the other!
+// TODO: Do we need special handling of NUL character — U+0000? It is forbidden
+//  in text / character data. For “permanently undefined Unicode characters”?
+// TODO: Can text nodes be added in svg / math namespaces?
+// TODO: Should we use setAttributeNS when in a namespace?
+// TODO: Checkout optional newline for pre / textarea:
+//  https://html.spec.whatwg.org/multipage/syntax.html#element-restrictions
+// TODO: May be more performant to turn sets / maps into switches.
+// TODO: Seems like there may be some conventions to use camelCase element
+//  names in SVG. Are we okay forcing them to be lowercase?
+
+/** Strict HTML parser meant to handle interpolated HTML. */
+class Unforgiving {
+  // More performant to clone a single fragment so we just keep one around.
+  static #fragment = new DocumentFragment();
+
+  // Special keys to hang internal state off of nodes we create for performance.
+  static #localName = Symbol();
+  static #parentNode = Symbol();
+  static #namespace = Symbol();
+
+  // Delimiter we add to improve debugging — "${…}".
+  static #delimiter = '${\u2026}';
+
+  // Self-closing html elements.
+  static #voidHtmlElements = new Set([
+    'area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input',
+    'keygen', 'link', 'meta', 'source', 'track', 'wbr',
+  ]);
+
+  // Elements we allow.
+  static #allHtmlElements = new Set([
+    // Main Root — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#main_root
+    'html',
+    // Document metadata — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#document_metadata
+    'head', 'base', 'link', 'meta', 'title', 'style',
+    // Sectioning root — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#sectioning_root
+    'body',
+    // Content sectioning — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#content_sectioning
+    'address', 'article', 'aside', 'footer', 'header', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hgroup', 'main', 'nav',
+    'section', 'search',
+    // Text content — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#text_content
+    'blockquote', 'dd', 'div', 'dl', 'dt', 'figcaption', 'figure', 'hr', 'li', 'menu', 'ol', 'p', 'pre', 'ul',
+    // Inline text semantics — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics
+    'a', 'abbr', 'b', 'bdi', 'bdo', 'br', 'cite', 'code', 'data', 'dfn', 'em', 'i', 'kbd', 'mark', 'q', 'rp', 'rt',
+    'ruby', 's', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'time', 'u', 'var', 'wbr',
+    // Image and multimedia — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#image_and_multimedia
+    'area', 'audio', 'img', 'map', 'track', 'video',
+    // Embedded content — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#embedded_content
+    'embed', 'fencedframe', 'iframe', 'object', 'picture', 'portal', 'source',
+    // SVG and MathML — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#svg_and_mathml (see foreign elements for these namespaces below…)
+    'svg', 'math',
+    // Scripting — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#scripting
+    'script', 'noscript', 'canvas',
+    // Demarcating edits — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#demarcating_edits
+    'del', 'ins',
+    // Table content — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#table_content
+    'caption', 'col', 'colgroup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr',
+    // Forms — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#forms
+    'button', 'datalist', 'fieldset', 'form', 'input', 'label', 'legend', 'meter', 'optgroup', 'option', 'output',
+    'progress', 'select', 'textarea',
+    // Interactive elements — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#interactive_elements
+    'details', 'dialog', 'summary',
+    // Web components — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#web_components
+    'slot', 'template',
+    // Obsolete and deprecated elements — https://developer.mozilla.org/en-US/docs/Web/HTML/Element#obsolete_and_deprecated_elements
+    'acronym', 'big', 'center', 'content', 'dir', 'font', 'frame', 'frameset', 'image', 'marquee', 'menuitem', 'nobr',
+    'noembed', 'noframes', 'param', 'plaintext', 'rb', 'rtc', 'shadow', 'strike', 'tt', 'xmp',
+  ]);
+  static #deniedHtmlElements = new Set([
+    'html', 'head', 'base', 'link', 'meta', 'title', 'body', 'script', 'noscript', 'canvas', 'acronym', 'big', 'center',
+    'content', 'dir', 'font', 'frame', 'frameset', 'image', 'marquee', 'menuitem', 'nobr', 'noembed', 'noframes',
+    'param', 'plaintext', 'rb', 'rtc', 'shadow', 'strike', 'tt', 'xmp',
+  ]);
+  // @ts-ignore — TypeScript (at the time of writing) doesn’t know the new set methods exist yet.
+  static #allowedHtmlElements = Unforgiving.#allHtmlElements.difference(Unforgiving.#deniedHtmlElements);
+
+  static #allSvgElements = new Set([
+    // Animation elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#animation_elements
+    'animate', 'animatemotion', 'animatetransform', 'mpath', 'set',
+    // Basic shapes — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#basic_shapes
+    'circle', 'ellipse', 'line', 'polygon', 'polyline', 'rect',
+    // Container elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#container_elements
+    'a', 'defs', 'g', 'marker', 'mask', 'pattern', 'svg', 'switch', 'symbol', 'missing-glyph',
+    // Descriptive elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#descriptive_elements
+    'desc', 'metadata', 'title',
+    // Filter primitive elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#filter_primitive_elements
+    'feblend', 'fecolormatrix', 'fecomponenttransfer', 'fecomposite', 'feconvolvematrix', 'fediffuselighting',
+    'fedisplacementmap', 'fedropshadow', 'feflood', 'fefunca', 'fefuncb', 'fefuncg', 'fefuncr', 'fegaussianblur',
+    'feimage', 'femerge', 'femergenode', 'femorphology', 'feoffset', 'fespecularlighting', 'fetile', 'feturbulance',
+    // Font elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#font_elements
+    'font', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri', 'hkern', 'vkern',
+    // Gradient elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#gradient_elements
+    'lineargradient', 'radialgradient', 'stop',
+    // Graphics elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#graphics_elements
+    'circle', 'ellipse', 'image', 'line', 'path', 'polygon', 'polyline', 'rect', 'text', 'use',
+    // Graphics referencing elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#graphics_referencing_elements
+    'use',
+    // Light source elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#light_source_elements
+    'fedistantlight', 'fepointlight', 'fespotlight',
+    // Never-rendered elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#never-rendered_elements
+    'clippath', 'defs', 'lineargradient', 'marker', 'mask', 'pattern', 'symbol', 'title', 'metadata', 'radialgradient',
+    'script', 'style',
+    // Paint server elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#paint_server_elements
+    'lineargradient', 'pattern', 'radialgradient',
+    // Renderable elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#renderable_elements
+    'a', 'circle', 'ellipse', 'foreignobject', 'g', 'image', 'line', 'path', 'polygon', 'polyline', 'rect', 'svg',
+    'switch', 'symbol', 'text', 'textpath', 'tspan', 'use',
+    // Shape elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#shape_elements
+    'circle', 'ellipse', 'line', 'path', 'polygon', 'polyline', 'rect',
+    // Structural elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#structural_elements
+    'defs', 'g', 'svg', 'symbol', 'use',
+    // Text content elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#text_content_elements
+    'glyph', 'glyphref', 'textpath', 'text', 'tref', 'tspan',
+    // Text content child elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#text_content_child_elements
+    'clippath', 'cursor', 'filter', 'foreignobject', 'script', 'style', 'view',
+    // Obsolete and deprecated elements — https://developer.mozilla.org/en-US/docs/Web/SVG/Element#obsolete_and_deprecated_elements
+    'cursor', 'font', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri', 'glyph',
+    'glyphref', 'hkern', 'missing-glyph', 'tref', 'vkern',
+  ]);
+  static #deniedSvgElements = new Set([
+    'animate', 'animatemotion', 'animatetransform', 'mpath', 'set', 'missing-glyph', 'desc', 'metadata', 'title',
+    'feblend', 'fecolormatrix', 'fecomponenttransfer', 'fecomposite', 'feconvolvematrix', 'fediffuselighting',
+    'fedisplacementmap', 'fedropshadow', 'feflood', 'fefunca', 'fefuncb', 'fefuncg', 'fefuncr', 'fegaussianblur',
+    'feimage', 'femerge', 'femergenode', 'femorphology', 'feoffset', 'fespecularlighting', 'fetile', 'feturbulance',
+    'font', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri', 'hkern', 'vkern',
+    'lineargradient', 'radialgradient', 'stop', 'fedistantlight', 'fepointlight', 'fespotlight', 'metadata',
+    'radialgradient', 'script', 'style', 'lineargradient', 'pattern', 'radialgradient', 'glyph', 'glyphref',
+    'textpath', 'text', 'tref', 'tspan', 'clippath', 'cursor', 'filter', 'foreignobject', 'script', 'style', 'view',
+    'cursor', 'font', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri', 'glyph',
+    'glyphref', 'hkern', 'missing-glyph', 'tref', 'vkern',
+  ]);
+  // @ts-ignore — TypeScript (at the time of writing) doesn’t know the new set methods exist yet.
+  static #allowedSvgElements = Unforgiving.#allSvgElements.difference(Unforgiving.#deniedSvgElements);
+
+  static #allMathElements = new Set([
+    // Top-level elements — https://developer.mozilla.org/en-US/docs/Web/MathML/Element#top-level_elements
+    'math',
+    // Token elements — https://developer.mozilla.org/en-US/docs/Web/MathML/Element#token_elements
+    'mi', 'mn', 'mo', 'ms', 'mspace', 'mtext',
+    // General layout — https://developer.mozilla.org/en-US/docs/Web/MathML/Element#general_layout
+    'merror', 'mfrac', 'mpadded', 'mphantom', 'mroot', 'mrow', 'msqrt', 'mstyle', 'menuclose', 'mfenced',
+    // Script and limit elements — https://developer.mozilla.org/en-US/docs/Web/MathML/Element#script_and_limit_elements
+    'mmultiscripts', 'mover', 'mprescripts', 'msub', 'msubsup', 'msup', 'munder', 'munderover',
+    // Tabular math — https://developer.mozilla.org/en-US/docs/Web/MathML/Element#tabular_math
+    'mtable', 'mtd', 'mtr',
+    // Uncategorized elements — https://developer.mozilla.org/en-US/docs/Web/MathML/Element#uncategorized_elements
+    'annotation', 'semantics', 'annotation-xml',
+  ]);
+  static #deniedMathElements = new Set([
+    'menuclose', 'mfenced', 'annotation-xml',
+  ]);
+  // @ts-ignore — TypeScript (at the time of writing) doesn’t know the new set methods exist yet.
+  static #allowedMathElements = Unforgiving.#allMathElements.difference(Unforgiving.#deniedMathElements);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Parsing State Values //////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  // These are all the states we can be in while we parse a string.
+  // Reference: https://w3c.github.io/html-reference/syntax.html
+
+  // The “initial” and “boundContent” states are special in that there is no
+  // related pattern to match. Initial is just the state we start in and we only
+  // find bound content at string terminals (i.e., interpolations).
+  static #initial =      / /y;
+  static #boundContent = / /y;
+
+  // We restrict text to any string of characters that doesn’t cross through a
+  // “<” character.
+  static #unboundContent = /[^<]+/y;
+
+  // Comments start with “<!--” and go until the next occurrence of “-->”. Note
+  // that we use non-greedy matching and we allow the “.” to match newlines.
+  static #unboundComment = /<!--.*?-->/ys;
+
+  // Tag names can contain the lowercase characters [a-z], [0-9], and a hyphen.
+  // But, the first character must be [a-z] and the last character cannot be a
+  // hyphen. The first character of the tag must directly follow the opening
+  // angle bracket. The closing angle bracket of the open tag cannot be preceded
+  // by a space or newline. The closing tag must not contain spaces or newlines.
+  // - ok: <h6>, <my-element-1>
+  // - not ok: <-div>, <1-my-element>
+  static #openTagStart = /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  static #closeTag =   /<\/(?![0-9-])[a-z0-9-]+(?<!-)>/y;
+  static #openTagSpace =   /[\s\n]+/y;
+  static #openTagEnd = /(?<![\s\n])>/y;
+
+  // Attribute names can contain the characters [a-z], [A-Z], [0-9], and a
+  // hyphen. But, they cannot begin with numbers, capital letters, or hyphens —
+  // and they cannot end in a hyphen.
+  // - ok: x1, foo-bar, viewBox
+  // - not ok: 1a, Hi, -id, title-
+  static #unboundBoolean =   /(?![A-Z0-9-])[a-zA-Z0-9-]+(?<!-)(?=[\s\n>])/y;
+  static #unboundAttribute = /(?![A-Z0-9-])[a-zA-Z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
+  static #boundBoolean =   /\?(?![A-Z0-9-])[a-zA-Z0-9-]+(?<!-)="$/y;
+  static #boundDefined = /\?\?(?![A-Z0-9-])[a-zA-Z0-9-]+(?<!-)="$/y;
+  static #boundAttribute =   /(?![A-Z0-9-])[a-zA-Z0-9-]+(?<!-)="$/y;
+
+  // Property names can contain the characters [a-z], [A-Z], [0-9], and an
+  // underscore. But, they cannot begin with numbers, capital letters, or
+  // underscores — and they cannot end with an underscore.
+  // - ok: id, className, defaultValue
+  // - not ok: snake_case, YELLING, 1a, _private
+  static #boundProperty = /\.(?![A-Z0-9_])[a-zA-Z0-9_]+(?<!_)="$/y;
+
+  // We require that values bound to attributes and properties be enclosed
+  // in double-quotes (see above patterns). Because interpolations delimit our
+  // “strings”, we need to check that the _next_ string begins with a
+  // double-quote. Note that it must precede a space or the closing angle
+  // bracket of the opening tag.
+  static #danglingQuote = /"(?=[\s\n>])/y;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Special Tag Patterns //////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  // The “textarea” and “style” tags are special in that they contain so-called
+  // “replaceable” and “non-replaceable” character data. In either case, we
+  // must begin by treating all characters between the opening and closing tags
+  // as their content. Note that we allow the “.” to match across newlines.
+  static #throughStyle =    /.*?<\/style>/ys;
+  static #throughTextarea = /.*?<\/textarea>/ys;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // JS-y Unicode Patterns /////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  // This style of entering unicode is a JS-ism. We want developers to write
+  // HTML here, not JS. You can of course _interpolate_ whatever you want.
+  static #rawUnicodeOrHexadecimal = /.*[^\\]\\(?:x|u)/ys;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Character References //////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  // Text, comments, and replaceable character data may include so-called
+  // character references (or html entities). We have a couple patterns for
+  // disambiguating between ambiguous ampersands and reference starts as well.
+  //
+  // So-called “replaceable” character data (e.g., most content) can contain
+  // character references (i.e., html entities) which need to be decoded. Such
+  // references can be “named”, “hexadecimal” code points or “decimal” code
+  // points. And, for completeness, large code points can result in multiple
+  // characters as replacement text. We match such entities broadly and then
+  // rely on setHTMLUnsafe to decode.
+  static #entity =          /&.*?;/ys;
+  static #htmlEntityStart = /[^&]*&[^&\s\n<]/y;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Common Mistakes ///////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  // Mistakes that we want to specifically check for when we’re erroring-out.
+
+  // See if weird spaces were added or if incorrect characters were used in
+  // open or close tags.
+  static #openTagStartMalformed = /<[\s\n]*[a-zA-Z0-9_-]+/y;
+  static #openTagEndMalformed = /[\s\n]*\/?>/y;
+  static #closeTagMalformed = /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
+
+  // See if incorrect characters, wrong quotes, or no quotes were used with
+  // either unbound or bound attributes.
+  static #unboundBooleanMalformed =   /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
+  static #unboundAttributeMalformed = /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
+  static #boundBooleanMalformed =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundDefinedMalformed = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundAttributeMalformed =   /[a-zA-Z0-9-_]+=(?:"|')?$/y;
+
+  // See if incorrect characters, wrong quotes, or no quotes were used with
+  // a bound property.
+  static #boundPropertyMalformed = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
+
+  // See if the quote pair was malformed or missing.
+  static #danglingQuoteMalformed = /'?(?=[\s\n>])/y;
+
+  static #debug = new Map([
+    [Unforgiving.#initial,          'the initial'],
+    [Unforgiving.#unboundContent,   'an unbound content'],
+    [Unforgiving.#unboundComment,   'an unbound comment'],
+    [Unforgiving.#boundContent,     'a bound content'],
+    [Unforgiving.#openTagStart,     'an open tag start'],
+    [Unforgiving.#openTagSpace,     'an open tag space'],
+    [Unforgiving.#openTagEnd,       'an open tag end'],
+    [Unforgiving.#unboundBoolean,   'an unbound boolean'],
+    [Unforgiving.#unboundAttribute, 'an unbound attribute'],
+    [Unforgiving.#boundBoolean,     'a bound boolean attribute'],
+    [Unforgiving.#boundDefined,     'a bound defined attribute'],
+    [Unforgiving.#boundAttribute,   'a bound attribute'],
+    [Unforgiving.#boundProperty,    'a bound property'],
+    [Unforgiving.#danglingQuote,    'a dangling quote'],
+    [Unforgiving.#closeTag,         'a close tag'],
+  ]);
+
+  static #debugMalformed = new Map([
+    [Unforgiving.#openTagStartMalformed,     'a malformed open start tag — tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number'],
+    [Unforgiving.#openTagEndMalformed,       'a malformed end to an opening tag — opening tags must close without any extraneous spaces or newlines'],
+    [Unforgiving.#closeTagMalformed,         'a malformed close tag — close tags must not contain any extraneous spaces or newlines and tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number'],
+    [Unforgiving.#unboundBooleanMalformed,   'a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes'],
+    [Unforgiving.#unboundAttributeMalformed, 'a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes'],
+    [Unforgiving.#boundBooleanMalformed,     'a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes'],
+    [Unforgiving.#boundDefinedMalformed,     'a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes'],
+    [Unforgiving.#boundAttributeMalformed,   'a malformed attribute — attribute names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes'],
+    [Unforgiving.#boundPropertyMalformed,    'a malformed property — property names must be alphanumeric (both uppercase and lowercase is allowed), must not start or end with underscores, and cannot start with a number — and, property values must be enclosed in double-quotes'],
+    [Unforgiving.#danglingQuoteMalformed,    'a malformed closing quote to a bound attribute or property. Enclosing quotes must be simple, double-quotes.'],
+  ]);
+
+  static #try(string, stringIndex, ...values) {
+    for (const value of values) {
+      value.lastIndex = stringIndex;
+      if (value.test(string)) {
+        return value;
+      }
+    }
+  }
+
+  // This should roughly match our “valid” transition mapping, but for errors.
+  static #invalidTransition(string, stringIndex, value) {
+    switch (value) {
+      case Unforgiving.#initial: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#openTagStartMalformed);
+      case Unforgiving.#unboundContent: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#closeTagMalformed,
+        Unforgiving.#openTagStartMalformed);
+      case Unforgiving.#boundContent: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#closeTagMalformed,
+        Unforgiving.#openTagStartMalformed);
+      case Unforgiving.#unboundComment: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#closeTagMalformed,
+        Unforgiving.#openTagStartMalformed);
+      case Unforgiving.#openTagSpace: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#unboundBooleanMalformed,
+        Unforgiving.#unboundAttributeMalformed,
+        Unforgiving.#boundBooleanMalformed,
+        Unforgiving.#boundDefinedMalformed,
+        Unforgiving.#boundAttributeMalformed,
+        Unforgiving.#boundPropertyMalformed,
+        Unforgiving.#openTagEndMalformed);
+      case Unforgiving.#openTagEnd: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#openTagStartMalformed,
+        Unforgiving.#closeTagMalformed);
+      case Unforgiving.#boundBoolean:
+      case Unforgiving.#boundDefined:
+      case Unforgiving.#boundAttribute:
+      case Unforgiving.#boundProperty: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#danglingQuoteMalformed);
+      case Unforgiving.#closeTag: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#openTagStartMalformed,
+        Unforgiving.#closeTagMalformed);
+    }
+  }
+
+  static #validTransition(string, stringIndex, value) {
+    switch (value) {
+      // The “initial” state is where we start when we begin parsing.
+      //  E.g., html`‸hello world!`
+      case Unforgiving.#initial: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#unboundContent,
+        Unforgiving.#openTagStart,
+        Unforgiving.#unboundComment);
+
+      // The “unboundContent” state means that we’ve just parse through some
+      //  literal html text either in the root of the template or between an
+      //  open-close tag pair.
+      //  E.g., html`hello ‸${world}!`
+      case Unforgiving.#unboundContent: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#closeTag,
+        Unforgiving.#openTagStart,
+        Unforgiving.#unboundComment);
+
+      // The “boundContent” state means that we just hit an interpolation (i.e.,
+      //  started a new string).
+      //  E.g., html`hello ${world}‸!`
+      // The “unboundComment” state means that we just completed a comment. We
+      //  don’t allow comment interpolations.
+      //  E.g., html`hello <!-- todo -->‸ ${world}!`
+      case Unforgiving.#boundContent:
+      case Unforgiving.#unboundComment: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#unboundContent,
+        Unforgiving.#closeTag,
+        Unforgiving.#openTagStart,
+        Unforgiving.#unboundComment);
+
+      // The “openTagStart” means that we’ve successfully parse through the open
+      //  angle bracket “<” and the tag name.
+      //  E.g., html`<div‸></div>`
+      // The “unboundBoolean” means we parsed through a literal boolean
+      //  attribute which doesn’t have an interpolated binding.
+      //  E.g., html`<div foo‸></div>`
+      // The “unboundAttribute” means we parsed through a literal key-value
+      //  attribute pair which doesn’t have an interpolated binding.
+      //  E.g., html`<div foo="bar"‸></div>`
+      // The “danglingQuote” means we parsed through a prefixing, closing quote
+      //  as the first character in a new string on the other side of an
+      //  interpolated value for a bound boolean attribute, a bound defined
+      //  attribute, a bound normal attribute, or a bound property.
+      //  E.g., html`<div foo="${bar}"‸></div>`
+      case Unforgiving.#openTagStart:
+      case Unforgiving.#unboundBoolean:
+      case Unforgiving.#unboundAttribute:
+      case Unforgiving.#danglingQuote: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#openTagSpace,
+        Unforgiving.#openTagEnd);
+
+      // The “openTagSpace” is an arbitrary number of spaces, newlines, etc.
+      //  after the open tag name or some attribute or property.
+      //  E.g., html`<div ‸foo></div>`
+      case Unforgiving.#openTagSpace: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#unboundBoolean,
+        Unforgiving.#unboundAttribute,
+        Unforgiving.#boundBoolean,
+        Unforgiving.#boundDefined,
+        Unforgiving.#boundAttribute,
+        Unforgiving.#boundProperty,
+        Unforgiving.#openTagEnd);
+
+      // The “openTagEnd” is just the “>” character.
+      //  E.g., html`<div>‸</div>`
+      case Unforgiving.#openTagEnd: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#openTagStart,
+        Unforgiving.#unboundContent,
+        Unforgiving.#closeTag,
+        Unforgiving.#unboundComment);
+
+      // The “boundBoolean” state means we just ended our prior string with an
+      //  interpolated boolean binding.
+      //  E.g., html`<div ?foo="${bar}‸"></div>`
+      // The “boundDefined” state means we just ended our prior string with an
+      //  interpolated defined binding.
+      //  E.g., html`<div ??foo="${bar}‸"></div>`
+      // The “boundAttribute” state means we just ended our prior string with an
+      //  interpolated normal attribute binding.
+      //  E.g., html`<div foo="${bar}‸"></div>`
+      // The “boundProperty” state means we just ended our prior string with an
+      //  interpolated property binding.
+      //  E.g., html`<div .foo="${bar}‸"></div>`
+      case Unforgiving.#boundBoolean:
+      case Unforgiving.#boundDefined:
+      case Unforgiving.#boundAttribute:
+      case Unforgiving.#boundProperty: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#danglingQuote);
+
+      // The “closeTag” state means we just closed some tag successfully,
+      //  E.g., html`<div><span></span>‸</div>`
+      case Unforgiving.#closeTag: return Unforgiving.#try(string, stringIndex,
+        Unforgiving.#unboundContent,
+        Unforgiving.#openTagStart,
+        Unforgiving.#closeTag,
+        Unforgiving.#unboundComment);
+    }
+  }
+
+  static #getErrorInfo(strings, stringsIndex, string, stringIndex) {
+    let prefix;
+    let prefixIndex;
+    if (stringsIndex > 0) {
+      const validPrefix = strings.slice(0, stringsIndex).join(Unforgiving.#delimiter);
+      prefix = [validPrefix, string].join(Unforgiving.#delimiter);
+      prefixIndex = validPrefix.length + Unforgiving.#delimiter.length + stringIndex;
+    } else {
+      prefix = string;
+      prefixIndex = stringIndex;
+    }
+    const preview = 10;
+    const truncate = prefix.length > prefixIndex + preview;
+    const parsed = prefix.slice(0, prefixIndex);
+    const notParsed = `${prefix.slice(prefixIndex, prefixIndex + preview)}${truncate ? '…' : ''}`;
+    return { parsed, notParsed };
+  }
+
+  static #throwTransitionError(strings, stringsIndex, string, stringIndex, value) {
+    const { parsed, notParsed } = Unforgiving.#getErrorInfo(strings, stringsIndex, string, stringIndex);
+    const valueMalformed = Unforgiving.#invalidTransition(string, stringIndex, value);
+    let message;
+    if (valueMalformed) {
+      message = `Seems like you have ${Unforgiving.#debugMalformed.get(valueMalformed)}. See substring \`${notParsed}\`. Your HTML was parsed through: \`${parsed}\`.`;
+    } else {
+      message = `Substring \`${notParsed}\` failed after ${Unforgiving.#debug.get(value)} state. Your HTML was parsed through: \`${parsed}\`.`;
+    }
+    throw new Error(message);
+  }
+
+  static #validateRawString(rawString) {
+    Unforgiving.#rawUnicodeOrHexadecimal.lastIndex = 0;
+    if (Unforgiving.#rawUnicodeOrHexadecimal.test(rawString)) {
+      throw new Error(`Found a unicode or hexadecimal encoding (\\x or \\u) in raw string input. Only valid HTML entities are supported in html. This is the raw string leading up to the issue \`${rawString.slice(0, Unforgiving.#rawUnicodeOrHexadecimal.lastIndex)}\`.`);
+    }
+  }
+
+  static #validateExit(fragment, element) {
+    if (element.value !== fragment) {
+      const tagName = element.value[Unforgiving.#localName];
+      throw new Error(`Did you forget a closing </${tagName}> at the very end of your template? To avoid unintended markup, non-void tags must explicitly be closed.`);
+    }
+  }
+
+  static #htmlEntityContainer = document.createElement('template');
+  static #replaceHtmlEntities(originalContent) {
+    let content = originalContent;
+    Unforgiving.#htmlEntityStart.lastIndex = 0;
+    while (Unforgiving.#htmlEntityStart.test(content)) {
+      const contentIndex = Unforgiving.#htmlEntityStart.lastIndex - 2;
+      Unforgiving.#entity.lastIndex = contentIndex;
+      if (!Unforgiving.#entity.test(content)) {
+        throw new Error(`Seems like you have a malformed hexadecimal character reference (html entity). You will need to fix the reference in this content "${originalContent}".`);
+      }
+      const encoded = content.slice(contentIndex, Unforgiving.#entity.lastIndex);
+      Unforgiving.#htmlEntityContainer.innerHTML = encoded;
+      const decoded = Unforgiving.#htmlEntityContainer.content.textContent;
+      content = content.replace(encoded, decoded);
+      Unforgiving.#htmlEntityStart.lastIndex = contentIndex + decoded.length;
+    }
+    return content;
+  }
+
+  static #finalizeVoidElement(path, element, childNodesIndex, nextStringIndex) {
+    childNodesIndex.value = path.pop();
+    element.value = element.value[Unforgiving.#parentNode];
+    Unforgiving.#closeTag.lastIndex = nextStringIndex;
+    return Unforgiving.#closeTag;
+  }
+
+  // Textarea contains so-called “replaceable” character data.
+  static #finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex) {
+    const closeTagLength = 11; // </textarea>
+    Unforgiving.#throughTextarea.lastIndex = nextStringIndex;
+    if (Unforgiving.#throughTextarea.test(string)) {
+      const encoded = string.slice(nextStringIndex, Unforgiving.#throughTextarea.lastIndex - closeTagLength);
+      const decoded = Unforgiving.#replaceHtmlEntities(encoded);
+      element.value.textContent = decoded;
+    } else {
+      throw new Error(`Only basic interpolation of <textarea> tags is allowed.`);
+    }
+    childNodesIndex.value = path.pop();
+    element.value = element.value[Unforgiving.#parentNode];
+    Unforgiving.#closeTag.lastIndex = Unforgiving.#throughTextarea.lastIndex;
+    return Unforgiving.#closeTag;
+  }
+
+  // Style contains so-called “non-replaceable” character data.
+  static #finalizeStyle(string, path, element, childNodesIndex, nextStringIndex) {
+    const closeTagLength = 8; // </style>
+    Unforgiving.#throughStyle.lastIndex = nextStringIndex;
+    if (Unforgiving.#throughStyle.test(string)) {
+      const content = string.slice(nextStringIndex, Unforgiving.#throughStyle.lastIndex - closeTagLength);
+      element.value.textContent = content;
+    } else {
+      throw new Error(`Interpolation of <style> tags is not allowed.`);
+    }
+    childNodesIndex.value = path.pop();
+    element.value = element.value[Unforgiving.#parentNode];
+    Unforgiving.#closeTag.lastIndex = Unforgiving.#throughStyle.lastIndex;
+    return Unforgiving.#closeTag;
+  }
+
+  static #addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex) {
+    const encoded = string.slice(stringIndex, nextStringIndex);
+    const decoded = Unforgiving.#replaceHtmlEntities(encoded);
+    element.value.appendChild(document.createTextNode(decoded));
+    childNodesIndex.value += 1;
+  }
+
+  static #addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex) {
+    const content = string.slice(stringIndex, nextStringIndex);
+    const data = content.slice(4, -3);
+    // https://w3c.github.io/html-reference/syntax.html#comments
+    if (data.startsWith('>') || data.startsWith('->') || data.includes('--') || data.endsWith('-')) {
+      throw new Error('Found malformed html comment. Comments cannot start with a ">" character or "->" characters. They cannot include a set of "--" characters. They cannot end with a "-" character.');
+    }
+    element.value.appendChild(document.createComment(data));
+    childNodesIndex.value += 1;
+  }
+
+  static #addBoundContent(onContent, path, element, childNodesIndex) {
+    element.value.append(document.createComment(''), document.createComment(''));
+    childNodesIndex.value += 2;
+    path.push(childNodesIndex.value);
+    onContent(path);
+    path.pop();
+  }
+
+  static #addBoundText(onText, string, path, element, sloppyStartInterpolation) {
+      // If the prior match isn’t our opening tag… that’s a problem. If the next
+      //  match isn’t our closing tag… that’s also a problem.
+      // Because we tightly control the end-tag format, we can predict what the
+      //  next string’s prefix should be.
+      const localName = element.value[Unforgiving.#localName];
+      if (sloppyStartInterpolation || !string.startsWith(`</${localName}>`)) {
+        throw new Error(`Only basic interpolation of <${localName}> tags is allowed.`);
+      }
+      onText(path);
+  }
+
+  static #addUnboundBoolean(string, stringIndex, element, nextStringIndex) {
+    const attributeName = string.slice(stringIndex, nextStringIndex);
+    element.value.setAttribute(attributeName, '');
+  }
+
+  static #addUnboundAttribute(string, stringIndex, element, nextStringIndex) {
+    const unboundAttribute = string.slice(stringIndex, nextStringIndex);
+    const equalsIndex = unboundAttribute.indexOf('=');
+    const attributeName = unboundAttribute.slice(0, equalsIndex);
+    const encoded = unboundAttribute.slice(equalsIndex + 2, -1);
+    const decoded = Unforgiving.#replaceHtmlEntities(encoded);
+    element.value.setAttribute(attributeName, decoded);
+  }
+
+  static #addBoundBoolean(onBoolean, string, stringIndex, path, nextStringIndex) {
+    const boundBoolean = string.slice(stringIndex, nextStringIndex);
+    const equalsIndex = boundBoolean.indexOf('=');
+    const attributeName = boundBoolean.slice(1, equalsIndex);
+    onBoolean(attributeName, path);
+  }
+
+  static #addBoundDefined(onDefined, string, stringIndex, path, nextStringIndex) {
+    const boundDefined = string.slice(stringIndex, nextStringIndex);
+    const equalsIndex = boundDefined.indexOf('=');
+    const attributeName = boundDefined.slice(2, equalsIndex);
+    onDefined(attributeName, path);
+  }
+
+  static #addBoundAttribute(onAttribute, string, stringIndex, path, nextStringIndex) {
+    const boundAttribute = string.slice(stringIndex, nextStringIndex);
+    const equalsIndex = boundAttribute.indexOf('=');
+    const attributeName = boundAttribute.slice(0, equalsIndex);
+    onAttribute(attributeName, path);
+  }
+
+  static #addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex) {
+    const boundProperty = string.slice(stringIndex, nextStringIndex);
+    const equalsIndex = boundProperty.indexOf('=');
+    const propertyName = boundProperty.slice(1, equalsIndex);
+    onProperty(propertyName, path);
+  }
+
+  static #validateTagName(namespace, tagName) {
+    switch (namespace) {
+      case Unforgiving.html:
+        if (
+          tagName.indexOf('-') === -1 &&
+          !Unforgiving.#allowedHtmlElements.has(tagName)
+        ) {
+          throw new Error(`The <${tagName}> html element is forbidden.`);
+        }
+        break;
+      case Unforgiving.svg:
+        if (!Unforgiving.#allowedSvgElements.has(tagName)) {
+          throw new Error(`The <${tagName}> svg element is forbidden.`);
+        }
+        break;
+      case Unforgiving.math:
+        if (!Unforgiving.#allowedMathElements.has(tagName)) {
+          throw new Error(`The <${tagName}> math element is forbidden.`);
+        }
+        break;
+    }
+  }
+
+  static #addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
+    const prefixedTagName = string.slice(stringIndex, nextStringIndex);
+    const tagName = prefixedTagName.slice(1);
+    const currentNamespace = element.value[Unforgiving.#namespace];
+    Unforgiving.#validateTagName(currentNamespace, tagName);
+    let namespace;
+    switch (tagName) {
+      case 'svg':  namespace = Unforgiving.svg; break;
+      case 'math': namespace = Unforgiving.math; break;
+      default:     namespace = currentNamespace; break;
+    }
+    const childNode = document.createElementNS(namespace, tagName);
+    element.value[Unforgiving.#localName] === 'template'
+      ? element.value.content.appendChild(childNode)
+      : element.value.appendChild(childNode);
+    childNode[Unforgiving.#localName] = tagName;
+    childNode[Unforgiving.#parentNode] = element.value;
+    childNode[Unforgiving.#namespace] = namespace;
+    element.value = childNode;
+    childNodesIndex.value += 1;
+    path.push(childNodesIndex.value);
+  }
+
+  static #finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
+    const closeTag = string.slice(stringIndex, nextStringIndex);
+    const tagName = closeTag.slice(2, -1);
+    const expectedTagName = element.value[Unforgiving.#localName];
+    if (tagName !== expectedTagName) {
+      const { parsed } = Unforgiving.#getErrorInfo(strings, stringsIndex, string, stringIndex);
+      const message = `Closing tag </${tagName}> does not match <${expectedTagName}>. Your HTML was parsed through: \`${parsed}\`.`;
+      throw new Error(message);
+    }
+    childNodesIndex.value = path.pop();
+    element.value = element.value[Unforgiving.#parentNode];
+  }
+
+  static #hasWarnedAboutStyleDeprecation = false;
+  static #styleDeprecationWarning() {
+    if (!Unforgiving.#hasWarnedAboutStyleDeprecation) {
+      Unforgiving.#hasWarnedAboutStyleDeprecation = true;
+      const error = new Error('Support for the "style" tag is deprecated and will be removed in future versions.');
+      console.warn(error); // eslint-disable-line no-console
+    }
+  }
+
+  // Namespaces.
+  static html = 'http://www.w3.org/1999/xhtml';
+  static svg = 'http://www.w3.org/2000/svg';
+  static math = 'http://www.w3.org/1998/Math/MathML';
+
+  static parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, namespace) {
+    const fragment = Unforgiving.#fragment.cloneNode(false);
+    fragment[Unforgiving.#namespace] = namespace ??= Unforgiving.html;
+
+    const path = [];
+    const childNodesIndex = { value: -1 }; // Wrapper to allow better factoring.
+    const element = { value: fragment }; // Wrapper to allow better factoring.
+
+    const stringsLength = strings.length;
+    let stringsIndex = 0;
+    let string = null;
+    let stringLength = null;
+    let stringIndex = null;
+    let nextStringIndex = null;
+    let value = Unforgiving.#initial;
+
+    while (stringsIndex < stringsLength) {
+      string = strings[stringsIndex];
+
+      Unforgiving.#validateRawString(strings.raw[stringsIndex]);
+      if (stringsIndex > 0) {
+        switch (value) {
+          case Unforgiving.#initial:
+          case Unforgiving.#boundContent:
+          case Unforgiving.#unboundContent:
+          case Unforgiving.#openTagEnd:
+          case Unforgiving.#closeTag:
+            if (element.value[Unforgiving.#localName] === 'textarea') {
+              // The textarea tag only accepts text, we restrict interpolation
+              //  there. See note on “replaceable character data” in the
+              //  following reference document:
+              //  https://w3c.github.io/html-reference/syntax.html#text-syntax
+              const sloppyStartInterpolation = value !== Unforgiving.#openTagEnd;
+              Unforgiving.#addBoundText(onText, string, path, element, sloppyStartInterpolation);
+            } else {
+              Unforgiving.#addBoundContent(onContent, path, element, childNodesIndex);
+            }
+            value = Unforgiving.#boundContent;
+            nextStringIndex = value.lastIndex;
+            break;
+        }
+      }
+
+      stringLength = string.length;
+      stringIndex = 0;
+      while (stringIndex < stringLength) {
+        // The string will be empty if we have a template like this `${…}${…}`.
+        //  See related logic at the end of the inner loop;
+        if (string.length > 0) {
+          const nextValue = Unforgiving.#validTransition(string, stringIndex, value);
+          if (!nextValue) {
+            Unforgiving.#throwTransitionError(strings, stringsIndex, string, stringIndex, value);
+          }
+          value = nextValue;
+          nextStringIndex = value.lastIndex;
+        }
+
+        // When we transition into certain values, we need to take action.
+        switch (value) {
+          case Unforgiving.#unboundContent:
+            Unforgiving.#addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex);
+            break;
+          case Unforgiving.#unboundComment:
+            Unforgiving.#addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex);
+            break;
+          case Unforgiving.#openTagStart:
+            Unforgiving.#addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex);
+            break;
+          case Unforgiving.#unboundBoolean:
+            Unforgiving.#addUnboundBoolean(string, stringIndex, element, nextStringIndex);
+            break;
+          case Unforgiving.#unboundAttribute:
+            Unforgiving.#addUnboundAttribute(string, stringIndex, element, nextStringIndex);
+            break;
+          case Unforgiving.#boundBoolean:
+            Unforgiving.#addBoundBoolean(onBoolean, string, stringIndex, path, nextStringIndex);
+            break;
+          case Unforgiving.#boundDefined:
+            Unforgiving.#addBoundDefined(onDefined, string, stringIndex, path, nextStringIndex);
+            break;
+          case Unforgiving.#boundAttribute:
+            Unforgiving.#addBoundAttribute(onAttribute, string, stringIndex, path, nextStringIndex);
+            break;
+          case Unforgiving.#boundProperty:
+            Unforgiving.#addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex);
+            break;
+          case Unforgiving.#openTagEnd:
+            if (element.value[Unforgiving.#namespace] === Unforgiving.html) {
+              const tagName = element.value[Unforgiving.#localName];
+              if (Unforgiving.#voidHtmlElements.has(tagName)) {
+                value = Unforgiving.#finalizeVoidElement(path, element, childNodesIndex, nextStringIndex);
+                nextStringIndex = value.lastIndex;
+              } else if (tagName === 'style') {
+                Unforgiving.#styleDeprecationWarning();
+                value = Unforgiving.#finalizeStyle(string, path, element, childNodesIndex, nextStringIndex);
+                nextStringIndex = value.lastIndex;
+              } else if (
+                tagName === 'textarea' &&
+                Unforgiving.#openTagEnd.lastIndex !== string.length
+              ) {
+                value = Unforgiving.#finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex);
+                nextStringIndex = value.lastIndex;
+              } else if (
+                tagName === 'template' &&
+                // @ts-ignore — TypeScript doesn’t get that this is a “template”.
+                element.value.hasAttribute('shadowrootmode')
+              ) {
+                throw new Error('Declarative shadow roots are not yet supported (e.g., <template shadowrootmode="open">).');
+              } else {
+                // Assume we’re traversing into the new element and reset index.
+                childNodesIndex.value = -1;
+              }
+            } else {
+              // Assume we’re traversing into the new element and reset index.
+              childNodesIndex.value = -1;
+            }
+            break;
+          case Unforgiving.#closeTag:
+            Unforgiving.#finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex);
+            break;
+        }
+        stringIndex = nextStringIndex; // Update out pointer from our pattern match.
+      }
+      stringsIndex++;
+    }
+    Unforgiving.#validateExit(fragment, element);
     return fragment;
   }
 }
@@ -796,6 +1661,77 @@ class TemplateEngine {
     }
   }
 
+  // TODO: Future state here — we’ll eventually just guard against value changes
+  //  at a higher level and will remove all updater logic.
+  // static #commitAttribute(node, name, value) {
+  //   node.setAttribute(name, value);
+  // }
+  // static #commitBoolean(node, name, value) {
+  //   value ? node.setAttribute(name, '') : node.removeAttribute(name);
+  // }
+  // static #commitDefined(node, name, value) {
+  //   value === undefined || value === null
+  //     ? node.removeAttribute(name)
+  //     : node.setAttribute(name, value);
+  // }
+  // static #commitProperty(node, name, value) {
+  //   node[name] = value;
+  // }
+  // static #commitContent(node, startNode, value, lastValue) {
+  //   const category = TemplateEngine.#getCategory(value);
+  //   const lastCategory = TemplateEngine.#getCategory(lastValue);
+  //   if (category !== lastCategory && lastValue !== TemplateEngine.#UNSET) {
+  //     // Reset content under certain conditions. E.g., `map(…)` >> `null`.
+  //     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
+  //     const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
+  //     TemplateEngine.#removeBetween(startNode, node);
+  //     TemplateEngine.#clearObject(state);
+  //     TemplateEngine.#clearObject(arrayState);
+  //   }
+  //   if (category === 'result') {
+  //     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
+  //     const rawResult = value;
+  //     if (!TemplateEngine.#canReuseDom(state.preparedResult, rawResult)) {
+  //       TemplateEngine.#removeBetween(startNode, node);
+  //       TemplateEngine.#clearObject(state);
+  //       const preparedResult = TemplateEngine.#inject(rawResult, node, true);
+  //       state.preparedResult = preparedResult;
+  //     } else {
+  //       TemplateEngine.#update(state.preparedResult, rawResult);
+  //     }
+  //   } else if (category === 'array' || category === 'map') {
+  //     TemplateEngine.#list(node, startNode, value, category);
+  //   } else if (category === 'fragment') {
+  //     if (value.childElementCount === 0) {
+  //       throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
+  //     }
+  //     const previousSibling = node.previousSibling;
+  //     if (previousSibling !== startNode) {
+  //       TemplateEngine.#removeBetween(startNode, node);
+  //     }
+  //     node.parentNode.insertBefore(value, node);
+  //   } else {
+  //     // TODO: Is there a way to more-performantly skip this init step? E.g., if
+  //     //  the prior value here was not “unset” and we didn’t just reset? We
+  //     //  could cache the target node in these cases or something?
+  //     const previousSibling = node.previousSibling;
+  //     if (previousSibling === startNode) {
+  //       // The `?? ''` is a shortcut for creating a text node and then
+  //       //  setting its textContent. It’s exactly equivalent to the
+  //       //  following code, but faster.
+  //       // const textNode = document.createTextNode('');
+  //       // textNode.textContent = value;
+  //       const textNode = document.createTextNode(value ?? '');
+  //       node.parentNode.insertBefore(textNode, node);
+  //     } else {
+  //       previousSibling.textContent = value;
+  //     }
+  //   }
+  // }
+  // static #commitText(node, value) {
+  //   node.textContent = value;
+  // }
+
   static #commitContent(node, startNode, value, lastValue) {
     const introspection = TemplateEngine.#getValueIntrospection(value);
     const lastIntrospection = TemplateEngine.#getValueIntrospection(lastValue);
@@ -882,6 +1818,23 @@ class TemplateEngine {
     }
   }
 
+  // TODO: Future state — we’ll later do change-by-reference detection here.
+  // // Bind the current values from a result by walking through each target and
+  // //  updating the DOM if things have changed.
+  // static #commit(preparedResult) {
+  //   preparedResult.values ??= preparedResult.rawResult.values;
+  //   preparedResult.lastValues ??= preparedResult.values.map(() => TemplateEngine.#UNSET);
+  //   const { targets, values, lastValues } = preparedResult;
+  //   for (let iii = 0; iii < targets.length; iii++) {
+  //     const value = values[iii];
+  //     const lastValue = lastValues[iii];
+  //     if (value !== lastValue) {
+  //       const target = targets[iii];
+  //       target(value, lastValue);
+  //     }
+  //   }
+  // }
+
   // Bind the current values from a result by walking through each target and
   //  updating the DOM if things have changed.
   static #commit(preparedResult) {
@@ -935,7 +1888,7 @@ class TemplateEngine {
 
   // Inject a given result into a node for the first time.
   static #inject(rawResult, node, before) {
-    // Get fragment created from a tagged template function’s “strings”.
+    // Create and prepare a document fragment to be injected.
     const { [TemplateEngine.#ANALYSIS]: analysis } = rawResult;
     const fragment = analysis.fragment.cloneNode(true);
     const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
@@ -970,8 +1923,8 @@ class TemplateEngine {
       const onProperty =  TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#PROPERTY);
       const onContent = TemplateEngine.#storeContentLookup.bind(null, lookups);
       const onText = TemplateEngine.#storeTextLookup.bind(null, lookups);
-      const forgivingLanguage = language === TemplateEngine.#SVG ? Forgiving.svg : Forgiving.html;
-      const fragment = Forgiving.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, forgivingLanguage);
+      const namespace = language === TemplateEngine.#SVG ? Unforgiving.svg : Unforgiving.html;
+      const fragment = Unforgiving.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, namespace);
       analysis.fragment = fragment;
       analysis.lookups = lookups;
       analysis.done = true;
@@ -1060,23 +2013,29 @@ class TemplateEngine {
   }
 
   static #removeWithin(node) {
-    // Iterate backwards over the live node collection since we’re mutating it.
-    const childNodes = node.childNodes;
-    for (let iii = childNodes.length - 1; iii >= 0; iii--) {
-      node.removeChild(childNodes[iii]);
+    let childNode = node.lastChild;
+    while (childNode) {
+      const nextChildNode = childNode.previousSibling;
+      node.removeChild(childNode);
+      childNode = nextChildNode;
     }
   }
 
-  static #removeBetween(startNode, node) {
-    while(node.previousSibling !== startNode) {
-      node.previousSibling.remove();
+  static #removeBetween(startNode, node, parentNode) {
+    parentNode ??= node.parentNode;
+    let childNode = node.previousSibling;
+    while(childNode !== startNode) {
+      const nextChildNode = childNode.previousSibling;
+      parentNode.removeChild(childNode);
+      childNode = nextChildNode;
     }
   }
 
-  static #removeThrough(startNode, node) {
-    TemplateEngine.#removeBetween(startNode, node);
-    startNode.remove();
-    node.remove();
+  static #removeThrough(startNode, node, parentNode) {
+    parentNode ??= node.parentNode;
+    TemplateEngine.#removeBetween(startNode, node, parentNode);
+    parentNode.removeChild(startNode);
+    parentNode.removeChild(node);
   }
 
   static #clearObject(object) {
