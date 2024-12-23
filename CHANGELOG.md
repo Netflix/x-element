@@ -6,6 +6,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The current “forgiving” html parser is replaced for a more “unforgiving” html
+  parser in the default template engine. This is stricter in terms of what
+  elements are allowed, the formatting of the html, the lower-casing of names,
+  and the usage of spaces and newlines (#239).
+
+### Deprecated
+
+- The `<svg>` element and the `svg` tagged template function are deprecated and
+  will be removed in future versions. The spec and conventions for `svg`
+  differ a lot from `html` and a faster / more-maintainable parser can be built
+  if we stop supporting this (#236).
+- The `<style>` tag is deprecated and will be removed in future versions.
+  Authors should prefer to declare a separate stylesheet in a `.css` file now
+  that “import attributes” are supported in modern browsers (#237).
+
+### Removed
+
+- Support for the `<math>` element is removed from the default template engine.
+  This worked before because `innerHTML` was being used under-the-hood. But a
+  strict allow-list is now used to accomplish parsing (#238).
+- Support for CDATA sections is removed. Authors should prefer to use character
+  references (html entities) instead. Previously, this was implicitly supported
+  due to underlying usage of `innerHTML`, but is now strictly forbidden (#241).
+- Reject JS-y unicode escapes in html template strings. E.g., you cannot write
+  something like `this\u2026` — instead, you would have to write something like
+  `this&hellip;`, or `this&#x2026;`, etc. This mirrors the html spec (#242).
+- Restrict element tags to an allow-list of what we’re willing to parse in the
+  default template engine. This causes us to reject elements like `<title>`,
+  `<body>`, `<link>`, `<script>`, `<canvas>`, `<meta>`, etc. (#239).
+
 ## [1.1.2] - 2024-12-16
 
 ### Added
