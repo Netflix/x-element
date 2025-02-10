@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parser in the default template engine. This is stricter in terms of what
   elements are allowed, the formatting of the html, the lower-casing of names,
   and the usage of spaces and newlines (#239).
+- There are now three files in this repo — “x-element.js” which is all about
+  element interfaces, “x-template.js” which is all about DOM management, and
+  “x-parser.js” which is all about turning markup into a document fragment.
 
 ### Deprecated
 
