@@ -368,14 +368,14 @@ class Unforgiving {
   // Note that syntax highlighters expect the text after the “html” tag to be
   //  real HTML. Another reason to reject JS-y unicode is that it won’t be
   //  interpreted correctly by tooling that expects _html_.
-  // The only escapes we expect to see are for the “\” and “`” characters, which
-  //  you _must_ use if you need those literal characters.
+  // The only escapes we expect to see are for the “$”, “\”, and “`” characters,
+  //  which you _must_ use if you need those literal characters.
   // The simplest way to check this is to ensure that back slashes always come
   //  in pairs of two or a single back slash preceding a back tick.
   // Examples:
   //  - ok: html`&#8230;`, html`&#x2026;`, html`&mldr;`, html`&hellip;`, html`\\n`
   //  - not ok: html`\nhi\nthere`, html`\x8230`, html`\u2026`, html`\s\t\o\p\ \i\t\.`
-  static __rawJsEscape = /.*(?<!\\)(?:\\{2})*\\(?![\\`])/ys;
+  static __rawJsEscape = /.*(?<!\\)(?:\\{2})*\\(?![$\\`])/ys;
 
   //////////////////////////////////////////////////////////////////////////////
   // Character References //////////////////////////////////////////////////////

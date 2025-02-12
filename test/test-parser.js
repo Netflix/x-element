@@ -167,6 +167,7 @@ describe('JS-y escapes', () => {
       The \\u2026, \\\\u2026 character is an ellipsis.
       The \\x8230, \\\\x8230 character is also an ellipsis.
       The \\0, \\\\0 character is the nul character.
+      The \${interpolation} character is okay to escape.
     `;
   });
 });
