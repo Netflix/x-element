@@ -1,4 +1,6 @@
-import { parse } from './x-parser.js';
+import { XParser } from './x-parser.js';
+
+const parser = new XParser();
 
 /** Internal implementation details for template engine. */
 class TemplateEngine {
@@ -784,7 +786,7 @@ class TemplateEngine {
       const onText = TemplateEngine.#storeTextLookup.bind(null, lookups);
       // TODO: #236: No need to pass a namespace once svg tagged template function is removed.
       const namespace = language === TemplateEngine.#SVG ? 'svg' : 'html';
-      const fragment = parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, namespace);
+      const fragment = parser.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, namespace);
       analysis.fragment = fragment;
       analysis.lookups = lookups;
       analysis.done = true;

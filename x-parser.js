@@ -1,124 +1,54 @@
-// TODO: The “private” fields in here use a __doubleUnderscore as actual private
-//  fields were causing problems when used in an eslint plugin. It’s not clear
-//  whether this is somehow a bug with our code here, eslint, or a particular
-//  Node version. As-written, it should be possible to swap the “__” for “#” in
-//  the future.
-
 /** Strict HTML parser meant to handle interpolated HTML. */
-class Unforgiving {
-  static __mode = null; // 'parse' or 'validate'
-  static __window = null;
-  static __getMockNode = () => {
-    return {
-      appendChild() {/* Do nothing. */},
-      textContent: '',
-    };
-  };
-  static __getMockCommentNode = () => {
-    return { ...Unforgiving.__getMockNode() };
-  };
-  static __getMockTextNode = () => {
-    return { ...Unforgiving.__getMockNode() };
-  };
-  static __getMockElement = () => {
-    return {
-      ...Unforgiving.__getMockNode(),
-      __attributes: {},
-      setAttribute(name, value) { this.__attributes[name] = value; },
-      hasAttribute(name) { return Reflect.has(this.__attributes, name); },
-      append() {/* Do nothing. */},
-      cloneNode() { return Unforgiving.__getMockElement(); },
-    };
-  };
-  static __getMockDocumentFragment = () => {
-    return { ...Unforgiving.__getMockElement() };
-  };
-  static __getMockTemplate = () => {
-    return {
-      ...Unforgiving.__getMockElement(),
-      content: Unforgiving.__getMockDocumentFragment(),
-    };
-  };
+export class XParser {
+  // We use this to add machine-readable context to parsing errors.
+  static #errorContextKey = Symbol();
 
-  static __mockWindow = {
-    console: { warn: () => {/* Do nothing. */} },
-    document: {
-      createDocumentFragment() {
-        return Unforgiving.__getMockDocumentFragment();
-      },
-      createElementNS() {
-        return Unforgiving.__getMockElement();
-      },
-      createElement(localName) {
-        return localName === 'template'
-          ? Unforgiving.__getMockTemplate()
-          : Unforgiving.__getMockElement();
-      },
-      createTextNode() {
-        return Unforgiving.__getMockTextNode();
-      },
-      createComment() {
-        return Unforgiving.__getMockCommentNode();
-      },
-    },
-  };
+  // Integrators may mock global window object (e.g., for eslint validation).
+  #window = null;
 
   // It’s more performant to clone a single fragment, so we keep a reference.
-  static __fragment = null;
+  #fragment = null;
 
   // We decode character references via “setHTMLUnsafe” on this container.
-  static __htmlEntityContainer = null;
-
-  static __toMode(mode) {
-    if (Unforgiving.__mode !== mode) {
-      Unforgiving.__mode = mode;
-      Unforgiving.__window = mode === 'validate' ? Unforgiving.__mockWindow : globalThis;
-      Unforgiving.__fragment = Unforgiving.__window.document.createDocumentFragment();
-      Unforgiving.__htmlEntityContainer = Unforgiving.__window.document.createElement('template');
-
-      // This is mostly to make testing predictable.
-      Unforgiving.__hasWarnedAboutStyleDeprecation = false;
-      Unforgiving.__hasWarnedAboutSvgDeprecation = false;
-    }
-  }
-
-  // DOM introspection is expensive. Since we are creating all of the elements,
-  //  we can cache the introspections we need behind performant lookups.
-  static __localName = Symbol();
-  static __parentNode = Symbol();
-  // TODO: #237: Remove “namespace” code once “<svg>” is no longer supported.
-  static __namespace = Symbol();
-
-  // Delimiter we add to improve debugging. E.g., `<div id="${…}"></div>`.
-  static __delimiter = '${\u2026}';
+  #htmlEntityContainer = null;
 
   // Simple flags to ensure we only warn once about things being deprecated.
   // TODO: #237: Remove <style> tag usage.
   // TODO: #236: Remove <svg> tag usage.
-  static __hasWarnedAboutStyleDeprecation = false;
-  static __hasWarnedAboutSvgDeprecation = false;
+  #hasWarnedAboutStyleDeprecation = false;
+  #hasWarnedAboutSvgDeprecation = false;
+
+  // DOM introspection is expensive. Since we are creating all of the elements,
+  //  we can cache the introspections we need behind performant lookups.
+  #localName = Symbol();
+  #parentNode = Symbol();
+  // TODO: #237: Remove “namespace” code once “<svg>” is no longer supported.
+  #namespace = Symbol();
+
+  // Delimiter we add to improve debugging. E.g., `<div id="${…}"></div>`.
+  #delimiter = '${\u2026}';
 
   // TODO: #236: Used temporarily to validate html attributes. It won’t be
   //  necessary to do this validation after we can tighten up patterns related
   //  to <svg> tag name and attribute name casing quirks.
-  static __uppercaseLetters = /[A-Z]/;
+  #uppercaseLetters = /[A-Z]/;
 
   // Namespaces for creating elements.
   // TODO: #236: Need for namespaces is obviated once we drop <svg> support.
-  static __html = 'http://www.w3.org/1999/xhtml';
-  static __svg = 'http://www.w3.org/2000/svg';
+  #html = 'http://www.w3.org/1999/xhtml';
+  #svg = 'http://www.w3.org/2000/svg';
 
   //////////////////////////////////////////////////////////////////////////////
   // HTML - https://developer.mozilla.org/en-US/docs/Web/HTML/Element //////////
   //////////////////////////////////////////////////////////////////////////////
 
   // Void tags - https://developer.mozilla.org/en-US/docs/Glossary/Void_element
-  static __voidHtmlElements = new Set([
+  #voidHtmlElements = new Set([
     'area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input',
     'keygen', 'link', 'meta', 'source', 'track', 'wbr',
   ]);
 
-  static __htmlElements = new Set([
+  #htmlElements = new Set([
     // Main Root
     'html',
     // Document metadata
@@ -160,7 +90,7 @@ class Unforgiving {
     'image', 'marquee', 'menuitem', 'nobr', 'noembed', 'noframes', 'param',
     'plaintext', 'rb', 'rtc', 'shadow', 'strike', 'tt', 'xmp',
   ]);
-  static __deniedHtmlElements = new Set([
+  #deniedHtmlElements = new Set([
     'html', 'head', 'base', 'link', 'meta', 'title', 'body', 'script',
     'noscript', 'canvas', 'acronym', 'big', 'center', 'content', 'dir', 'font',
     'frame', 'frameset', 'image', 'marquee', 'menuitem', 'nobr', 'noembed',
@@ -169,14 +99,14 @@ class Unforgiving {
     // TODO: #237: Remove <style> tag usage — add 'style' to this list.
     // TODO: #237: Remove <svg> tag usage — add 'svg' to this list.
   ]);
-  static __allowedHtmlElements = Unforgiving.__htmlElements.difference(Unforgiving.__deniedHtmlElements);
+  #allowedHtmlElements = this.#htmlElements.difference(this.#deniedHtmlElements);
 
   // TODO: #236: Remove <svg> completely.
   //////////////////////////////////////////////////////////////////////////////
   // SVG - https://developer.mozilla.org/en-US/docs/Web/SVG/Element ////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  static __svgElements = new Set([
+  #svgElements = new Set([
     // Animation elements
     'animate', 'animateMotion', 'animateTransform', 'mpath', 'set',
     // Basic shapes
@@ -226,7 +156,7 @@ class Unforgiving {
     'font-face-src', 'font-face-uri', 'glyph', 'glyphRef', 'hkern',
     'missing-glyph', 'tref', 'vkern',
   ]);
-  static __deniedSvgElements = new Set([
+  #deniedSvgElements = new Set([
     'animate', 'animateMotion', 'animateTransform', 'mpath', 'set',
     'missing-glyph', 'desc', 'metadata', 'title', 'feBlend', 'feColorMatrix',
     'feComponentTransfer', 'feComposite', 'feConvolveMatrix',
@@ -244,7 +174,7 @@ class Unforgiving {
     'font-face-uri', 'glyph', 'glyphRef', 'hkern', 'missing-glyph',
     'tref', 'vkern',
   ]);
-  static __allowedSvgElements = Unforgiving.__svgElements.difference(Unforgiving.__deniedSvgElements);
+  #allowedSvgElements = this.#svgElements.difference(this.#deniedSvgElements);
 
   //////////////////////////////////////////////////////////////////////////////
   // Parsing State Values //////////////////////////////////////////////////////
@@ -257,16 +187,16 @@ class Unforgiving {
   //  related pattern to match. Initial is just the state we start in and we
   //  only find bound content at string terminals (i.e., interpolations). The
   //  patterns below are intentionally unmatchable.
-  static __initial =      /\b\B/y;
-  static __boundContent = /\b\B/y;
+  #initial =      /\b\B/y;
+  #boundContent = /\b\B/y;
 
   // Our unbound content rules follow the “normal character data” spec.
   //  https://w3c.github.io/html-reference/syntax.html#normal-character-data
-  static __unboundContent = /[^<]+/y;
+  #unboundContent = /[^<]+/y;
 
   // Our comment rules follow the “comments” spec.
   //  https://w3c.github.io/html-reference/syntax.html#comments
-  static __unboundComment = /<!--.*?-->/ys;
+  #unboundComment = /<!--.*?-->/ys;
 
   // Our tag name rules are more restrictive than the “tag name” spec.
   //  https://html.spec.whatwg.org/multipage/syntax.html#syntax-tag-name
@@ -280,9 +210,9 @@ class Unforgiving {
   //  - not ok: <-div>, <1-my-element>
   // TODO: #236: Restrict tags to lowercase once <svg> support is removed.
   // Svg tag names follow the above rules, but may have capital letters.
-  static __openTagStart = /<(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)(?=[\s\n>])/y;
-  static __closeTag =   /<\/(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)>/y;
-  static __openTagEnd = /(?<![\s\n])>/y;
+  #openTagStart = /<(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)(?=[\s\n>])/y;
+  #closeTag =   /<\/(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)>/y;
+  #openTagEnd = /(?<![\s\n])>/y;
 
   // TODO: Check on performance for this pattern. We want to do a positive
   //  lookahead so that we report the correct failure on fail.
@@ -294,7 +224,7 @@ class Unforgiving {
   // Examples:
   //  - ok: <div foo bar>, <div\n  foo\n  bar>
   //  - not ok: <div foo  bar>, <div\n\n  foo\n\n  bar>, <div\tfoo\tbar>
-  static __openTagSpace = / (?! )|\n *(?!\n)(?=[-_.?a-zA-Z0-9>])/y;
+  #openTagSpace = / (?! )|\n *(?!\n)(?=[-_.?a-zA-Z0-9>])/y;
 
   // Our attribute rules are more restrictive than the “attribute” spec.
   //  https://html.spec.whatwg.org/multipage/syntax.html#attributes-2
@@ -312,11 +242,11 @@ class Unforgiving {
   //  - not ok: foo='bar', ?foo, foo=${'bar'}
   // TODO: #236: Restrict attribute names to lowercase once <svg> support is removed.
   // Svg attribute names follow the above rules, but may have capital letters.
-  static __unboundBoolean =   /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)(?=[\s\n>])/y;
-  static __unboundAttribute = /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
-  static __boundBoolean =   /\?(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
-  static __boundDefined = /\?\?(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
-  static __boundAttribute =   /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
+  #unboundBoolean =   /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)(?=[\s\n>])/y;
+  #unboundAttribute = /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
+  #boundBoolean =   /\?(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
+  #boundDefined = /\?\?(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
+  #boundAttribute =   /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
 
   // There is no concept of a property binding in the HTML specification, but
   //  our DSL allows for a preceding “.” for bound properties.
@@ -331,14 +261,14 @@ class Unforgiving {
   // Full property examples:
   //  - ok: .foo="${'bar'}"
   //  - not ok: .foo='${'bar'}', .foo="bar"
-  static __boundProperty = /\.(?![A-Z0-9_])[a-zA-Z0-9_]+(?<!_)="$/y;
+  #boundProperty = /\.(?![A-Z0-9_])[a-zA-Z0-9_]+(?<!_)="$/y;
 
   // We require that values bound to attributes and properties be enclosed
   //  in double-quotes (see above patterns). Because interpolations delimit our
   //  “strings”, we need to check that the _next_ string begins with a
   //  double-quote. Note that it must precede a space, a newline, or the closing
   //  angle bracket of the opening tag.
-  static __danglingQuote = /"(?=[ \n>])/y;
+  #danglingQuote = /"(?=[ \n>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Special Tag Patterns //////////////////////////////////////////////////////
@@ -349,13 +279,13 @@ class Unforgiving {
   //  and closing tags as the content. Note that we allow the “.” to match
   //  across newlines.
   //  https://w3c.github.io/html-reference/syntax.html#replaceable-character-data
-  static __throughTextarea = /.*?<\/textarea>/ys;
+  #throughTextarea = /.*?<\/textarea>/ys;
 
   // The “style” tag is deprecated and will be removed in future versions. It
   //  contains “non-replaceable” character data.
   //  https://w3c.github.io/html-reference/syntax.html#non-replaceable-character-data
   // TODO: #237: Remove support for <style> tags.
-  static __throughStyle = /.*?<\/style>/ys;
+  #throughStyle = /.*?<\/style>/ys;
 
   //////////////////////////////////////////////////////////////////////////////
   // JS-y Escapes //////////////////////////////////////////////////////////////
@@ -375,7 +305,7 @@ class Unforgiving {
   // Examples:
   //  - ok: html`&#8230;`, html`&#x2026;`, html`&mldr;`, html`&hellip;`, html`\\n`
   //  - not ok: html`\nhi\nthere`, html`\x8230`, html`\u2026`, html`\s\t\o\p\ \i\t\.`
-  static __rawJsEscape = /.*(?<!\\)(?:\\{2})*\\(?![$\\`])/ys;
+  #rawJsEscape = /.*(?<!\\)(?:\\{2})*\\(?![$\\`])/ys;
 
   //////////////////////////////////////////////////////////////////////////////
   // Character References //////////////////////////////////////////////////////
@@ -391,8 +321,8 @@ class Unforgiving {
   //  characters as replacement text. We match such entities broadly and then
   //  rely on setHTMLUnsafe to decode.
   // https://w3c.github.io/html-reference/syntax.html#character-encoding
-  static __entity =          /&.*?;/ys;
-  static __htmlEntityStart = /[^&]*&[^&\s\n<]/y;
+  #entity =          /&.*?;/ys;
+  #htmlEntityStart = /[^&]*&[^&\s\n<]/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // CDATA /////////////////////////////////////////////////////////////////////
@@ -405,7 +335,7 @@ class Unforgiving {
   //  - <div><![CDATA[x < y]]></div>
   //  - <div>x &lt; y</div>
   //  … we make an opinion that authors should just use the latter.
-  static __cdataStart = /<!\[CDATA\[/y;
+  #cdataStart = /<!\[CDATA\[/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Common Mistakes ///////////////////////////////////////////////////////////
@@ -413,25 +343,25 @@ class Unforgiving {
 
   // See if weird spaces were added or if incorrect characters were used in
   //  open or close tags.
-  static __openTagStartMalformed = /<[\s\n]*[a-zA-Z0-9_-]+/y;
-  static __openTagSpaceMalformed = /[\s\n]+/y;
-  static __openTagEndMalformed =   /[\s\n]*\/?>/y;
-  static __closeTagMalformed =     /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
+  #openTagStartMalformed = /<[\s\n]*[a-zA-Z0-9_-]+/y;
+  #openTagSpaceMalformed = /[\s\n]+/y;
+  #openTagEndMalformed =   /[\s\n]*\/?>/y;
+  #closeTagMalformed =     /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
   //  either unbound or bound attributes.
-  static __unboundBooleanMalformed =   /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
-  static __unboundAttributeMalformed = /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
-  static __boundBooleanMalformed =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
-  static __boundDefinedMalformed = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
-  static __boundAttributeMalformed =   /[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  #unboundBooleanMalformed =   /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
+  #unboundAttributeMalformed = /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
+  #boundBooleanMalformed =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  #boundDefinedMalformed = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  #boundAttributeMalformed =   /[a-zA-Z0-9-_]+=(?:"|')?$/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
   //  a bound property.
-  static __boundPropertyMalformed = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  #boundPropertyMalformed = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
 
   // See if the quote pair was malformed or missing.
-  static __danglingQuoteMalformed = /'?(?=[\s\n>])/y;
+  #danglingQuoteMalformed = /'?(?=[\s\n>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Errors ////////////////////////////////////////////////////////////////////
@@ -439,7 +369,7 @@ class Unforgiving {
 
   // Simple mapping of all the errors which can be thrown by the parser. The
   //  parsing errors are allotted numbers #100-#199.
-  static __errorMessages = new Map([
+  #errorMessages = new Map([
     ['#100', 'Markup at the start of your template could not be parsed.'],
     ['#101', 'Markup after content text found in your template could not be parsed.'],
     ['#102', 'Markup after a comment found in your template could not be parsed.'],
@@ -470,7 +400,7 @@ class Unforgiving {
 
     ['#140', 'CDATA sections are forbidden. Use html entities (character encodings) instead.'],
 
-    ['#150', 'Improper javascript escape (\\x, \\u, \\t, \\n, etc.) in raw template string. Only escapes to create a literal slash (“\\”) or back tick (“`”) is allowed. Only valid HTML entities (character references) are supported in html as code points. Use literal characters (e.g., newlines) to enter newlines in your templates.'],
+    ['#150', 'Improper javascript escape (\\x, \\u, \\t, \\n, etc.) in raw template string. Only escapes to create a literal dollar (“$”), slash (“\\”), or back tick (“`”) is allowed. Only valid HTML entities (character references) are supported in html as code points. Use literal characters (e.g., newlines) to enter newlines in your templates.'],
     ['#151', 'Malformed hexadecimal character reference (html entity) or ambiguous ampersand.'],
     ['#152', 'Malformed html comment. Comments cannot start with “>” or “->” characters, they cannot include a set of “--” characters, and they cannot end with a “-” character.'],
     ['#153', 'Forbidden html element used — this parser is opinionated about which elements are allowed in order to reduce complexity and improve performance.'],
@@ -492,46 +422,46 @@ class Unforgiving {
   ]);
 
   // Block #100-#119 — Invalid transition errors.
-  static __valueToErrorMessagesKey = new Map([
-    [Unforgiving.__initial,                   '#100'],
-    [Unforgiving.__unboundContent,            '#101'],
-    [Unforgiving.__unboundComment,            '#102'],
-    [Unforgiving.__boundContent,              '#103'],
-    [Unforgiving.__openTagStart,              '#104'],
-    [Unforgiving.__openTagSpace,              '#105'],
-    [Unforgiving.__openTagEnd,                '#106'],
-    [Unforgiving.__unboundBoolean,            '#107'],
-    [Unforgiving.__unboundAttribute,          '#108'],
-    [Unforgiving.__boundBoolean,              '#109'],
-    [Unforgiving.__boundDefined,              '#110'],
-    [Unforgiving.__boundAttribute,            '#111'],
-    [Unforgiving.__boundProperty,             '#112'],
-    [Unforgiving.__danglingQuote,             '#113'],
-    [Unforgiving.__closeTag,                  '#114'],
+  #valueToErrorMessagesKey = new Map([
+    [this.#initial,                   '#100'],
+    [this.#unboundContent,            '#101'],
+    [this.#unboundComment,            '#102'],
+    [this.#boundContent,              '#103'],
+    [this.#openTagStart,              '#104'],
+    [this.#openTagSpace,              '#105'],
+    [this.#openTagEnd,                '#106'],
+    [this.#unboundBoolean,            '#107'],
+    [this.#unboundAttribute,          '#108'],
+    [this.#boundBoolean,              '#109'],
+    [this.#boundDefined,              '#110'],
+    [this.#boundAttribute,            '#111'],
+    [this.#boundProperty,             '#112'],
+    [this.#danglingQuote,             '#113'],
+    [this.#closeTag,                  '#114'],
   ]);
 
   // Block #120-#139 — Common mistakes.
-  static __valueMalformedToErrorMessagesKey = new Map([
-    [Unforgiving.__openTagStartMalformed,     '#120'],
-    [Unforgiving.__openTagSpaceMalformed,     '#121'],
-    [Unforgiving.__openTagEndMalformed,       '#122'],
-    [Unforgiving.__closeTagMalformed,         '#123'],
-    [Unforgiving.__unboundBooleanMalformed,   '#124'],
-    [Unforgiving.__unboundAttributeMalformed, '#125'],
-    [Unforgiving.__boundBooleanMalformed,     '#126'],
-    [Unforgiving.__boundDefinedMalformed,     '#127'],
-    [Unforgiving.__boundAttributeMalformed,   '#128'],
-    [Unforgiving.__boundPropertyMalformed,    '#129'],
-    [Unforgiving.__danglingQuoteMalformed,    '#130'],
+  #valueMalformedToErrorMessagesKey = new Map([
+    [this.#openTagStartMalformed,     '#120'],
+    [this.#openTagSpaceMalformed,     '#121'],
+    [this.#openTagEndMalformed,       '#122'],
+    [this.#closeTagMalformed,         '#123'],
+    [this.#unboundBooleanMalformed,   '#124'],
+    [this.#unboundAttributeMalformed, '#125'],
+    [this.#boundBooleanMalformed,     '#126'],
+    [this.#boundDefinedMalformed,     '#127'],
+    [this.#boundAttributeMalformed,   '#128'],
+    [this.#boundPropertyMalformed,    '#129'],
+    [this.#danglingQuoteMalformed,    '#130'],
   ]);
 
   // Block #140-#149 — Forbidden transitions.
-  static __valueForbiddenToErrorMessagesKey = new Map([
-    [Unforgiving.__cdataStart,                '#140'],
+  #valueForbiddenToErrorMessagesKey = new Map([
+    [this.#cdataStart,                '#140'],
   ]);
 
   // Block #150+ — Special, named issues.
-  static __namedErrorsToErrorMessagesKey = new Map([
+  #namedErrorsToErrorMessagesKey = new Map([
     ['javascript-escape',                    '#150'],
     ['malformed-html-entity',                '#151'],
     ['malformed-comment',                    '#152'],
@@ -559,7 +489,7 @@ class Unforgiving {
   //////////////////////////////////////////////////////////////////////////////
 
   // Returns the first valid state-machine transition (if one exists).
-  static __try(string, stringIndex, ...values) {
+  #try(string, stringIndex, ...values) {
     for (const value of values) {
       value.lastIndex = stringIndex;
       if (value.test(string)) {
@@ -570,77 +500,77 @@ class Unforgiving {
 
   // Special cases we want to warn about, but which are not just malformed
   //  versions of valid transitions.
-  static __forbiddenTransition(string, stringIndex, value) {
+  #forbiddenTransition(string, stringIndex, value) {
     switch (value) {
-      case Unforgiving.__initial:
-      case Unforgiving.__boundContent:
-      case Unforgiving.__unboundContent:
-      case Unforgiving.__openTagEnd:
-      case Unforgiving.__closeTag: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__cdataStart);
+      case this.#initial:
+      case this.#boundContent:
+      case this.#unboundContent:
+      case this.#openTagEnd:
+      case this.#closeTag: return this.#try(string, stringIndex,
+        this.#cdataStart);
     }
   }
 
   // This should roughly match our “valid” transition mapping, but for errors.
-  static __invalidTransition(string, stringIndex, value) {
+  #invalidTransition(string, stringIndex, value) {
     switch (value) {
-      case Unforgiving.__initial: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__openTagStartMalformed);
-      case Unforgiving.__unboundContent: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__closeTagMalformed,
-        Unforgiving.__openTagStartMalformed);
-      case Unforgiving.__boundContent: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__closeTagMalformed,
-        Unforgiving.__openTagStartMalformed);
-      case Unforgiving.__unboundComment: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__closeTagMalformed,
-        Unforgiving.__openTagStartMalformed);
-      case Unforgiving.__openTagStart:
-      case Unforgiving.__unboundBoolean:
-      case Unforgiving.__unboundAttribute:
-      case Unforgiving.__danglingQuote: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__openTagSpaceMalformed);
-      case Unforgiving.__openTagSpace: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__unboundBooleanMalformed,
-        Unforgiving.__unboundAttributeMalformed,
-        Unforgiving.__boundBooleanMalformed,
-        Unforgiving.__boundDefinedMalformed,
-        Unforgiving.__boundAttributeMalformed,
-        Unforgiving.__boundPropertyMalformed,
-        Unforgiving.__openTagEndMalformed);
-      case Unforgiving.__openTagEnd: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__openTagStartMalformed,
-        Unforgiving.__closeTagMalformed);
-      case Unforgiving.__boundBoolean:
-      case Unforgiving.__boundDefined:
-      case Unforgiving.__boundAttribute:
-      case Unforgiving.__boundProperty: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__danglingQuoteMalformed);
-      case Unforgiving.__closeTag: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__openTagStartMalformed,
-        Unforgiving.__closeTagMalformed);
+      case this.#initial: return this.#try(string, stringIndex,
+        this.#openTagStartMalformed);
+      case this.#unboundContent: return this.#try(string, stringIndex,
+        this.#closeTagMalformed,
+        this.#openTagStartMalformed);
+      case this.#boundContent: return this.#try(string, stringIndex,
+        this.#closeTagMalformed,
+        this.#openTagStartMalformed);
+      case this.#unboundComment: return this.#try(string, stringIndex,
+        this.#closeTagMalformed,
+        this.#openTagStartMalformed);
+      case this.#openTagStart:
+      case this.#unboundBoolean:
+      case this.#unboundAttribute:
+      case this.#danglingQuote: return this.#try(string, stringIndex,
+        this.#openTagSpaceMalformed);
+      case this.#openTagSpace: return this.#try(string, stringIndex,
+        this.#unboundBooleanMalformed,
+        this.#unboundAttributeMalformed,
+        this.#boundBooleanMalformed,
+        this.#boundDefinedMalformed,
+        this.#boundAttributeMalformed,
+        this.#boundPropertyMalformed,
+        this.#openTagEndMalformed);
+      case this.#openTagEnd: return this.#try(string, stringIndex,
+        this.#openTagStartMalformed,
+        this.#closeTagMalformed);
+      case this.#boundBoolean:
+      case this.#boundDefined:
+      case this.#boundAttribute:
+      case this.#boundProperty: return this.#try(string, stringIndex,
+        this.#danglingQuoteMalformed);
+      case this.#closeTag: return this.#try(string, stringIndex,
+        this.#openTagStartMalformed,
+        this.#closeTagMalformed);
     }
   }
 
   // This is the core of the state machine. It describes every valid traversal
   //  through a set of html template “strings” array.
-  static __validTransition(string, stringIndex, value) {
+  #validTransition(string, stringIndex, value) {
     switch (value) {
       // The “initial” state is where we start when we begin parsing.
       //  E.g., html`‸hello world!`
-      case Unforgiving.__initial: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__unboundContent,
-        Unforgiving.__openTagStart,
-        Unforgiving.__unboundComment);
+      case this.#initial: return this.#try(string, stringIndex,
+        this.#unboundContent,
+        this.#openTagStart,
+        this.#unboundComment);
 
       // The “unboundContent” state means that we’ve just parsed through some
       //  literal html text either in the root of the template or between an
       //  open / close tag pair.
       //  E.g., html`hello ‸${world}!`
-      case Unforgiving.__unboundContent: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__closeTag,
-        Unforgiving.__openTagStart,
-        Unforgiving.__unboundComment);
+      case this.#unboundContent: return this.#try(string, stringIndex,
+        this.#closeTag,
+        this.#openTagStart,
+        this.#unboundComment);
 
       // The “boundContent” state means that we just hit an interpolation (i.e.,
       //  started a new string).
@@ -648,12 +578,12 @@ class Unforgiving {
       // The “unboundComment” state means that we just completed a comment. We
       //  don’t allow comment interpolations.
       //  E.g., html`hello <!-- todo -->‸ ${world}!`
-      case Unforgiving.__boundContent:
-      case Unforgiving.__unboundComment: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__unboundContent,
-        Unforgiving.__closeTag,
-        Unforgiving.__openTagStart,
-        Unforgiving.__unboundComment); 
+      case this.#boundContent:
+      case this.#unboundComment: return this.#try(string, stringIndex,
+        this.#unboundContent,
+        this.#closeTag,
+        this.#openTagStart,
+        this.#unboundComment); 
 
       // The “openTagStart” means that we’ve successfully parsed through the
       //  open angle bracket (“<”) and the tag name.
@@ -669,32 +599,32 @@ class Unforgiving {
       //  interpolated value for a bound boolean attribute, a bound defined
       //  attribute, a bound normal attribute, or a bound property.
       //  E.g., html`<div foo="${bar}"‸></div>`
-      case Unforgiving.__openTagStart:
-      case Unforgiving.__unboundBoolean:
-      case Unforgiving.__unboundAttribute:
-      case Unforgiving.__danglingQuote: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__openTagSpace,
-        Unforgiving.__openTagEnd);
+      case this.#openTagStart:
+      case this.#unboundBoolean:
+      case this.#unboundAttribute:
+      case this.#danglingQuote: return this.#try(string, stringIndex,
+        this.#openTagSpace,
+        this.#openTagEnd);
 
       // The “openTagSpace” is either one space or a single newline and some
       //  indentation space after the open tag name, an attribute, or property.
       //  E.g., html`<div ‸foo></div>`
-      case Unforgiving.__openTagSpace: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__unboundBoolean,
-        Unforgiving.__unboundAttribute,
-        Unforgiving.__boundBoolean,
-        Unforgiving.__boundDefined,
-        Unforgiving.__boundAttribute,
-        Unforgiving.__boundProperty,
-        Unforgiving.__openTagEnd);
+      case this.#openTagSpace: return this.#try(string, stringIndex,
+        this.#unboundBoolean,
+        this.#unboundAttribute,
+        this.#boundBoolean,
+        this.#boundDefined,
+        this.#boundAttribute,
+        this.#boundProperty,
+        this.#openTagEnd);
 
       // The “openTagEnd” is just the “>” character.
       //  E.g., html`<div>‸</div>`
-      case Unforgiving.__openTagEnd: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__openTagStart,
-        Unforgiving.__unboundContent,
-        Unforgiving.__closeTag,
-        Unforgiving.__unboundComment);
+      case this.#openTagEnd: return this.#try(string, stringIndex,
+        this.#openTagStart,
+        this.#unboundContent,
+        this.#closeTag,
+        this.#unboundComment);
 
       // The “boundBoolean” state means we just ended our prior string with an
       //  interpolated boolean binding.
@@ -708,31 +638,31 @@ class Unforgiving {
       // The “boundProperty” state means we just ended our prior string with an
       //  interpolated property binding.
       //  E.g., html`<div .foo="${bar}‸"></div>`
-      case Unforgiving.__boundBoolean:
-      case Unforgiving.__boundDefined:
-      case Unforgiving.__boundAttribute:
-      case Unforgiving.__boundProperty: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__danglingQuote);
+      case this.#boundBoolean:
+      case this.#boundDefined:
+      case this.#boundAttribute:
+      case this.#boundProperty: return this.#try(string, stringIndex,
+        this.#danglingQuote);
 
       // The “closeTag” state means we just closed some tag successfully,
       //  E.g., html`<div><span></span>‸</div>`
-      case Unforgiving.__closeTag: return Unforgiving.__try(string, stringIndex,
-        Unforgiving.__unboundContent,
-        Unforgiving.__openTagStart,
-        Unforgiving.__closeTag,
-        Unforgiving.__unboundComment);
+      case this.#closeTag: return this.#try(string, stringIndex,
+        this.#unboundContent,
+        this.#openTagStart,
+        this.#closeTag,
+        this.#unboundComment);
     }
   }
 
   // Common functionality to help print out template context when displaying
   //  helpful error messages to developers.
-  static __getErrorInfo(strings, stringsIndex, string, stringIndex) {
+  #getErrorInfo(strings, stringsIndex, string, stringIndex) {
     let prefix;
     let prefixIndex;
     if (stringsIndex > 0) {
-      const validPrefix = strings.slice(0, stringsIndex).join(Unforgiving.__delimiter);
-      prefix = [validPrefix, string].join(Unforgiving.__delimiter);
-      prefixIndex = validPrefix.length + Unforgiving.__delimiter.length + stringIndex;
+      const validPrefix = strings.slice(0, stringsIndex).join(this.#delimiter);
+      prefix = [validPrefix, string].join(this.#delimiter);
+      prefixIndex = validPrefix.length + this.#delimiter.length + stringIndex;
     } else {
       prefix = string;
       prefixIndex = stringIndex;
@@ -748,16 +678,16 @@ class Unforgiving {
   //  throw an error. Because we have to halt execution anyhow, we can use it as
   //  an opportunity to test some additional patterns to improve our messaging.
   //  This would otherwise be non-performant — but we are about to error anyhow.
-  static __throwTransitionError(strings, stringsIndex, string, stringIndex, value) {
-    const { parsed, notParsed } = Unforgiving.__getErrorInfo(strings, stringsIndex, string, stringIndex);
-    const valueForbidden = Unforgiving.__forbiddenTransition(string, stringIndex, value);
-    const valueMalformed = Unforgiving.__invalidTransition(string, stringIndex, value);
+  #throwTransitionError(strings, stringsIndex, string, stringIndex, value) {
+    const { parsed, notParsed } = this.#getErrorInfo(strings, stringsIndex, string, stringIndex);
+    const valueForbidden = this.#forbiddenTransition(string, stringIndex, value);
+    const valueMalformed = this.#invalidTransition(string, stringIndex, value);
     const errorMessagesKey = valueForbidden
-      ? Unforgiving.__valueForbiddenToErrorMessagesKey.get(valueForbidden)
+      ? this.#valueForbiddenToErrorMessagesKey.get(valueForbidden)
       : valueMalformed
-        ? Unforgiving.__valueMalformedToErrorMessagesKey.get(valueMalformed)
-        : Unforgiving.__valueToErrorMessagesKey.get(value);
-    const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+        ? this.#valueMalformedToErrorMessagesKey.get(valueMalformed)
+        : this.#valueToErrorMessagesKey.get(value);
+    const errorMessage = this.#errorMessages.get(errorMessagesKey);
     const substringMessage = `See substring \`${notParsed}\`.`;
     const parsedThroughMessage = `Your HTML was parsed through: \`${parsed}\`.`;
     const message = `[${errorMessagesKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`;
@@ -767,12 +697,12 @@ class Unforgiving {
   // This validates a value from our “strings.raw” array passed into our tagged
   //  template function. It checks to make sure superfluous, JS-y escapes are
   //  not being used as html (since there are perfectly-valid alternatives).
-  static __validateRawString(rawString) {
-    Unforgiving.__rawJsEscape.lastIndex = 0;
-    if (Unforgiving.__rawJsEscape.test(rawString)) {
-      const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('javascript-escape');
-      const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
-      const substringMessage = `See (raw) substring \`${rawString.slice(0, Unforgiving.__rawJsEscape.lastIndex)}\`.`;
+  #validateRawString(rawString) {
+    this.#rawJsEscape.lastIndex = 0;
+    if (this.#rawJsEscape.test(rawString)) {
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('javascript-escape');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
+      const substringMessage = `See (raw) substring \`${rawString.slice(0, this.#rawJsEscape.lastIndex)}\`.`;
       const message = `[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`;
       throw new Error(message);
     }
@@ -780,11 +710,11 @@ class Unforgiving {
 
   // Before a successful exit, the parser ensures that all non-void opening tags
   //  have been matched successfully to prevent any unexpected behavior.
-  static __validateExit(fragment, element) {
+  #validateExit(fragment, element) {
     if (element.value !== fragment) {
-      const tagName = element.value[Unforgiving.__localName];
-      const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('missing-closing-tag');
-      const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+      const tagName = element.value[this.#localName];
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('missing-closing-tag');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
       const substringMessage = `Missing a closing </${tagName}>.`;
       throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
     }
@@ -796,109 +726,109 @@ class Unforgiving {
   //  as high as the number of character references used (which is often low).
   //  Note that malformed references or ambiguous ampersands will cause errors.
   //  https://html.spec.whatwg.org/multipage/named-characters.html
-  static __replaceHtmlEntities(originalContent) {
+  #replaceHtmlEntities(originalContent) {
     let content = originalContent;
-    Unforgiving.__htmlEntityStart.lastIndex = 0;
-    while (Unforgiving.__htmlEntityStart.test(content)) {
-      const contentIndex = Unforgiving.__htmlEntityStart.lastIndex - 2;
-      Unforgiving.__entity.lastIndex = contentIndex;
-      if (!Unforgiving.__entity.test(content)) {
-        const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('malformed-html-entity');
-        const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+    this.#htmlEntityStart.lastIndex = 0;
+    while (this.#htmlEntityStart.test(content)) {
+      const contentIndex = this.#htmlEntityStart.lastIndex - 2;
+      this.#entity.lastIndex = contentIndex;
+      if (!this.#entity.test(content)) {
+        const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('malformed-html-entity');
+        const errorMessage = this.#errorMessages.get(errorMessagesKey);
         const substringMessage = `See substring \`${originalContent}\`.`;
         throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
       }
-      const encoded = content.slice(contentIndex, Unforgiving.__entity.lastIndex);
-      Unforgiving.__htmlEntityContainer.innerHTML = encoded;
-      const decoded = Unforgiving.__htmlEntityContainer.content.textContent;
+      const encoded = content.slice(contentIndex, this.#entity.lastIndex);
+      this.#htmlEntityContainer.innerHTML = encoded;
+      const decoded = this.#htmlEntityContainer.content.textContent;
       content = content.replace(encoded, decoded);
-      Unforgiving.__htmlEntityStart.lastIndex = contentIndex + decoded.length;
+      this.#htmlEntityStart.lastIndex = contentIndex + decoded.length;
     }
     return content;
   }
 
   // Void elements are treated with special consideration as they will never
   //  contain child nodes.
-  static __finalizeVoidElement(path, element, childNodesIndex, nextStringIndex) {
+  #finalizeVoidElement(path, element, childNodesIndex, nextStringIndex) {
     childNodesIndex.value = path.pop();
-    element.value = element.value[Unforgiving.__parentNode];
-    Unforgiving.__closeTag.lastIndex = nextStringIndex;
-    return Unforgiving.__closeTag;
+    element.value = element.value[this.#parentNode];
+    this.#closeTag.lastIndex = nextStringIndex;
+    return this.#closeTag;
   }
 
   // Textarea contains so-called “replaceable” character data. We throw an error
   //  if a “complex” interpolation exists — anything other than a perfectly-fit
   //  content interpolation between the opening and closing tags.
-  static __finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex) {
+  #finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex) {
     const closeTagLength = 11; // </textarea>
-    Unforgiving.__throughTextarea.lastIndex = nextStringIndex;
-    if (Unforgiving.__throughTextarea.test(string)) {
-      const encoded = string.slice(nextStringIndex, Unforgiving.__throughTextarea.lastIndex - closeTagLength);
-      const decoded = Unforgiving.__replaceHtmlEntities(encoded);
+    this.#throughTextarea.lastIndex = nextStringIndex;
+    if (this.#throughTextarea.test(string)) {
+      const encoded = string.slice(nextStringIndex, this.#throughTextarea.lastIndex - closeTagLength);
+      const decoded = this.#replaceHtmlEntities(encoded);
       element.value.textContent = decoded;
     } else {
-      const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
-      const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
       throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
     }
     childNodesIndex.value = path.pop();
-    element.value = element.value[Unforgiving.__parentNode];
-    Unforgiving.__closeTag.lastIndex = Unforgiving.__throughTextarea.lastIndex;
-    return Unforgiving.__closeTag;
+    element.value = element.value[this.#parentNode];
+    this.#closeTag.lastIndex = this.#throughTextarea.lastIndex;
+    return this.#closeTag;
   }
 
   // TODO: #237: Remove support for <style> tags.
   // Style contains so-called “non-replaceable” character data.
-  static __finalizeStyle(string, path, element, childNodesIndex, nextStringIndex) {
+  #finalizeStyle(string, path, element, childNodesIndex, nextStringIndex) {
     const closeTagLength = 8; // </style>
-    Unforgiving.__throughStyle.lastIndex = nextStringIndex;
-    if (Unforgiving.__throughStyle.test(string)) {
-      const content = string.slice(nextStringIndex, Unforgiving.__throughStyle.lastIndex - closeTagLength);
+    this.#throughStyle.lastIndex = nextStringIndex;
+    if (this.#throughStyle.test(string)) {
+      const content = string.slice(nextStringIndex, this.#throughStyle.lastIndex - closeTagLength);
       element.value.textContent = content;
     } else {
-      const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('style-interpolation');
-      const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('style-interpolation');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
       throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
     }
     childNodesIndex.value = path.pop();
-    element.value = element.value[Unforgiving.__parentNode];
-    Unforgiving.__closeTag.lastIndex = Unforgiving.__throughStyle.lastIndex;
-    return Unforgiving.__closeTag;
+    element.value = element.value[this.#parentNode];
+    this.#closeTag.lastIndex = this.#throughStyle.lastIndex;
+    return this.#closeTag;
   }
 
   // Unbound content is just literal text in a template string that needs to
   //  land as text content. We replace any character references (html entities)
   //  found in the content.
-  static __addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex) {
+  #addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex) {
     const encoded = string.slice(stringIndex, nextStringIndex);
-    const decoded = Unforgiving.__replaceHtmlEntities(encoded);
-    element.value.appendChild(Unforgiving.__window.document.createTextNode(decoded));
+    const decoded = this.#replaceHtmlEntities(encoded);
+    element.value.appendChild(this.#window.document.createTextNode(decoded));
     childNodesIndex.value += 1;
   }
 
   // An unbound comment is just a basic html comment. Comments may not be
   //  interpolated and follow some specific rules from the html specification.
   //  https://w3c.github.io/html-reference/syntax.html#comments
-  static __addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex) {
+  #addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex) {
     const content = string.slice(stringIndex, nextStringIndex);
     const data = content.slice(4, -3);
     if (data.startsWith('>') || data.startsWith('->') || data.includes('--') || data.endsWith('-')) {
-      const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('malformed-comment');
-      const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('malformed-comment');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
       const substringMessage = `See substring \`${content}\`.`;
       throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
     }
-    element.value.appendChild(Unforgiving.__window.document.createComment(data));
+    element.value.appendChild(this.#window.document.createComment(data));
     childNodesIndex.value += 1;
   }
 
   // Bound content is simply an interpolation in the template which exists in a
   //  location destined to be bound as “textContent” on some node. We notify our
   //  listener about the content binding’s path.
-  static __addBoundContent(onContent, path, element, childNodesIndex) {
+  #addBoundContent(onContent, path, element, childNodesIndex) {
     element.value.append(
-      Unforgiving.__window.document.createComment(''),
-      Unforgiving.__window.document.createComment('')
+      this.#window.document.createComment(''),
+      this.#window.document.createComment('')
     );
     childNodesIndex.value += 2;
     path.push(childNodesIndex.value);
@@ -910,14 +840,14 @@ class Unforgiving {
   //  subscriber is notified about this as a “text” binding not a “content”
   //  binding so that it correctly bind _any_ interpolated value to the
   //  “textContent” property as a string — no matter the type.
-  static __addBoundText(onText, string, path, sloppyStartInterpolation) {
+  #addBoundText(onText, string, path, sloppyStartInterpolation) {
     // If the prior match isn’t our opening tag… that’s a problem. If the next
     //  match isn’t our closing tag… that’s also a problem.
     // Because we tightly control the end-tag format, we can predict what the
     //  next string’s prefix should be.
     if (sloppyStartInterpolation || !string.startsWith(`</textarea>`)) {
-      const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
-      const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
       throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
     }
     onText(path);
@@ -925,11 +855,11 @@ class Unforgiving {
 
   // TODO: #236: Remove validation once <svg> is unsupported and we restrict
   //  initial pattern to math for attributes.
-  static __validateAttributeName(namespace, attributeName) {
-    if (namespace === Unforgiving.__html) {
-      if (Unforgiving.__uppercaseLetters.test(attributeName)) {
-        const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('uppercase-html-attribute');
-        const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+  #validateAttributeName(namespace, attributeName) {
+    if (namespace === this.#html) {
+      if (this.#uppercaseLetters.test(attributeName)) {
+        const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('uppercase-html-attribute');
+        const errorMessage = this.#errorMessages.get(errorMessagesKey);
         const substringMessage = `Rewrite the html attribute "${attributeName}" as "${attributeName.toLowerCase()}".`;
         throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
       }
@@ -938,63 +868,63 @@ class Unforgiving {
 
   // An unbound boolean is a literal boolean attribute declaration with no
   //  associated value at all.
-  static __addUnboundBoolean(string, stringIndex, element, nextStringIndex) {
+  #addUnboundBoolean(string, stringIndex, element, nextStringIndex) {
     const attributeName = string.slice(stringIndex, nextStringIndex);
-    const namespace = element.value[Unforgiving.__namespace];
-    Unforgiving.__validateAttributeName(namespace, attributeName);
+    const namespace = element.value[this.#namespace];
+    this.#validateAttributeName(namespace, attributeName);
     element.value.setAttribute(attributeName, '');
   }
 
   // An unbound attribute is a literal attribute declaration, but this time, it
   //  does have an associated value — forming a key-value pair.
-  static __addUnboundAttribute(string, stringIndex, element, nextStringIndex) {
+  #addUnboundAttribute(string, stringIndex, element, nextStringIndex) {
     const unboundAttribute = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = unboundAttribute.indexOf('=');
     const attributeName = unboundAttribute.slice(0, equalsIndex);
-    const namespace = element.value[Unforgiving.__namespace];
-    Unforgiving.__validateAttributeName(namespace, attributeName);
+    const namespace = element.value[this.#namespace];
+    this.#validateAttributeName(namespace, attributeName);
     const encoded = unboundAttribute.slice(equalsIndex + 2, -1);
-    const decoded = Unforgiving.__replaceHtmlEntities(encoded);
+    const decoded = this.#replaceHtmlEntities(encoded);
     element.value.setAttribute(attributeName, decoded);
   }
 
   // A bound boolean is a boolean attribute flag with an associated value
   //  binding. It has a single, preceding “?” character. We notify subscribers
   //  about this flag.
-  static __addBoundBoolean(onBoolean, string, stringIndex, path, element, nextStringIndex) {
+  #addBoundBoolean(onBoolean, string, stringIndex, path, element, nextStringIndex) {
     const boundBoolean = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = boundBoolean.indexOf('=');
     const attributeName = boundBoolean.slice(1, equalsIndex);
-    const namespace = element.value[Unforgiving.__namespace];
-    Unforgiving.__validateAttributeName(namespace, attributeName);
+    const namespace = element.value[this.#namespace];
+    this.#validateAttributeName(namespace, attributeName);
     onBoolean(attributeName, path);
   }
 
   // Similar to a bound boolean, but with two preceding “??” characters. We
   //  notify subscribers about this attribute which exists only when defined.
-  static __addBoundDefined(onDefined, string, stringIndex, path, element, nextStringIndex) {
+  #addBoundDefined(onDefined, string, stringIndex, path, element, nextStringIndex) {
     const boundDefined = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = boundDefined.indexOf('=');
     const attributeName = boundDefined.slice(2, equalsIndex);
-    const namespace = element.value[Unforgiving.__namespace];
-    Unforgiving.__validateAttributeName(namespace, attributeName);
+    const namespace = element.value[this.#namespace];
+    this.#validateAttributeName(namespace, attributeName);
     onDefined(attributeName, path);
   }
 
   // This is an attribute with a name / value pair where the “value” is bound
   //  as an interpolation. We notify subscribers about this attribute binding.
-  static __addBoundAttribute(onAttribute, string, stringIndex, path, element, nextStringIndex) {
+  #addBoundAttribute(onAttribute, string, stringIndex, path, element, nextStringIndex) {
     const boundAttribute = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = boundAttribute.indexOf('=');
     const attributeName = boundAttribute.slice(0, equalsIndex);
-    const namespace = element.value[Unforgiving.__namespace];
-    Unforgiving.__validateAttributeName(namespace, attributeName);
+    const namespace = element.value[this.#namespace];
+    this.#validateAttributeName(namespace, attributeName);
     onAttribute(attributeName, path);
   }
 
   // This is an property with a name / value pair where the “value” is bound
   //  as an interpolation. We notify subscribers about this property binding.
-  static __addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex) {
+  #addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex) {
     const boundProperty = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = boundProperty.indexOf('=');
     const propertyName = boundProperty.slice(1, equalsIndex);
@@ -1004,31 +934,31 @@ class Unforgiving {
   // In addition to the allow-list of html tag names, any tag with a hyphen in
   //  the middle is considered a valid custom element. Therefore, we must allow
   //  for such declarations.
-  static __validateTagName(namespace, tagName) {
+  #validateTagName(namespace, tagName) {
     switch (namespace) {
-      case Unforgiving.__html:
+      case this.#html:
         if (
           tagName.indexOf('-') === -1 &&
-          !Unforgiving.__allowedHtmlElements.has(tagName)
+          !this.#allowedHtmlElements.has(tagName)
         ) {
-          const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('forbidden-html-element');
-          const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-html-element');
+          const errorMessage = this.#errorMessages.get(errorMessagesKey);
           const substringMessage = `The <${tagName}> html element is forbidden.`;
           throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
-        } else if (Unforgiving.__uppercaseLetters.test(tagName)) {
+        } else if (this.#uppercaseLetters.test(tagName)) {
           // TODO: #236: Remove error handling here after <svg> is gone. The
           //  top-level patterns will be updated to consider this case.
-          const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('uppercase-html-tag');
-          const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('uppercase-html-tag');
+          const errorMessage = this.#errorMessages.get(errorMessagesKey);
           const substringMessage = `Rewrite the html tag name "${tagName}" as "${tagName.toLowerCase()}".`;
           throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
         }
         break;
-      case Unforgiving.__svg:
+      case this.#svg:
         // TODO: #236: Remove support for <svg> completely.
-        if (!Unforgiving.__allowedSvgElements.has(tagName)) {
-          const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('forbidden-svg-element');
-          const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+        if (!this.#allowedSvgElements.has(tagName)) {
+          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-svg-element');
+          const errorMessage = this.#errorMessages.get(errorMessagesKey);
           const substringMessage = `The <${tagName}> svg element is forbidden.`;
           throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
         }
@@ -1038,26 +968,26 @@ class Unforgiving {
 
   // We’ve parsed through and open tag start and are ready to instantiate a new
   //  dom node and potentially add attributes, properties, and children.
-  static __addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
+  #addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
     const prefixedTagName = string.slice(stringIndex, nextStringIndex);
     const tagName = prefixedTagName.slice(1);
-    const currentNamespace = element.value[Unforgiving.__namespace];
-    Unforgiving.__validateTagName(currentNamespace, tagName);
+    const currentNamespace = element.value[this.#namespace];
+    this.#validateTagName(currentNamespace, tagName);
     let namespace = currentNamespace;
     if (tagName === 'svg') {
-      Unforgiving.__svgDeprecationWarning();
-      namespace = Unforgiving.__svg;
+      this.#svgDeprecationWarning();
+      namespace = this.#svg;
     }
 
-    const childNode = namespace === Unforgiving.__html
-      ? Unforgiving.__window.document.createElement(tagName)
-      : Unforgiving.__window.document.createElementNS(namespace, tagName);
-    element.value[Unforgiving.__localName] === 'template'
+    const childNode = namespace === this.#html
+      ? this.#window.document.createElement(tagName)
+      : this.#window.document.createElementNS(namespace, tagName);
+    element.value[this.#localName] === 'template'
       ? element.value.content.appendChild(childNode)
       : element.value.appendChild(childNode);
-    childNode[Unforgiving.__localName] = tagName;
-    childNode[Unforgiving.__parentNode] = element.value;
-    childNode[Unforgiving.__namespace] = namespace;
+    childNode[this.#localName] = tagName;
+    childNode[this.#parentNode] = element.value;
+    childNode[this.#namespace] = namespace;
     element.value = childNode;
     childNodesIndex.value += 1;
     path.push(childNodesIndex.value);
@@ -1065,50 +995,137 @@ class Unforgiving {
 
   // We’ve parsed through a close tag and can validate it, update our state to
   //  point back to our parent node, and continue parsing.
-  static __finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
+  #finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
     const closeTag = string.slice(stringIndex, nextStringIndex);
     const tagName = closeTag.slice(2, -1);
-    const expectedTagName = element.value[Unforgiving.__localName];
+    const expectedTagName = element.value[this.#localName];
     if (tagName !== expectedTagName) {
-      const { parsed } = Unforgiving.__getErrorInfo(strings, stringsIndex, string, stringIndex);
-      const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('mismatched-closing-tag');
-      const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+      const { parsed } = this.#getErrorInfo(strings, stringsIndex, string, stringIndex);
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('mismatched-closing-tag');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
       const substringMessage = `The closing tag </${tagName}> does not match <${expectedTagName}>.`;
       const parsedThroughMessage = `Your HTML was parsed through: \`${parsed}\`.`;
       throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`);
     }
     childNodesIndex.value = path.pop();
-    element.value = element.value[Unforgiving.__parentNode];
+    element.value = element.value[this.#parentNode];
   }
 
   // TODO: #237: Remove support for <style> tags.
-  static __styleDeprecationWarning() {
-    if (!Unforgiving.__hasWarnedAboutStyleDeprecation) {
-      Unforgiving.__hasWarnedAboutStyleDeprecation = true;
+  #styleDeprecationWarning() {
+    if (!this.#hasWarnedAboutStyleDeprecation) {
+      this.#hasWarnedAboutStyleDeprecation = true;
       const error = new Error('Support for the <style> tag is deprecated and will be removed in future versions.');
-      Unforgiving.__window.console.warn(error);
+      this.#window.console.warn(error);
     }
   }
 
   // TODO: #236: Remove support for <svg> tags.
-  static __svgDeprecationWarning() {
-    if (!Unforgiving.__hasWarnedAboutSvgDeprecation) {
-      Unforgiving.__hasWarnedAboutSvgDeprecation = true;
+  #svgDeprecationWarning() {
+    if (!this.#hasWarnedAboutSvgDeprecation) {
+      this.#hasWarnedAboutSvgDeprecation = true;
       const error = new Error('Support for the <svg> tag is deprecated and will be removed in future versions.');
-      Unforgiving.__window.console.warn(error);
+      this.#window.console.warn(error);
     }
   }
 
   //////////////////////////////////////////////////////////////////////////////
-  // Main parsing functionality ////////////////////////////////////////////////
+  // Public interface //////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  // The core __parse function takes in the “strings” from a tagged template
-  //  function and returns a document fragment. The “on*” callbacks are an
-  //  optimization to allow a subscriber to store future lookups without
-  //  needing to re-walk the resulting document fragment.
-  static __parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language) {
-    const fragment = Unforgiving.__fragment.cloneNode(false);
+  /**
+   * Additional error context.
+   * @typedef {object} ErrorContext
+   * @property {number} stringsIndex
+   * @property {string} string
+   * @property {number} stringIndex
+   */
+
+  /**
+   * Get additional context for parsing errors.
+   * @param {Error} error
+   * @returns {ErrorContext|void}
+   */
+  static getErrorContext(error) {
+    return error[XParser.#errorContextKey];
+  }
+
+  /**
+   * Instantiation options.
+   * @typedef {object} XParserOptions
+   * @property {window} [window]
+   */
+
+  /**
+   * Creates an XParser instance. Mock the “window” for validation-only usage.
+   * @param {XParserOptions} [options]
+   */
+  constructor(options) {
+    if (this.constructor !== XParser) {
+      throw new Error('XParser class extension is not supported.');
+    }
+    this.#window = options?.window ?? globalThis;
+    this.#fragment = this.#window.document.createDocumentFragment();
+    this.#htmlEntityContainer = this.#window.document.createElement('template');
+  }
+
+  /**
+   * The onBoolean callback.
+   * @callback onBoolean
+   * @param {string} attributeName
+   * @param {number[]} path
+   */
+
+  /**
+   * The onDefined callback.
+   * @callback onDefined
+   * @param {string} attributeName
+   * @param {number[]} path
+   */
+
+  /**
+   * The onAttribute callback.
+   * @callback onAttribute
+   * @param {string} attributeName
+   * @param {number[]} path
+   */
+
+  /**
+   * The onProperty callback.
+   * @callback onProperty
+   * @param {string} propertyName
+   * @param {number[]} path
+   */
+
+  /**
+   * The onContent callback.
+   * @callback onContent
+   * @param {number[]} path
+   */
+
+  /**
+   * The onText callback.
+   * @callback onText
+   * @param {number[]} path
+   */
+
+  /**
+   * The core parse function takes in the “strings” from a tagged template
+   * function and returns a document fragment. The “on*” callbacks are an
+   * optimization to allow a subscriber to store future lookups without
+   * needing to re-walk the resulting document fragment.
+   * @param {TemplateStringsArray} strings
+   * @param {onBoolean} onBoolean
+   * @param {onDefined} onDefined
+   * @param {onAttribute} onAttribute
+   * @param {onProperty} onProperty
+   * @param {onContent} onContent
+   * @param {onText} onText
+   * @param {("svg"|"html")} [language]
+   * @returns {DocumentFragment}
+   */
+  parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language) {
+    const fragment = this.#fragment.cloneNode(false);
     const path = [];
     const childNodesIndex = { value: -1 }; // Wrapper to allow better factoring.
     const element = { value: fragment }; // Wrapper to allow better factoring.
@@ -1119,7 +1136,7 @@ class Unforgiving {
     let stringLength = null;
     let stringIndex = null;
     let nextStringIndex = null;
-    let value = Unforgiving.__initial;
+    let value = this.#initial;
 
     try {
       // TODO: #236: Need for namespaces is obviated once we drop <svg> support.
@@ -1128,41 +1145,41 @@ class Unforgiving {
         case undefined:
         case null:
         case 'html':
-          namespace = Unforgiving.__html;
+          namespace = this.#html;
           break;
         case 'svg':
-          namespace = Unforgiving.__svg;
+          namespace = this.#svg;
           break;
         default: {
-          const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('forbidden-language');
-          const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-language');
+          const errorMessage = this.#errorMessages.get(errorMessagesKey);
           throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
         }
       }
-      fragment[Unforgiving.__namespace] = namespace ??= Unforgiving.__html;
+      fragment[this.#namespace] = namespace ??= this.#html;
 
       while (stringsIndex < stringsLength) {
         string = strings[stringsIndex];
 
-        Unforgiving.__validateRawString(strings.raw[stringsIndex]);
+        this.#validateRawString(strings.raw[stringsIndex]);
         if (stringsIndex > 0) {
           switch (value) {
-            case Unforgiving.__initial:
-            case Unforgiving.__boundContent:
-            case Unforgiving.__unboundContent:
-            case Unforgiving.__openTagEnd:
-            case Unforgiving.__closeTag:
-              if (element.value[Unforgiving.__localName] === 'textarea') {
+            case this.#initial:
+            case this.#boundContent:
+            case this.#unboundContent:
+            case this.#openTagEnd:
+            case this.#closeTag:
+              if (element.value[this.#localName] === 'textarea') {
                 // The textarea tag only accepts text, we restrict interpolation
                 //  there. See note on “replaceable character data” in the
                 //  following reference document:
                 //  https://w3c.github.io/html-reference/syntax.html#text-syntax
-                const sloppyStartInterpolation = value !== Unforgiving.__openTagEnd;
-                Unforgiving.__addBoundText(onText, string, path, sloppyStartInterpolation);
+                const sloppyStartInterpolation = value !== this.#openTagEnd;
+                this.#addBoundText(onText, string, path, sloppyStartInterpolation);
               } else {
-                Unforgiving.__addBoundContent(onContent, path, element, childNodesIndex);
+                this.#addBoundContent(onContent, path, element, childNodesIndex);
               }
-              value = Unforgiving.__boundContent;
+              value = this.#boundContent;
               nextStringIndex = value.lastIndex;
               break;
           }
@@ -1174,9 +1191,9 @@ class Unforgiving {
           // The string will be empty if we have a template like this `${…}${…}`.
           //  See related logic at the end of the inner loop;
           if (string.length > 0) {
-            const nextValue = Unforgiving.__validTransition(string, stringIndex, value);
+            const nextValue = this.#validTransition(string, stringIndex, value);
             if (!nextValue) {
-              Unforgiving.__throwTransitionError(strings, stringsIndex, string, stringIndex, value);
+              this.#throwTransitionError(strings, stringsIndex, string, stringIndex, value);
             }
             value = nextValue;
             nextStringIndex = value.lastIndex;
@@ -1184,49 +1201,49 @@ class Unforgiving {
 
           // When we transition into certain values, we need to take action.
           switch (value) {
-            case Unforgiving.__unboundContent:
-              Unforgiving.__addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex);
+            case this.#unboundContent:
+              this.#addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex);
               break;
-            case Unforgiving.__unboundComment:
-              Unforgiving.__addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex);
+            case this.#unboundComment:
+              this.#addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex);
               break;
-            case Unforgiving.__openTagStart:
-              Unforgiving.__addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex);
+            case this.#openTagStart:
+              this.#addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex);
               break;
-            case Unforgiving.__unboundBoolean:
-              Unforgiving.__addUnboundBoolean(string, stringIndex, element, nextStringIndex);
+            case this.#unboundBoolean:
+              this.#addUnboundBoolean(string, stringIndex, element, nextStringIndex);
               break;
-            case Unforgiving.__unboundAttribute:
-              Unforgiving.__addUnboundAttribute(string, stringIndex, element, nextStringIndex);
+            case this.#unboundAttribute:
+              this.#addUnboundAttribute(string, stringIndex, element, nextStringIndex);
               break;
-            case Unforgiving.__boundBoolean:
-              Unforgiving.__addBoundBoolean(onBoolean, string, stringIndex, path, element, nextStringIndex);
+            case this.#boundBoolean:
+              this.#addBoundBoolean(onBoolean, string, stringIndex, path, element, nextStringIndex);
               break;
-            case Unforgiving.__boundDefined:
-              Unforgiving.__addBoundDefined(onDefined, string, stringIndex, path, element, nextStringIndex);
+            case this.#boundDefined:
+              this.#addBoundDefined(onDefined, string, stringIndex, path, element, nextStringIndex);
               break;
-            case Unforgiving.__boundAttribute:
-              Unforgiving.__addBoundAttribute(onAttribute, string, stringIndex, path, element, nextStringIndex);
+            case this.#boundAttribute:
+              this.#addBoundAttribute(onAttribute, string, stringIndex, path, element, nextStringIndex);
               break;
-            case Unforgiving.__boundProperty:
-              Unforgiving.__addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex);
+            case this.#boundProperty:
+              this.#addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex);
               break;
-            case Unforgiving.__openTagEnd:
-              if (element.value[Unforgiving.__namespace] === Unforgiving.__html) {
-                const tagName = element.value[Unforgiving.__localName];
-                if (Unforgiving.__voidHtmlElements.has(tagName)) {
-                  value = Unforgiving.__finalizeVoidElement(path, element, childNodesIndex, nextStringIndex);
+            case this.#openTagEnd:
+              if (element.value[this.#namespace] === this.#html) {
+                const tagName = element.value[this.#localName];
+                if (this.#voidHtmlElements.has(tagName)) {
+                  value = this.#finalizeVoidElement(path, element, childNodesIndex, nextStringIndex);
                   nextStringIndex = value.lastIndex;
                 } else if (tagName === 'style') {
                   // TODO: #237: Remove support for <style> tags.
-                  Unforgiving.__styleDeprecationWarning();
-                  value = Unforgiving.__finalizeStyle(string, path, element, childNodesIndex, nextStringIndex);
+                  this.#styleDeprecationWarning();
+                  value = this.#finalizeStyle(string, path, element, childNodesIndex, nextStringIndex);
                   nextStringIndex = value.lastIndex;
                 } else if (
                   tagName === 'textarea' &&
-                  Unforgiving.__openTagEnd.lastIndex !== string.length
+                  this.#openTagEnd.lastIndex !== string.length
                 ) {
-                  value = Unforgiving.__finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex);
+                  value = this.#finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex);
                   nextStringIndex = value.lastIndex;
                 } else if (tagName === 'pre' && string[value.lastIndex] === '\n') {
                   // An initial newline character is optional for <pre> tags.
@@ -1240,8 +1257,8 @@ class Unforgiving {
                   // @ts-ignore — TypeScript doesn’t get that this is a “template”.
                   element.value.hasAttribute('shadowrootmode')
                 ) {
-                  const errorMessagesKey = Unforgiving.__namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
-                  const errorMessage = Unforgiving.__errorMessages.get(errorMessagesKey);
+                  const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
+                  const errorMessage = this.#errorMessages.get(errorMessagesKey);
                   throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
                 } else {
                   // Assume we’re traversing into the new element and reset index.
@@ -1252,45 +1269,19 @@ class Unforgiving {
                 childNodesIndex.value = -1;
               }
               break;
-            case Unforgiving.__closeTag:
-              Unforgiving.__finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex);
+            case this.#closeTag:
+              this.#finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex);
               break;
           }
           stringIndex = nextStringIndex; // Update out pointer from our pattern match.
         }
         stringsIndex++;
       }
-      Unforgiving.__validateExit(fragment, element);
+      this.#validateExit(fragment, element);
       return fragment;
     } catch (error) {
-      error[Unforgiving.errorContextKey] = { stringsIndex, string, stringIndex };
+      error[XParser.#errorContextKey] = { stringsIndex, string, stringIndex };
       throw error;
     }
   }
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Public interface //////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////
-
-  static errorContextKey = Symbol();
-
-  static parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language) {
-    Unforgiving.__toMode('parse');
-    return Unforgiving.__parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language);
-  }
-
-  static validate(strings) {
-    Unforgiving.__toMode('validate');
-    const onBoolean = () => {};
-    const onDefined = () => {};
-    const onAttribute = () => {};
-    const onProperty = () => {};
-    const onContent = () => {};
-    const onText = () => {};
-    return Unforgiving.__parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText);
-  }
 }
-
-export const parse = Unforgiving.parse.bind(Unforgiving);
-export const validate = Unforgiving.validate.bind(Unforgiving);
-export const errorContextKey = Unforgiving.errorContextKey;

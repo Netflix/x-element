@@ -1,5 +1,70 @@
-import { parse, validate, errorContextKey } from '../x-parser.js';
+import { XParser } from '../x-parser.js';
 import { assert, describe, it } from './x-test.js';
+
+const parser = new XParser();
+
+// To prevent DOM creation or to run in non-browser environments, validation can
+//  be made to work by injecting a mock window object.
+class MockWindow {
+  static #getMockNode = () => {
+    return {
+      appendChild() {/* Do nothing. */},
+      textContent: '',
+    };
+  };
+  static #getMockCommentNode = () => {
+    return { ...MockWindow.#getMockNode() };
+  };
+  static #getMockTextNode = () => {
+    return { ...MockWindow.#getMockNode() };
+  };
+  static #getMockElement = () => {
+    return {
+      ...MockWindow.#getMockNode(),
+      __attributes: {},
+      setAttribute(name, value) { this.__attributes[name] = value; },
+      hasAttribute(name) { return Reflect.has(this.__attributes, name); },
+      append() {/* Do nothing. */},
+      cloneNode() { return MockWindow.#getMockElement(); },
+    };
+  };
+  static #getMockDocumentFragment = () => {
+    return { ...MockWindow.#getMockElement() };
+  };
+  static #getMockTemplate = () => {
+    return {
+      ...MockWindow.#getMockElement(),
+      content: MockWindow.#getMockDocumentFragment(),
+    };
+  };
+
+  static get console() {
+    return { warn: () => {/* Do nothing. */} };
+  }
+
+  static get document() {
+    return {
+      createDocumentFragment() {
+        return MockWindow.#getMockDocumentFragment();
+      },
+      createElementNS() {
+        return MockWindow.#getMockElement();
+      },
+      createElement(localName) {
+        return localName === 'template'
+          ? MockWindow.#getMockTemplate()
+          : MockWindow.#getMockElement();
+      },
+      createTextNode() {
+        return MockWindow.#getMockTextNode();
+      },
+      createComment() {
+        return MockWindow.#getMockCommentNode();
+      },
+    };
+  }
+}
+const validator = new XParser({ window: MockWindow });
 
 // Special symbol to hang test information off of.
 const TEST = Symbol();
@@ -36,7 +101,7 @@ const assertThrows = (callback, expectedMessage, options) => {
   assert(thrown, 'no error was thrown');
 };
 
-const wrapper = (strings, mode, language) => {
+const wrapper = (instance, strings, language) => {
   const bindings = {
     boolean: [],
     defined: [],
@@ -51,23 +116,19 @@ const wrapper = (strings, mode, language) => {
   const onProperty = (name, path) => bindings.property.push({ name, path: String(path) });
   const onContent = path => bindings.content.push({ path: String(path) });
   const onText = path => bindings.text.push({ path: String(path) });
-  if (mode === 'validate') {
-    validate(strings);
-  } else {
-    const fragment = parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language);
-    fragment[TEST] = { bindings };
-    return fragment;
-  }
+  const fragment = instance.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language);
+  fragment[TEST] = { bindings };
+  return fragment;
 };
 
 // Simple function to return strings array from tagged template function call.
 //  Since IDEs will pick up on the “html” syntax, they should highlight, which
 //  will make this more readable.
-const html = strings => wrapper(strings);
+const html = strings => wrapper(parser, strings);
 
 // Certain tests require that we write _terribly broken_ html. To prevent IDEs
 //  from choking when trying to highlight, we also have a “htmlol” function.
-const htmlol = strings => wrapper(strings);
+const htmlol = strings => wrapper(parser, strings);
 
 // Placeholder for values which delimit tagged template functions. These are
 //  not considered by the parser, so the value here has no significance and will
@@ -260,6 +321,12 @@ describe('content interpolation', () => {
 });
 
 describe('odds and ends', () => {
+  it ('throws if you try and extend the base class', () => {
+    const callback = () => new (class Foo extends XParser {})();
+    const expectedMessage = 'XParser class extension is not supported.';
+    assertThrows(callback, expectedMessage);
+  });
+
   it('surprisingly-accepted characters work', () => {
     const fragment = html`>'"&& & &<div></div>&`;
     assert(fragment.childElementCount === 1);
@@ -1028,7 +1095,7 @@ describe('html error formatting', () => {
 
 describe('validate', () => {
   // eslint-disable-next-line no-shadow
-  const html = strings => wrapper(strings, 'validate');
+  const html = strings => wrapper(validator, strings);
 
   it('basic templates work', () => {
     html`<div>hello world</div>`;
@@ -1059,12 +1126,12 @@ describe('validate', () => {
       error = err;
     }
     assert(!!error, 'no error was thrown');
-    assert(!!error[errorContextKey], 'no context was provided');
+    assert(!!XParser.getErrorContext(error), 'no context was provided');
   });
 });
 
 describe('deprecated', () => {
-  const svg = strings => wrapper(strings, 'parse', 'svg');
+  const svg = strings => wrapper(parser, strings, 'svg');
 
   it('parses svg', () => {
     const width = 24;
@@ -1118,7 +1185,7 @@ describe('deprecated', () => {
   });
 
   it('parse throws for forbidden language', () => {
-    const math = strings => wrapper(strings, 'parse', 'math');
+    const math = strings => wrapper(parser, strings, 'math');
     const callback = () => math`<math></math>`;
     const expectedMessage = '[#194]';
     assertThrows(callback, expectedMessage, { startsWith: true });
@@ -1126,7 +1193,7 @@ describe('deprecated', () => {
 
   it('validate deprecation warnings work', () => {
     // eslint-disable-next-line no-shadow
-    const html = strings => wrapper(strings, 'validate');
+    const html = strings => wrapper(validator, strings);
     html`
       <style>/* causes console warning which we need for coverage */</style>
       <svg><!-- uses of createElementNS which we need for coverage --></svg>

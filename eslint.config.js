@@ -30,4 +30,14 @@ export default [
       '*.d.ts',
     ],
   },
+  {
+    settings: {
+      jsdoc: {
+        preferredTypes: [
+          // TypeScript knows about this, but eslint does not.
+          'TemplateStringsArray',
+        ],
+      },
+    },
+  },
 ];
