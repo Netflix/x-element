@@ -76,10 +76,9 @@ export class XParser {
      * @param {onProperty} onProperty
      * @param {onContent} onContent
      * @param {onText} onText
-     * @param {("svg"|"html")} [language]
      * @returns {DocumentFragment}
      */
-    parse(strings: TemplateStringsArray, onBoolean: (attributeName: string, path: number[]) => any, onDefined: (attributeName: string, path: number[]) => any, onAttribute: (attributeName: string, path: number[]) => any, onProperty: (propertyName: string, path: number[]) => any, onContent: (path: number[]) => any, onText: (path: number[]) => any, language?: ("svg" | "html")): DocumentFragment;
+    parse(strings: TemplateStringsArray, onBoolean: (attributeName: string, path: number[]) => any, onDefined: (attributeName: string, path: number[]) => any, onAttribute: (attributeName: string, path: number[]) => any, onProperty: (propertyName: string, path: number[]) => any, onContent: (path: number[]) => any, onText: (path: number[]) => any): DocumentFragment;
     #private;
 }
 //# sourceMappingURL=x-parser.d.ts.map

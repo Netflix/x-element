@@ -18,16 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-- The `<svg>` element and the `svg` tagged template function are deprecated and
-  will be removed in future versions. The spec and conventions for `svg`
-  differ a lot from `html` and a faster / more-maintainable parser can be built
-  if we stop supporting this (#236).
 - The `<style>` tag is deprecated and will be removed in future versions.
   Authors should prefer to declare a separate stylesheet in a `.css` file now
   that “import attributes” are supported in modern browsers (#237).
 
 ### Removed
 
+- The `<svg>` element and the `svg` tagged template function are gone. The spec
+  and conventions for `svg` differ a lot from `html` and a faster /
+  more-maintainable parser can be built if we stop supporting this (#236).
 - Support for the `<math>` element is removed from the default template engine.
   This worked before because `innerHTML` was being used under-the-hood. But a
   strict allow-list is now used to accomplish parsing (#238).

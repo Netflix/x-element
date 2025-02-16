@@ -75,7 +75,6 @@ const seen = new Set();
 const warn = console.warn; // eslint-disable-line no-console
 const localMessages = [
   'Support for the <style> tag is deprecated and will be removed in future versions.',
-  'Support for the <svg> tag is deprecated and will be removed in future versions.',
 ];
 console.warn = (...args) => { // eslint-disable-line no-console
   if (!localMessages.includes(args[0]?.message)) {
@@ -560,7 +559,7 @@ describe('errors', () => {
 
   it('throws if you give a custom element tag name with capital letters', () => {
     const callback = () => html`<my-Element></my-Element>`;
-    const expectedMessage = '[#193]';
+    const expectedMessage = '[#120]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -674,7 +673,7 @@ describe('errors', () => {
 
   it('throws if an unbound boolean attribute has an uppercase letter', () => {
     const callback = () => html`<div wHat></div>`;
-    const expectedMessage = '[#192]';
+    const expectedMessage = '[#124]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -698,7 +697,7 @@ describe('errors', () => {
 
   it('throws if an unbound attribute has an uppercase letter', () => {
     const callback = () => html`<div wHat="no"></div>`;
-    const expectedMessage = '[#192]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -722,7 +721,7 @@ describe('errors', () => {
 
   it('throws if a bound boolean attribute has an uppercase letter', () => {
     const callback = () => html`<div ?wHat="${VALUE}"></div>`;
-    const expectedMessage = '[#192]';
+    const expectedMessage = '[#126]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -764,7 +763,7 @@ describe('errors', () => {
 
   it('throws if a bound defined attribute has an uppercase letter', () => {
     const callback = () => html`<div ??wHat="${VALUE}"></div>`;
-    const expectedMessage = '[#192]';
+    const expectedMessage = '[#127]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -794,7 +793,7 @@ describe('errors', () => {
 
   it('throws if a bound attribute has an uppercase letter', () => {
     const callback = () => html`<div wHat="${VALUE}"></div>`;
-    const expectedMessage = '[#192]';
+    const expectedMessage = '[#128]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -1131,25 +1130,6 @@ describe('validate', () => {
 });
 
 describe('deprecated', () => {
-  const svg = strings => wrapper(parser, strings, 'svg');
-
-  it('parses svg', () => {
-    const width = 24;
-    const height = 24;
-    const fragment = html`
-      <svg
-        viewBox="0 0 24 24"
-        ??width="${width}"
-        ??height="${height}">
-        <circle r="${width / 2}" cx="${width / 2}" cy="${height / 2}"></circle>
-      </svg>`;
-    // This would be “HTMLUnknownElement” if we didn’t get the namespacing right.
-    assert(fragment.querySelector('svg').constructor.name === 'SVGSVGElement');
-    assert(fragment.querySelector('circle').constructor.name === 'SVGCircleElement');
-    assert(fragment[TEST].bindings.defined.length === 2);
-    assert(fragment[TEST].bindings.attribute.length === 3);
-  });
-
   it('parses non-interpolated style', () => {
     const fragment = html`
       <style>
@@ -1172,31 +1152,11 @@ describe('deprecated', () => {
     container.remove();
   });
 
-  it('throws for forbidden <style> tag', () => {
-    const callback = () => svg`<style></style>`;
-    const expectedMessage = '[#190]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
-  it('throws for forbidden <script> tag', () => {
-    const callback = () => svg`<script></script>`;
-    const expectedMessage = '[#190]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
-  it('parse throws for forbidden language', () => {
-    const math = strings => wrapper(parser, strings, 'math');
-    const callback = () => math`<math></math>`;
-    const expectedMessage = '[#194]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
   it('validate deprecation warnings work', () => {
     // eslint-disable-next-line no-shadow
     const html = strings => wrapper(validator, strings);
     html`
       <style>/* causes console warning which we need for coverage */</style>
-      <svg><!-- uses of createElementNS which we need for coverage --></svg>
     `;
   });
 });
