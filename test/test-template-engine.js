@@ -5,7 +5,7 @@ import { assert, describe, it } from './x-test.js';
 const { render, html } = XElement.templateEngine;
 
 // Deprecated interface. We will eventually delete these.
-const { svg, map, ifDefined, nullish, repeat, live, unsafeHTML, unsafeSVG } = XElement.templateEngine;
+const { map, ifDefined, nullish, repeat, live, unsafeHTML } = XElement.templateEngine;
 
 // Overwrite console warn for testing so we don’t get spammed with our own
 //  deprecation warnings.
@@ -16,10 +16,8 @@ const localMessages = [
   'Deprecated "nullish" from default templating engine interface.',
   'Deprecated "live" from default templating engine interface.',
   'Deprecated "unsafeHTML" from default templating engine interface.',
-  'Deprecated "unsafeSVG" from default templating engine interface.',
   'Deprecated "repeat" from default templating engine interface.',
   'Deprecated "map" from default templating engine interface.',
-  'Support for the <svg> tag is deprecated and will be removed in future versions.',
 ];
 console.warn = (...args) => { // eslint-disable-line no-console
   if (!localMessages.includes(args[0]?.message)) {
@@ -71,22 +69,6 @@ describe('html rendering', () => {
     const container = document.createElement('div');
     render(container, html`<div id="target">${userContent}</div>`);
     assert(container.querySelector('#target').textContent === userContent);
-  });
-
-  it('renders svg elements', () => {
-    const container = document.createElement('div');
-    const width = 24;
-    const height = 24;
-    render(container, html`
-      <svg
-        viewBox="0 0 24 24"
-        ??width="${width}"
-        ??height="${height}">
-        <circle r="${width / 2}" cx="${width / 2}" cy="${height / 2}"></circle>
-      </svg>`);
-    // This would be “HTMLUnknownElement” if we didn’t get the namespacing right.
-    assert(container.querySelector('svg').constructor.name === 'SVGSVGElement');
-    assert(container.querySelector('circle').constructor.name === 'SVGCircleElement');
   });
 
   it('renders nullish templates', () => {
@@ -777,50 +759,6 @@ describe('changing content values', () => {
   it('can change from map content to array content', () => run(toMapContent, toArrayContent));
 });
 
-describe('svg rendering', () => {
-  it('renders a basic string', () => {
-    const getTemplate = ({ r, cx, cy }) => {
-      return svg`<circle id="target" r="${r}" cx="${cx}" cy="${cy}"></circle>`;
-    };
-    const container = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    container.setAttribute('viewBox', '0 0 100 100');
-    container.setAttribute('style', 'height: 100px; width: 100px;');
-    document.body.append(container);
-    render(container, getTemplate({ r: 10, cx: 50, cy: 50 }));
-    assert(container.querySelector('#target').getBoundingClientRect().width === 20);
-    assert(container.querySelector('#target').getBoundingClientRect().height === 20);
-    render(container, getTemplate({ r: 5, cx: 50, cy: 50 }));
-    assert(container.querySelector('#target').getBoundingClientRect().width === 10);
-    assert(container.querySelector('#target').getBoundingClientRect().height === 10);
-    container.remove();
-  });
-
-  it('renders lists', () => {
-    const getTemplate = ({ items }) => {
-      return html`
-        <svg id="target"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 10 100"
-          style="width: 10px; height: 100px;">
-          ${items.map((item, index) => {
-            return svg`<circle class="dot" r="${item.r}" cx="5" cy="${10 * (index + 1)}"></circle>`;
-          })}
-        </svg>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ items: [{ r: 1 }, { r: 2 }, { r: 3 }, { r: 4 }, { r: 5 }] }));
-    assert(container.querySelector('#target').childElementCount === 5);
-    assert(container.querySelector('#target').children[0].getBoundingClientRect().height = 2);
-    assert(container.querySelector('#target').children[1].getBoundingClientRect().height = 4);
-    assert(container.querySelector('#target').children[2].getBoundingClientRect().height = 6);
-    assert(container.querySelector('#target').children[3].getBoundingClientRect().height = 8);
-    assert(container.querySelector('#target').children[4].getBoundingClientRect().height = 10);
-    container.remove();
-  });
-});
-
 describe('container issues', () => {
   it('throws when given container is not a node', () => {
     const callback = () => render({}, html``);
@@ -1147,33 +1085,6 @@ describe('html updaters', () => {
     assert(container.querySelector('#target').children[0] !== foo);
     assert(container.querySelector('#target').children[1] !== bar);
     assert(container.querySelector('#target').children[2] !== baz);
-    container.remove();
-  });
-});
-
-describe('svg updaters', () => {
-  it('unsafeSVG', () => {
-    const getTemplate = ({ content }) => {
-      return html`
-        <svg
-          id="target"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 100 100"
-          style="width: 100px; height: 100px;">
-          ${unsafeSVG(content)}
-        </svg>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ content: '<circle id="injected" r="10" cx="50" cy="50"></circle>' }));
-    assert(!!container.querySelector('#injected'));
-    assert(container.querySelector('#injected').getBoundingClientRect().height = 20);
-    assert(container.querySelector('#injected').getBoundingClientRect().width = 20);
-    render(container, getTemplate({ content: '<circle id="injected" r="5" cx="50" cy="50"></circle>' }));
-    assert(!!container.querySelector('#injected'));
-    assert(container.querySelector('#injected').getBoundingClientRect().height = 10);
-    assert(container.querySelector('#injected').getBoundingClientRect().width = 10);
     container.remove();
   });
 });
@@ -1529,118 +1440,6 @@ describe('updater errors', () => {
       assert(error?.message === 'Unexpected unsafeHTML value "null".', error?.message);
       container.remove();
     });
-  });
-
-  describe('unsafeSVG', () => {
-    it('throws if used on an "attribute"', () => {
-      const expected = 'The unsafeSVG update must be used on content, not on an attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${unsafeSVG(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on a "boolean"', () => {
-      const expected = 'The unsafeSVG update must be used on content, not on a boolean attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ?maybe="${unsafeSVG(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on a "defined"', () => {
-      const expected = 'The unsafeSVG update must be used on content, not on a defined attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ??maybe="${unsafeSVG(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with a "property"', () => {
-      const expected = 'The unsafeSVG update must be used on content, not on a property.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" .maybe="${unsafeSVG(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with "text"', () => {
-      const expected = 'The unsafeSVG update must be used on content, not on text content.';
-      const getTemplate = ({ maybe }) => {
-        return html`<textarea id="target">${unsafeSVG(maybe)}</textarea>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws for non-string value', () => {
-    const getTemplate = ({ content }) => {
-      return html`
-        <svg id="target" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-          ${unsafeSVG(content)}
-        </svg>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    let error;
-    try {
-      render(container, getTemplate({ content: null }));
-    } catch (e) {
-      error = e;
-    }
-    assert(error?.message === 'Unexpected unsafeSVG value "null".', error?.message);
-    container.remove();
-  });
   });
 
   describe('map', () => {
