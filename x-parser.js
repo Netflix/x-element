@@ -14,29 +14,15 @@ export class XParser {
 
   // Simple flags to ensure we only warn once about things being deprecated.
   // TODO: #237: Remove <style> tag usage.
-  // TODO: #236: Remove <svg> tag usage.
   #hasWarnedAboutStyleDeprecation = false;
-  #hasWarnedAboutSvgDeprecation = false;
 
   // DOM introspection is expensive. Since we are creating all of the elements,
   //  we can cache the introspections we need behind performant lookups.
   #localName = Symbol();
   #parentNode = Symbol();
-  // TODO: #237: Remove “namespace” code once “<svg>” is no longer supported.
-  #namespace = Symbol();
 
   // Delimiter we add to improve debugging. E.g., `<div id="${…}"></div>`.
   #delimiter = '${\u2026}';
-
-  // TODO: #236: Used temporarily to validate html attributes. It won’t be
-  //  necessary to do this validation after we can tighten up patterns related
-  //  to <svg> tag name and attribute name casing quirks.
-  #uppercaseLetters = /[A-Z]/;
-
-  // Namespaces for creating elements.
-  // TODO: #236: Need for namespaces is obviated once we drop <svg> support.
-  #html = 'http://www.w3.org/1999/xhtml';
-  #svg = 'http://www.w3.org/2000/svg';
 
   //////////////////////////////////////////////////////////////////////////////
   // HTML - https://developer.mozilla.org/en-US/docs/Web/HTML/Element //////////
@@ -95,86 +81,10 @@ export class XParser {
     'noscript', 'canvas', 'acronym', 'big', 'center', 'content', 'dir', 'font',
     'frame', 'frameset', 'image', 'marquee', 'menuitem', 'nobr', 'noembed',
     'noframes', 'param', 'plaintext', 'rb', 'rtc', 'shadow', 'strike',
-    'tt', 'xmp', 'math',
+    'tt', 'xmp', 'math', 'svg',
     // TODO: #237: Remove <style> tag usage — add 'style' to this list.
-    // TODO: #237: Remove <svg> tag usage — add 'svg' to this list.
   ]);
   #allowedHtmlElements = this.#htmlElements.difference(this.#deniedHtmlElements);
-
-  // TODO: #236: Remove <svg> completely.
-  //////////////////////////////////////////////////////////////////////////////
-  // SVG - https://developer.mozilla.org/en-US/docs/Web/SVG/Element ////////////
-  //////////////////////////////////////////////////////////////////////////////
-
-  #svgElements = new Set([
-    // Animation elements
-    'animate', 'animateMotion', 'animateTransform', 'mpath', 'set',
-    // Basic shapes
-    'circle', 'ellipse', 'line', 'polygon', 'polyline', 'rect',
-    // Container elements
-    'a', 'defs', 'g', 'marker', 'mask', 'pattern', 'svg', 'switch', 'symbol',
-    'missing-glyph',
-    // Descriptive elements
-    'desc', 'metadata', 'title',
-    // Filter primitive elements
-    'feBlend', 'feColorMatrix', 'feComponentTransfer', 'feComposite',
-    'feConvolveMatrix', 'feDiffuseLighting', 'feDisplacementMap',
-    'feDropShadow', 'feFlood', 'feFuncA', 'feFuncB', 'feFuncG', 'feFuncR',
-    'feGaussianBlur', 'feImage', 'feMerge', 'feMergeNode', 'feMorphology',
-    'feOffset', 'feSpecularLighting', 'feTile', 'feTurbulence',
-    // Font elements
-    'font', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src',
-    'font-face-uri', 'hkern', 'vkern',
-    // Gradient elements
-    'linearGradient', 'radialGradient', 'stop',
-    // Graphics elements
-    'circle', 'ellipse', 'image', 'line', 'path', 'polygon', 'polyline', 'rect',
-    'text', 'use',
-    // Graphics referencing elements
-    'use',
-    // Light source elements
-    'feDistantLight', 'fePointLight', 'feSpotLight',
-    // Never-rendered elements
-    'clipPath', 'defs', 'linearGradient', 'marker', 'mask', 'pattern', 'symbol',
-    'title', 'metadata', 'radialGradient', 'script', 'style',
-    // Paint server elements
-    'linearGradient', 'pattern', 'radialGradient',
-    // Renderable elements
-    'a', 'circle', 'ellipse', 'foreignObject', 'g', 'image', 'line', 'path',
-    'polygon', 'polyline', 'rect', 'svg', 'switch', 'symbol', 'text',
-    'textpath', 'tspan', 'use',
-    // Shape elements
-    'circle', 'ellipse', 'line', 'path', 'polygon', 'polyline', 'rect',
-    // Structural elements
-    'defs', 'g', 'svg', 'symbol', 'use',
-    // Text content elements
-    'glyph', 'glyphRef', 'textPath', 'text', 'tref', 'tspan',
-    // Text content child elements
-    'clipPath', 'cursor', 'filter', 'foreignObject', 'script', 'style', 'view',
-    // Obsolete and deprecated elements
-    'cursor', 'font', 'font-face', 'font-face-format', 'font-face-name',
-    'font-face-src', 'font-face-uri', 'glyph', 'glyphRef', 'hkern',
-    'missing-glyph', 'tref', 'vkern',
-  ]);
-  #deniedSvgElements = new Set([
-    'animate', 'animateMotion', 'animateTransform', 'mpath', 'set',
-    'missing-glyph', 'desc', 'metadata', 'title', 'feBlend', 'feColorMatrix',
-    'feComponentTransfer', 'feComposite', 'feConvolveMatrix',
-    'feDiffuseLighting', 'feDisplacementMap', 'feDropShadow', 'feFlood',
-    'feFuncA', 'feFuncB', 'feFuncG', 'feFuncR', 'feGaussianBlur',
-    'feImage', 'feMerge', 'feMergeNode', 'feMorphology', 'feOffset',
-    'feSpecularLighting', 'feTile', 'feTurbulence', 'font', 'font-face',
-    'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri',
-    'hkern', 'vkern', 'linearGradient', 'radialGradient', 'stop',
-    'feDistantLight', 'fePointLight', 'feSpotLight', 'metadata',
-    'radialGradient', 'script', 'style', 'linearGradient', 'pattern',
-    'radialGradient', 'glyph', 'glyphRef', 'textPath', 'text', 'tref', 'tspan',
-    'cursor', 'filter', 'foreignObject', 'script', 'style', 'view', 'cursor',
-    'font', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src',
-    'font-face-uri', 'glyph', 'glyphRef', 'hkern', 'missing-glyph',
-    'tref', 'vkern',
-  ]);
-  #allowedSvgElements = this.#svgElements.difference(this.#deniedSvgElements);
 
   //////////////////////////////////////////////////////////////////////////////
   // Parsing State Values //////////////////////////////////////////////////////
@@ -208,10 +118,8 @@ export class XParser {
   // Examples:
   //  - ok: <h6>, <my-element-1>
   //  - not ok: <-div>, <1-my-element>
-  // TODO: #236: Restrict tags to lowercase once <svg> support is removed.
-  // Svg tag names follow the above rules, but may have capital letters.
-  #openTagStart = /<(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)(?=[\s\n>])/y;
-  #closeTag =   /<\/(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)>/y;
+  #openTagStart = /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  #closeTag =   /<\/(?![0-9-])[a-z0-9-]+(?<!-)>/y;
   #openTagEnd = /(?<![\s\n])>/y;
 
   // TODO: Check on performance for this pattern. We want to do a positive
@@ -240,13 +148,11 @@ export class XParser {
   // Full attribute examples:
   //  - ok: foo, foo="bar", ?foo="${'bar'}", ??foo="${'bar'}", foo="${'bar'}"
   //  - not ok: foo='bar', ?foo, foo=${'bar'}
-  // TODO: #236: Restrict attribute names to lowercase once <svg> support is removed.
-  // Svg attribute names follow the above rules, but may have capital letters.
-  #unboundBoolean =   /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)(?=[\s\n>])/y;
-  #unboundAttribute = /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
-  #boundBoolean =   /\?(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
-  #boundDefined = /\?\?(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
-  #boundAttribute =   /(?![0-9A-Z-])[a-zA-Z0-9-]+(?<!-)="$/y;
+  #unboundBoolean =   /(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  #unboundAttribute = /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
+  #boundBoolean =   /\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  #boundDefined = /\?\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  #boundAttribute =   /(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
 
   // There is no concept of a property binding in the HTML specification, but
   //  our DSL allows for a preceding “.” for bound properties.
@@ -409,16 +315,8 @@ export class XParser {
     ['#156', 'Forbidden, nontrivial interpolation of <textarea> tag used. Only basic interpolation is allowed — e.g., <textarea>${…}</textarea>.'],
     ['#157', 'Forbidden declarative shadow root used (e.g., `<template shadowrootmode="open">`).'],
 
-    // TODO: #236: Remove support for <svg> completely.
-    ['#190', 'Forbidden svg element used — this parser is opinionated about which elements are allowed in order to reduce complexity and improve performance.'],
     // TODO: #237: Remove support for <style> tags completely.
     ['#191', 'Interpolation of <style> tags is not allowed.'],
-    // TODO: #236: Obviated once foreign elements like <svg> are gone.
-    ['#192', 'Forbidden uppercase letters in html attribute name. Because html attributes are case-insensitive, prefer to use the lowercased equivalent.'],
-    // TODO: #236: Obviated once patterns are updated after <svg> is gone.
-    ['#193', 'Forbidden uppercase letters in html tag name. Because html tag names are case-insensitive, prefer to use the lowercased equivalent.'],
-    // TODO: #236: Obviated once <svg> is gone and namespacing is deleted.
-    ['#194', 'Forbidden language provided — only svg and html are allowed. In the future this configuration will be removed completely.'],
   ]);
 
   // Block #100-#119 — Invalid transition errors.
@@ -471,17 +369,8 @@ export class XParser {
     ['complex-textarea-interpolation',       '#156'],
     ['declarative-shadow-root',              '#157'],
 
-    // Deprecated features which will be obviated in the future.
-    // TODO: #236: Remove support for <svg> tags completely.
-    ['forbidden-svg-element',                '#190'],
     // TODO: #237: Remove support for <style> tags completely.
     ['style-interpolation',                  '#191'],
-    // TODO: #236: Obviated once foreign elements like <svg> are gone.
-    ['uppercase-html-attribute',             '#192'],
-    // TODO: #236: Obviated once patterns are updated after <svg> is gone.
-    ['uppercase-html-tag',                   '#193'],
-    // TODO: #236: Delete language input interface when <svg> is gone.
-    ['forbidden-language',                   '#194'],
   ]);
 
   //////////////////////////////////////////////////////////////////////////////
@@ -853,25 +742,10 @@ export class XParser {
     onText(path);
   }
 
-  // TODO: #236: Remove validation once <svg> is unsupported and we restrict
-  //  initial pattern to math for attributes.
-  #validateAttributeName(namespace, attributeName) {
-    if (namespace === this.#html) {
-      if (this.#uppercaseLetters.test(attributeName)) {
-        const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('uppercase-html-attribute');
-        const errorMessage = this.#errorMessages.get(errorMessagesKey);
-        const substringMessage = `Rewrite the html attribute "${attributeName}" as "${attributeName.toLowerCase()}".`;
-        throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
-      }
-    }
-  }
-
   // An unbound boolean is a literal boolean attribute declaration with no
   //  associated value at all.
   #addUnboundBoolean(string, stringIndex, element, nextStringIndex) {
     const attributeName = string.slice(stringIndex, nextStringIndex);
-    const namespace = element.value[this.#namespace];
-    this.#validateAttributeName(namespace, attributeName);
     element.value.setAttribute(attributeName, '');
   }
 
@@ -881,8 +755,6 @@ export class XParser {
     const unboundAttribute = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = unboundAttribute.indexOf('=');
     const attributeName = unboundAttribute.slice(0, equalsIndex);
-    const namespace = element.value[this.#namespace];
-    this.#validateAttributeName(namespace, attributeName);
     const encoded = unboundAttribute.slice(equalsIndex + 2, -1);
     const decoded = this.#replaceHtmlEntities(encoded);
     element.value.setAttribute(attributeName, decoded);
@@ -895,8 +767,6 @@ export class XParser {
     const boundBoolean = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = boundBoolean.indexOf('=');
     const attributeName = boundBoolean.slice(1, equalsIndex);
-    const namespace = element.value[this.#namespace];
-    this.#validateAttributeName(namespace, attributeName);
     onBoolean(attributeName, path);
   }
 
@@ -906,8 +776,6 @@ export class XParser {
     const boundDefined = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = boundDefined.indexOf('=');
     const attributeName = boundDefined.slice(2, equalsIndex);
-    const namespace = element.value[this.#namespace];
-    this.#validateAttributeName(namespace, attributeName);
     onDefined(attributeName, path);
   }
 
@@ -917,8 +785,6 @@ export class XParser {
     const boundAttribute = string.slice(stringIndex, nextStringIndex);
     const equalsIndex = boundAttribute.indexOf('=');
     const attributeName = boundAttribute.slice(0, equalsIndex);
-    const namespace = element.value[this.#namespace];
-    this.#validateAttributeName(namespace, attributeName);
     onAttribute(attributeName, path);
   }
 
@@ -934,35 +800,15 @@ export class XParser {
   // In addition to the allow-list of html tag names, any tag with a hyphen in
   //  the middle is considered a valid custom element. Therefore, we must allow
   //  for such declarations.
-  #validateTagName(namespace, tagName) {
-    switch (namespace) {
-      case this.#html:
-        if (
-          tagName.indexOf('-') === -1 &&
-          !this.#allowedHtmlElements.has(tagName)
-        ) {
-          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-html-element');
-          const errorMessage = this.#errorMessages.get(errorMessagesKey);
-          const substringMessage = `The <${tagName}> html element is forbidden.`;
-          throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
-        } else if (this.#uppercaseLetters.test(tagName)) {
-          // TODO: #236: Remove error handling here after <svg> is gone. The
-          //  top-level patterns will be updated to consider this case.
-          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('uppercase-html-tag');
-          const errorMessage = this.#errorMessages.get(errorMessagesKey);
-          const substringMessage = `Rewrite the html tag name "${tagName}" as "${tagName.toLowerCase()}".`;
-          throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
-        }
-        break;
-      case this.#svg:
-        // TODO: #236: Remove support for <svg> completely.
-        if (!this.#allowedSvgElements.has(tagName)) {
-          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-svg-element');
-          const errorMessage = this.#errorMessages.get(errorMessagesKey);
-          const substringMessage = `The <${tagName}> svg element is forbidden.`;
-          throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
-        }
-        break;
+  #validateTagName(tagName) {
+    if (
+      tagName.indexOf('-') === -1 &&
+      !this.#allowedHtmlElements.has(tagName)
+    ) {
+      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-html-element');
+      const errorMessage = this.#errorMessages.get(errorMessagesKey);
+      const substringMessage = `The <${tagName}> html element is forbidden.`;
+      throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
     }
   }
 
@@ -971,23 +817,14 @@ export class XParser {
   #addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
     const prefixedTagName = string.slice(stringIndex, nextStringIndex);
     const tagName = prefixedTagName.slice(1);
-    const currentNamespace = element.value[this.#namespace];
-    this.#validateTagName(currentNamespace, tagName);
-    let namespace = currentNamespace;
-    if (tagName === 'svg') {
-      this.#svgDeprecationWarning();
-      namespace = this.#svg;
-    }
+    this.#validateTagName(tagName);
 
-    const childNode = namespace === this.#html
-      ? this.#window.document.createElement(tagName)
-      : this.#window.document.createElementNS(namespace, tagName);
+    const childNode = this.#window.document.createElement(tagName);
     element.value[this.#localName] === 'template'
       ? element.value.content.appendChild(childNode)
       : element.value.appendChild(childNode);
     childNode[this.#localName] = tagName;
     childNode[this.#parentNode] = element.value;
-    childNode[this.#namespace] = namespace;
     element.value = childNode;
     childNodesIndex.value += 1;
     path.push(childNodesIndex.value);
@@ -1016,15 +853,6 @@ export class XParser {
     if (!this.#hasWarnedAboutStyleDeprecation) {
       this.#hasWarnedAboutStyleDeprecation = true;
       const error = new Error('Support for the <style> tag is deprecated and will be removed in future versions.');
-      this.#window.console.warn(error);
-    }
-  }
-
-  // TODO: #236: Remove support for <svg> tags.
-  #svgDeprecationWarning() {
-    if (!this.#hasWarnedAboutSvgDeprecation) {
-      this.#hasWarnedAboutSvgDeprecation = true;
-      const error = new Error('Support for the <svg> tag is deprecated and will be removed in future versions.');
       this.#window.console.warn(error);
     }
   }
@@ -1121,10 +949,9 @@ export class XParser {
    * @param {onProperty} onProperty
    * @param {onContent} onContent
    * @param {onText} onText
-   * @param {("svg"|"html")} [language]
    * @returns {DocumentFragment}
    */
-  parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language) {
+  parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText) {
     const fragment = this.#fragment.cloneNode(false);
     const path = [];
     const childNodesIndex = { value: -1 }; // Wrapper to allow better factoring.
@@ -1139,25 +966,6 @@ export class XParser {
     let value = this.#initial;
 
     try {
-      // TODO: #236: Need for namespaces is obviated once we drop <svg> support.
-      let namespace;
-      switch (language) {
-        case undefined:
-        case null:
-        case 'html':
-          namespace = this.#html;
-          break;
-        case 'svg':
-          namespace = this.#svg;
-          break;
-        default: {
-          const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-language');
-          const errorMessage = this.#errorMessages.get(errorMessagesKey);
-          throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
-        }
-      }
-      fragment[this.#namespace] = namespace ??= this.#html;
-
       while (stringsIndex < stringsLength) {
         string = strings[stringsIndex];
 
@@ -1228,47 +1036,43 @@ export class XParser {
             case this.#boundProperty:
               this.#addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex);
               break;
-            case this.#openTagEnd:
-              if (element.value[this.#namespace] === this.#html) {
-                const tagName = element.value[this.#localName];
-                if (this.#voidHtmlElements.has(tagName)) {
-                  value = this.#finalizeVoidElement(path, element, childNodesIndex, nextStringIndex);
-                  nextStringIndex = value.lastIndex;
-                } else if (tagName === 'style') {
-                  // TODO: #237: Remove support for <style> tags.
-                  this.#styleDeprecationWarning();
-                  value = this.#finalizeStyle(string, path, element, childNodesIndex, nextStringIndex);
-                  nextStringIndex = value.lastIndex;
-                } else if (
-                  tagName === 'textarea' &&
-                  this.#openTagEnd.lastIndex !== string.length
-                ) {
-                  value = this.#finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex);
-                  nextStringIndex = value.lastIndex;
-                } else if (tagName === 'pre' && string[value.lastIndex] === '\n') {
-                  // An initial newline character is optional for <pre> tags.
-                  //  https://html.spec.whatwg.org/multipage/syntax.html#element-restrictions
-                  value.lastIndex++;
-                  nextStringIndex = value.lastIndex;
-                  // Assume we’re traversing into the new element and reset index.
-                  childNodesIndex.value = -1;
-                } else if (
-                  tagName === 'template' &&
-                  // @ts-ignore — TypeScript doesn’t get that this is a “template”.
-                  element.value.hasAttribute('shadowrootmode')
-                ) {
-                  const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
-                  const errorMessage = this.#errorMessages.get(errorMessagesKey);
-                  throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
-                } else {
-                  // Assume we’re traversing into the new element and reset index.
-                  childNodesIndex.value = -1;
-                }
+            case this.#openTagEnd: {
+              const tagName = element.value[this.#localName];
+              if (this.#voidHtmlElements.has(tagName)) {
+                value = this.#finalizeVoidElement(path, element, childNodesIndex, nextStringIndex);
+                nextStringIndex = value.lastIndex;
+              } else if (tagName === 'style') {
+                // TODO: #237: Remove support for <style> tags.
+                this.#styleDeprecationWarning();
+                value = this.#finalizeStyle(string, path, element, childNodesIndex, nextStringIndex);
+                nextStringIndex = value.lastIndex;
+              } else if (
+                tagName === 'textarea' &&
+                this.#openTagEnd.lastIndex !== string.length
+              ) {
+                value = this.#finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex);
+                nextStringIndex = value.lastIndex;
+              } else if (tagName === 'pre' && string[value.lastIndex] === '\n') {
+                // An initial newline character is optional for <pre> tags.
+                //  https://html.spec.whatwg.org/multipage/syntax.html#element-restrictions
+                value.lastIndex++;
+                nextStringIndex = value.lastIndex;
+                // Assume we’re traversing into the new element and reset index.
+                childNodesIndex.value = -1;
+              } else if (
+                tagName === 'template' &&
+                // @ts-ignore — TypeScript doesn’t get that this is a “template”.
+                element.value.hasAttribute('shadowrootmode')
+              ) {
+                const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
+                const errorMessage = this.#errorMessages.get(errorMessagesKey);
+                throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
               } else {
                 // Assume we’re traversing into the new element and reset index.
                 childNodesIndex.value = -1;
               }
               break;
+            }
             case this.#closeTag:
               this.#finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex);
               break;

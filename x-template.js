@@ -16,10 +16,6 @@ class TemplateEngine {
   //  whether a value is a raw result or not.
   static #ANALYSIS = Symbol();
 
-  // TODO: #236: Remove support for <svg> and always presume html.
-  static #HTML = Symbol();
-  static #SVG = Symbol();
-
   // Sentinel to initialize the “last values” array.
   static #UNSET = Symbol();
 
@@ -43,12 +39,9 @@ class TemplateEngine {
     html: TemplateEngine.html,
 
     // Deprecated interface.
-    // TODO: #236: Remove support for svg tagged template function.
-    svg: TemplateEngine.#interfaceDeprecated('svg', TemplateEngine.svg),
     map: TemplateEngine.#interfaceDeprecated('map', TemplateEngine.map),
     live: TemplateEngine.#interfaceDeprecated('live', TemplateEngine.live),
     unsafeHTML: TemplateEngine.#interfaceDeprecated('unsafeHTML', TemplateEngine.unsafeHTML),
-    unsafeSVG: TemplateEngine.#interfaceDeprecated('unsafeSVG', TemplateEngine.unsafeSVG),
     ifDefined: TemplateEngine.#interfaceDeprecated('ifDefined', TemplateEngine.ifDefined),
     nullish: TemplateEngine.#interfaceDeprecated('nullish', TemplateEngine.nullish),
     repeat: TemplateEngine.#interfaceDeprecated('repeat', TemplateEngine.repeat),
@@ -64,22 +57,7 @@ class TemplateEngine {
    * @returns {any}
    */
   static html(strings, ...values) {
-    return TemplateEngine.#createRawResult(TemplateEngine.#HTML, strings, values);
-  }
-
-  // TODO: #236: Remove support for “svg” tagged template function.
-  /**
-   * Declare SVG markup to be interpolated.
-   * ```js
-   * svg`<circle r="${obj.r}" cx="${obj.cx}" cy="${obj.cy}"></div>`;
-   * ```
-   * @deprecated
-   * @param {string[]} strings
-   * @param {any[]} values
-   * @returns {any}
-   */
-  static svg(strings, ...values) {
-    return TemplateEngine.#createRawResult(TemplateEngine.#SVG, strings, values);
+    return TemplateEngine.#createRawResult(strings, values);
   }
 
   /**
@@ -186,29 +164,6 @@ class TemplateEngine {
   }
 
   /**
-   * Updater to inject trusted SVG into the DOM.
-   * Use with caution. The "unsafeSVG" updater allows arbitrary input to be
-   * parsed as SVG and injected into the DOM.
-   * ```js
-   * html`
-   *   <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
-   *     ${unsafeSVG(obj.trustedMarkup)}
-   *   </svg>
-   * `;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static unsafeSVG(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#unsafeSVG;
-    const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
    * Updater to manage a keyed array of templates (allows for DOM reuse).
    * ```js
    * html`
@@ -296,20 +251,6 @@ class TemplateEngine {
         TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.childNodes);
       } else {
         throw new Error(`Unexpected unsafeHTML value "${value}".`);
-      }
-    }
-  }
-
-  // Deprecated. Will remove in future release.
-  static #unsafeSVG(node, startNode, value, lastValue) {
-    if (value !== lastValue) {
-      if (typeof value === 'string') {
-        const template = document.createElement('template');
-        template.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${value}</svg>`;
-        TemplateEngine.#removeBetween(startNode, node);
-        TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.firstChild.childNodes);
-      } else {
-        throw new Error(`Unexpected unsafeSVG value "${value}".`);
       }
     }
   }
@@ -616,9 +557,6 @@ class TemplateEngine {
         case TemplateEngine.#unsafeHTML:
           TemplateEngine.#unsafeHTML(node, startNode, update.value, lastUpdate?.value);
           break;
-        case TemplateEngine.#unsafeSVG:
-          TemplateEngine.#unsafeSVG(node, startNode, update.value, lastUpdate?.value);
-          break;
         default:
           TemplateEngine.#throwUpdaterError(update.updater, TemplateEngine.#CONTENT);
           break;
@@ -774,7 +712,7 @@ class TemplateEngine {
     TemplateEngine.#commit(preparedResult);
   }
 
-  static #createRawResult(language, strings, values) {
+  static #createRawResult(strings, values) {
     const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
     if (!analysis.done) {
       const lookups = {};
@@ -784,9 +722,7 @@ class TemplateEngine {
       const onProperty =  TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#PROPERTY);
       const onContent = TemplateEngine.#storeContentLookup.bind(null, lookups);
       const onText = TemplateEngine.#storeTextLookup.bind(null, lookups);
-      // TODO: #236: No need to pass a namespace once svg tagged template function is removed.
-      const namespace = language === TemplateEngine.#SVG ? 'svg' : 'html';
-      const fragment = parser.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, namespace);
+      const fragment = parser.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText);
       analysis.fragment = fragment;
       analysis.lookups = lookups;
       analysis.done = true;
@@ -841,8 +777,6 @@ class TemplateEngine {
         throw new Error(`The live update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#PROPERTY)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
       case TemplateEngine.#unsafeHTML:
         throw new Error(`The unsafeHTML update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#CONTENT)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
-      case TemplateEngine.#unsafeSVG:
-        throw new Error(`The unsafeSVG update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#CONTENT)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
       case TemplateEngine.#ifDefined:
         throw new Error(`The ifDefined update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#ATTRIBUTE)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
       case TemplateEngine.#nullish:
@@ -980,11 +914,9 @@ export const render = TemplateEngine.interface.render.bind(TemplateEngine);
 export const html = TemplateEngine.interface.html.bind(TemplateEngine);
 
 // Deprecated interface.
-export const svg = TemplateEngine.interface.svg.bind(TemplateEngine);
 export const map = TemplateEngine.interface.map.bind(TemplateEngine);
 export const live = TemplateEngine.interface.live.bind(TemplateEngine);
 export const unsafeHTML = TemplateEngine.interface.unsafeHTML.bind(TemplateEngine);
-export const unsafeSVG = TemplateEngine.interface.unsafeSVG.bind(TemplateEngine);
 export const ifDefined = TemplateEngine.interface.ifDefined.bind(TemplateEngine);
 export const nullish = TemplateEngine.interface.nullish.bind(TemplateEngine);
 export const repeat = TemplateEngine.interface.repeat.bind(TemplateEngine);
