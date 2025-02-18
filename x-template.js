@@ -333,6 +333,9 @@ class TemplateEngine {
     }
   }
 
+  // TODO: #254: Use new “moveBefore” when available with cross-browser support.
+  //  This enables us to preserve things like animations and prevent node
+  //  disconnects. See https://chromestatus.com/feature/5135990159835136
   // Loops over given value array to either create-or-update a list of nodes.
   static #list(node, startNode, values, category) {
     const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
@@ -350,8 +353,13 @@ class TemplateEngine {
         index++;
       }
     } else {
+      // TODO: Can we refactor this all into a _single_ loop? Right now, we do
+      //  the following:
+      //  1. Loop once to add new things.
+      //  2. Loop a second time to remove old things.
+      //  3. Loop a third time to reorder (if we have a mapping).
+
       // A mapping has already been created — we need to update the items.
-      let lastItem;
       const ids = new Set(); // Populated in “parseListValue”.
       let index = 0;
       for (const value of values) {
@@ -374,6 +382,17 @@ class TemplateEngine {
           item = { id, preparedResult, ...cursors };
           arrayState.map.set(id, item);
         }
+        index++;
+      }
+      for (const [id, item] of arrayState.map.entries()) {
+        if (!ids.has(id)) {
+          TemplateEngine.#removeThrough(item.startNode, item.node);
+          arrayState.map.delete(id);
+        }
+      }
+      let lastItem;
+      for (const id of ids) {
+        const item = arrayState.map.get(id);
         // TODO: We should be able to make the following code more performant.
         if (category === 'map') {
           const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
@@ -386,15 +405,6 @@ class TemplateEngine {
           }
         }
         lastItem = item;
-        index++;
-      }
-      // TODO: Can we more performantly mark some of this stuff in the above
-      //  loop? Versus looping again here?
-      for (const [id, item] of arrayState.map.entries()) {
-        if (!ids.has(id)) {
-          TemplateEngine.#removeThrough(item.startNode, item.node);
-          arrayState.map.delete(id);
-        }
       }
     }
   }
