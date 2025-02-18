@@ -19,20 +19,40 @@ A dead simple starting point for custom elements. It provides the following func
 
 ## Installation:
 
-```
-# save a local copy
+Save a local copy to your project:
+```bash
 curl https://raw.githubusercontent.com/Netflix/x-element/main/x-element.js > x-element.js
+curl https://raw.githubusercontent.com/Netflix/x-element/main/x-parser.js > x-parser.js
+curl https://raw.githubusercontent.com/Netflix/x-element/main/x-template.js > x-template.js
 ```
 
-or
+Then import it:
+```js
+import XElement from '/path/to/x-element.js';
 ```
-# load it from the web
+
+...or load it directly from the web:
+```js
 import XElement from 'https://deno.land/x/element/x-element.js';
 ```
 
-...or if you're fancy:
+...or use an [importmap](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap):
+```html
+<script type="importmap">
+  {
+    "imports": {
+      "@netflix/x-element": "https://deno.land/x/element/x-element.js"
+    }
+  }
+</script>
 ```
-# use a package manager
+
+and...
+```js
+import XElement from '@netflix/x-element';
+```
+...or use a package manager:
+```
 npm install @netflix/x-element
 ```
 
