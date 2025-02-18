@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default template engine. This causes us to reject elements like `<title>`,
   `<body>`, `<link>`, `<script>`, `<canvas>`, `<meta>`, etc. (#239).
 
+### Fixed
+
+- When re-rendering a mapping where elements at the beginning or end have been
+  removed — no disconnect / connect lifecycle events will occur. Previously,
+  because we didn’t specifically guard this case, the low-level APIs would cause
+  this to occur, which is unexpected from an integration standpoint (#253).
+
 ## [1.1.2] - 2024-12-16
 
 ### Added
