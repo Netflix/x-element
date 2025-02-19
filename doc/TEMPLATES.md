@@ -243,7 +243,7 @@ html`<div>${bar}</div>`;
 
 // … but, you typically don’t have a static array, you map it idiomatically.
 const terms = ['one', 'two'];
-const bar = terms.map(term => html`<span>${item}</span>`);
+const bar = terms.map(term => html`<span>${term}</span>`);
 html`<div>${bar}</div>`;
 // <div><span>one</span><span>two</span></div>
 ```
