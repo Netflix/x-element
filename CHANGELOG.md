@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- The `<style>` element is now restricted. The spec and conventions for `style`
+  differ a lot from `html` and a faster / more-maintainable parser can be built
+  if we stop supporting this (#237).
 - The `<svg>` element and the `svg` tagged template function are gone. The spec
   and conventions for `svg` differ a lot from `html` and a faster /
   more-maintainable parser can be built if we stop supporting this (#236).
