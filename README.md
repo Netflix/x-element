@@ -47,13 +47,19 @@ import XElement from 'https://deno.land/x/element/x-element.js';
 </script>
 ```
 
-and...
+Then import it using a bare module specifier...
 ```js
 import XElement from '@netflix/x-element';
 ```
+
 ...or use a package manager:
-```
+```bash
 npm install @netflix/x-element
+```
+
+Then import it using a bare module specifier...
+```js
+import XElement from '@netflix/x-element';
 ```
 
 ## Project Philosophy:
