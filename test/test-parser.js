@@ -69,21 +69,6 @@ const validator = new XParser({ window: MockWindow });
 // Special symbol to hang test information off of.
 const TEST = Symbol();
 
-// Overwrite console warn for testing so we don’t get spammed with our own
-//  deprecation warnings.
-const seen = new Set();
-const warn = console.warn; // eslint-disable-line no-console
-const localMessages = [
-  'Support for the <style> tag is deprecated and will be removed in future versions.',
-];
-console.warn = (...args) => { // eslint-disable-line no-console
-  if (!localMessages.includes(args[0]?.message)) {
-    warn(...args);
-  } else {
-    seen.add(args[0].message);
-  }
-};
-
 // Simple helper for asserting thrown messages.
 const assertThrows = (callback, expectedMessage, options) => {
   let thrown = false;
@@ -411,16 +396,6 @@ describe('odds and ends', () => {
 });
 
 describe('errors', () => {
-  it('throws when attempting to interpolate within a style tag', () => {
-    const callback = () => html`
-      <style>
-        div { background-color: ${VALUE}; }
-      </style>
-    `;
-    const expectedMessage = '[#191]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
   it('throws when attempting non-trivial interpolation of a textarea tag (preceding space)', () => {
     const callback = () => html`<textarea id="target"> ${VALUE}</textarea>`;
     const expectedMessage = '[#156]';
@@ -479,7 +454,7 @@ describe('errors', () => {
     class TestElement1 extends HTMLElement {
       constructor() {
         super();
-        html`<style></style>`;
+        html`<div></div>`;
       }
     }
     customElements.define('test-element-1', TestElement1);
@@ -1037,6 +1012,12 @@ describe('errors', () => {
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
+  it('throws for forbidden <style> tag', () => {
+    const callback = () => html`<style></style>`;
+    const expectedMessage = '[#153]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
   it('throws for forbidden <script> tag', () => {
     const callback = () => html`<script></script>`;
     const expectedMessage = '[#153]';
@@ -1057,6 +1038,12 @@ describe('errors', () => {
 
   it('throws for forbidden <math> tag', () => {
     const callback = () => html`<math></math>`;
+    const expectedMessage = '[#153]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for forbidden <svg> tag', () => {
+    const callback = () => html`<svg></svg>`;
     const expectedMessage = '[#153]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
@@ -1127,42 +1114,4 @@ describe('validate', () => {
     assert(!!error, 'no error was thrown');
     assert(!!XParser.getErrorContext(error), 'no context was provided');
   });
-});
-
-describe('deprecated', () => {
-  it('parses non-interpolated style', () => {
-    const fragment = html`
-      <style>
-        #target {
-          /* the color is red */
-          color: rgb(255, 0, 0);
-        }
-        #target::after {
-          content: "\\2026"; /* This is the right syntax. The slash just needs escaping for the template literal. */
-        }
-      </style>
-      <div id="target">hi</div>
-    `;
-    const container = document.createElement('div');
-    container.append(fragment);
-    document.body.append(container); // Need to connect for computed styles.
-    assert(container.childElementCount === 2);
-    assert(getComputedStyle(container.querySelector('#target')).color === 'rgb(255, 0, 0)');
-    assert(container.querySelector('#target').textContent === 'hi');
-    container.remove();
-  });
-
-  it('validate deprecation warnings work', () => {
-    // eslint-disable-next-line no-shadow
-    const html = strings => wrapper(validator, strings);
-    html`
-      <style>/* causes console warning which we need for coverage */</style>
-    `;
-  });
-});
-
-it('confirm that deprecation warnings are still necessary', () => {
-  for (const message of localMessages) {
-    assert(seen.has(message), `Unused deprecation warning: ${message}`);
-  }
 });

@@ -12,10 +12,6 @@ export class XParser {
   // We decode character references via “setHTMLUnsafe” on this container.
   #htmlEntityContainer = null;
 
-  // Simple flags to ensure we only warn once about things being deprecated.
-  // TODO: #237: Remove <style> tag usage.
-  #hasWarnedAboutStyleDeprecation = false;
-
   // DOM introspection is expensive. Since we are creating all of the elements,
   //  we can cache the introspections we need behind performant lookups.
   #localName = Symbol();
@@ -77,12 +73,11 @@ export class XParser {
     'plaintext', 'rb', 'rtc', 'shadow', 'strike', 'tt', 'xmp',
   ]);
   #deniedHtmlElements = new Set([
-    'html', 'head', 'base', 'link', 'meta', 'title', 'body', 'script',
+    'html', 'head', 'base', 'link', 'meta', 'title', 'style', 'body', 'script',
     'noscript', 'canvas', 'acronym', 'big', 'center', 'content', 'dir', 'font',
     'frame', 'frameset', 'image', 'marquee', 'menuitem', 'nobr', 'noembed',
     'noframes', 'param', 'plaintext', 'rb', 'rtc', 'shadow', 'strike',
     'tt', 'xmp', 'math', 'svg',
-    // TODO: #237: Remove <style> tag usage — add 'style' to this list.
   ]);
   #allowedHtmlElements = this.#htmlElements.difference(this.#deniedHtmlElements);
 
@@ -186,12 +181,6 @@ export class XParser {
   //  across newlines.
   //  https://w3c.github.io/html-reference/syntax.html#replaceable-character-data
   #throughTextarea = /.*?<\/textarea>/ys;
-
-  // The “style” tag is deprecated and will be removed in future versions. It
-  //  contains “non-replaceable” character data.
-  //  https://w3c.github.io/html-reference/syntax.html#non-replaceable-character-data
-  // TODO: #237: Remove support for <style> tags.
-  #throughStyle = /.*?<\/style>/ys;
 
   //////////////////////////////////////////////////////////////////////////////
   // JS-y Escapes //////////////////////////////////////////////////////////////
@@ -314,9 +303,6 @@ export class XParser {
     ['#155', 'Mismatched closing tag used. To avoid unintended markup, non-void tags must explicitly be closed and all closing tag names must be a case-sensitive match.'],
     ['#156', 'Forbidden, nontrivial interpolation of <textarea> tag used. Only basic interpolation is allowed — e.g., <textarea>${…}</textarea>.'],
     ['#157', 'Forbidden declarative shadow root used (e.g., `<template shadowrootmode="open">`).'],
-
-    // TODO: #237: Remove support for <style> tags completely.
-    ['#191', 'Interpolation of <style> tags is not allowed.'],
   ]);
 
   // Block #100-#119 — Invalid transition errors.
@@ -368,9 +354,6 @@ export class XParser {
     ['mismatched-closing-tag',               '#155'],
     ['complex-textarea-interpolation',       '#156'],
     ['declarative-shadow-root',              '#157'],
-
-    // TODO: #237: Remove support for <style> tags completely.
-    ['style-interpolation',                  '#191'],
   ]);
 
   //////////////////////////////////////////////////////////////////////////////
@@ -666,25 +649,6 @@ export class XParser {
     return this.#closeTag;
   }
 
-  // TODO: #237: Remove support for <style> tags.
-  // Style contains so-called “non-replaceable” character data.
-  #finalizeStyle(string, path, element, childNodesIndex, nextStringIndex) {
-    const closeTagLength = 8; // </style>
-    this.#throughStyle.lastIndex = nextStringIndex;
-    if (this.#throughStyle.test(string)) {
-      const content = string.slice(nextStringIndex, this.#throughStyle.lastIndex - closeTagLength);
-      element.value.textContent = content;
-    } else {
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('style-interpolation');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
-    }
-    childNodesIndex.value = path.pop();
-    element.value = element.value[this.#parentNode];
-    this.#closeTag.lastIndex = this.#throughStyle.lastIndex;
-    return this.#closeTag;
-  }
-
   // Unbound content is just literal text in a template string that needs to
   //  land as text content. We replace any character references (html entities)
   //  found in the content.
@@ -846,15 +810,6 @@ export class XParser {
     }
     childNodesIndex.value = path.pop();
     element.value = element.value[this.#parentNode];
-  }
-
-  // TODO: #237: Remove support for <style> tags.
-  #styleDeprecationWarning() {
-    if (!this.#hasWarnedAboutStyleDeprecation) {
-      this.#hasWarnedAboutStyleDeprecation = true;
-      const error = new Error('Support for the <style> tag is deprecated and will be removed in future versions.');
-      this.#window.console.warn(error);
-    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -1040,11 +995,6 @@ export class XParser {
               const tagName = element.value[this.#localName];
               if (this.#voidHtmlElements.has(tagName)) {
                 value = this.#finalizeVoidElement(path, element, childNodesIndex, nextStringIndex);
-                nextStringIndex = value.lastIndex;
-              } else if (tagName === 'style') {
-                // TODO: #237: Remove support for <style> tags.
-                this.#styleDeprecationWarning();
-                value = this.#finalizeStyle(string, path, element, childNodesIndex, nextStringIndex);
                 nextStringIndex = value.lastIndex;
               } else if (
                 tagName === 'textarea' &&
