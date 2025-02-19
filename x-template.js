@@ -39,11 +39,8 @@ class TemplateEngine {
     html: TemplateEngine.html,
 
     // Deprecated interface.
-    map: TemplateEngine.#interfaceDeprecated('map', TemplateEngine.map),
     live: TemplateEngine.#interfaceDeprecated('live', TemplateEngine.live),
-    unsafeHTML: TemplateEngine.#interfaceDeprecated('unsafeHTML', TemplateEngine.unsafeHTML),
     ifDefined: TemplateEngine.#interfaceDeprecated('ifDefined', TemplateEngine.ifDefined),
-    nullish: TemplateEngine.#interfaceDeprecated('nullish', TemplateEngine.nullish),
     repeat: TemplateEngine.#interfaceDeprecated('repeat', TemplateEngine.repeat),
   });
 
@@ -105,25 +102,6 @@ class TemplateEngine {
   }
 
   /**
-   * Updater to manage an attribute which may not exist.
-   * In the following example, the "nullish" updater will remove the
-   * attribute if it's nullish. Else, it sets the key-value pair.
-   * ```js
-   * html`<a href="${nullish(obj.href)}"></div>`;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static nullish(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#nullish;
-    const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
    * Updater to manage a property which may change outside the template engine.
    * Typically, properties are declaratively managed from state and efficient
    * value checking is used (i.e., "value !== lastValue"). However, if DOM state
@@ -145,53 +123,7 @@ class TemplateEngine {
   }
 
   /**
-   * Updater to inject trusted HTML into the DOM.
-   * Use with caution. The "unsafeHTML" updater allows arbitrary input to be
-   * parsed as HTML and injected into the DOM.
-   * ```js
-   * html`<div>${unsafeHTML(obj.trustedMarkup)}</div>`;
-   * ```
-   * @deprecated
-   * @param {any} value
-   * @returns {any}
-   */
-  static unsafeHTML(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#unsafeHTML;
-    const update = { updater, value };
-    TemplateEngine.#symbolToUpdate.set(symbol, update);
-    return symbol;
-  }
-
-  /**
-   * Updater to manage a keyed array of templates (allows for DOM reuse).
-   * ```js
-   * html`
-   *   <ul>
-   *     ${map(items, item => item.id, item => html`<li>${item.value}</li>`)}
-   *   </div>
-   * `;
-   * ```
-   * @param {any[]} items
-   * @param {Function} identify
-   * @param {Function} callback
-   * @returns {any}
-   */
-  static map(items, identify, callback) {
-    if (!Array.isArray(items)) {
-      throw new Error(`Unexpected map items "${items}" provided, expected an array.`);
-    }
-    if (typeof identify !== 'function') {
-      throw new Error(`Unexpected map identify "${identify}" provided, expected a function.`);
-    }
-    if (typeof callback !== 'function') {
-      throw new Error(`Unexpected map callback "${callback}" provided, expected a function.`);
-    }
-    return items.map(item => [identify(item), callback(item)]);
-  }
-
-  /**
-   * Shim for prior "repeat" function. Use "map".
+   * Shim for prior "repeat" function. Use native entries array.
    * @deprecated
    * @param {any[]} items
    * @param {Function} identify
@@ -226,32 +158,9 @@ class TemplateEngine {
   }
 
   // Deprecated. Will remove in future release.
-  static #nullish(node, name, value, lastValue) {
-    if (value !== lastValue) {
-      value === undefined || value === null
-        ? node.removeAttribute(name)
-        : node.setAttribute(name, value);
-    }
-  }
-
-  // Deprecated. Will remove in future release.
   static #live(node, name, value) {
     if (node[name] !== value) {
       node[name] = value;
-    }
-  }
-
-  // Deprecated. Will remove in future release.
-  static #unsafeHTML(node, startNode, value, lastValue) {
-    if (value !== lastValue) {
-      if (typeof value === 'string') {
-        const template = document.createElement('template');
-        template.innerHTML = value;
-        TemplateEngine.#removeBetween(startNode, node);
-        TemplateEngine.#insertAllBefore(node.parentNode, node, template.content.childNodes);
-      } else {
-        throw new Error(`Unexpected unsafeHTML value "${value}".`);
-      }
     }
   }
 
@@ -417,9 +326,6 @@ class TemplateEngine {
         case TemplateEngine.#ifDefined:
           TemplateEngine.#ifDefined(node, name, update.value, lastUpdate?.value);
           break;
-        case TemplateEngine.#nullish:
-          TemplateEngine.#nullish(node, name, update.value, lastUpdate?.value);
-          break;
         default:
           TemplateEngine.#throwUpdaterError(update.updater, TemplateEngine.#ATTRIBUTE);
           break;
@@ -493,7 +399,7 @@ class TemplateEngine {
   //   const category = TemplateEngine.#getCategory(value);
   //   const lastCategory = TemplateEngine.#getCategory(lastValue);
   //   if (category !== lastCategory && lastValue !== TemplateEngine.#UNSET) {
-  //     // Reset content under certain conditions. E.g., `map(…)` >> `null`.
+  //     // Reset content under certain conditions. E.g., `map` >> `null`.
   //     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
   //     const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
   //     TemplateEngine.#removeBetween(startNode, node);
@@ -548,12 +454,10 @@ class TemplateEngine {
     const introspection = TemplateEngine.#getValueIntrospection(value);
     const lastIntrospection = TemplateEngine.#getValueIntrospection(lastValue);
     if (
-      lastValue !== TemplateEngine.#UNSET && (
-        introspection?.category !== lastIntrospection?.category ||
-        introspection?.update?.updater !== lastIntrospection?.update?.updater
-      )
+      lastValue !== TemplateEngine.#UNSET &&
+      introspection?.category !== lastIntrospection?.category
     ) {
-      // Reset content under certain conditions. E.g., `map(…)` >> `null`.
+      // Reset content under certain conditions. E.g., `map` >> `null`.
       const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
       const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
       TemplateEngine.#removeBetween(startNode, node);
@@ -562,15 +466,7 @@ class TemplateEngine {
     }
     if (introspection?.category === 'update') {
       const { update } = introspection;
-      const lastUpdate = lastIntrospection?.update;
-      switch (update.updater) {
-        case TemplateEngine.#unsafeHTML:
-          TemplateEngine.#unsafeHTML(node, startNode, update.value, lastUpdate?.value);
-          break;
-        default:
-          TemplateEngine.#throwUpdaterError(update.updater, TemplateEngine.#CONTENT);
-          break;
-      }
+      TemplateEngine.#throwUpdaterError(update.updater, TemplateEngine.#CONTENT);
     } else {
       // Note that we always want to re-render results / lists, but because the
       //  way they are created, a new outer reference should always have been
@@ -785,12 +681,8 @@ class TemplateEngine {
       // We’ll delete these updaters later.
       case TemplateEngine.#live:
         throw new Error(`The live update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#PROPERTY)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
-      case TemplateEngine.#unsafeHTML:
-        throw new Error(`The unsafeHTML update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#CONTENT)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
       case TemplateEngine.#ifDefined:
         throw new Error(`The ifDefined update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#ATTRIBUTE)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
-      case TemplateEngine.#nullish:
-        throw new Error(`The nullish update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#ATTRIBUTE)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
     }
   }
 
@@ -924,9 +816,6 @@ export const render = TemplateEngine.interface.render.bind(TemplateEngine);
 export const html = TemplateEngine.interface.html.bind(TemplateEngine);
 
 // Deprecated interface.
-export const map = TemplateEngine.interface.map.bind(TemplateEngine);
 export const live = TemplateEngine.interface.live.bind(TemplateEngine);
-export const unsafeHTML = TemplateEngine.interface.unsafeHTML.bind(TemplateEngine);
 export const ifDefined = TemplateEngine.interface.ifDefined.bind(TemplateEngine);
-export const nullish = TemplateEngine.interface.nullish.bind(TemplateEngine);
 export const repeat = TemplateEngine.interface.repeat.bind(TemplateEngine);

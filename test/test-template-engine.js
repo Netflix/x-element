@@ -5,7 +5,7 @@ import { assert, describe, it } from './x-test.js';
 const { render, html } = XElement.templateEngine;
 
 // Deprecated interface. We will eventually delete these.
-const { map, ifDefined, nullish, repeat, live, unsafeHTML } = XElement.templateEngine;
+const { ifDefined, repeat, live } = XElement.templateEngine;
 
 // Overwrite console warn for testing so we don’t get spammed with our own
 //  deprecation warnings.
@@ -13,11 +13,8 @@ const seen = new Set();
 const warn = console.warn; // eslint-disable-line no-console
 const localMessages = [
   'Deprecated "ifDefined" from default templating engine interface.',
-  'Deprecated "nullish" from default templating engine interface.',
   'Deprecated "live" from default templating engine interface.',
-  'Deprecated "unsafeHTML" from default templating engine interface.',
   'Deprecated "repeat" from default templating engine interface.',
-  'Deprecated "map" from default templating engine interface.',
 ];
 console.warn = (...args) => { // eslint-disable-line no-console
   if (!localMessages.includes(args[0]?.message)) {
@@ -71,7 +68,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').textContent === userContent);
   });
 
-  it('renders nullish templates', () => {
+  it('renders null / undefined templates', () => {
     const container = document.createElement('div');
     render(container, html`<div></div>`);
     assert(!!container.childNodes.length);
@@ -993,27 +990,9 @@ describe('value issues', () => {
 });
 
 describe('html updaters', () => {
-  // This is mainly for backwards compat, "nullish" is likely a better match.
   it('ifDefined', () => {
     const getTemplate = ({ maybe }) => {
       return html`<div id="target" maybe="${ifDefined(maybe)}"></div>`;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ maybe: 'yes' }));
-    assert(container.querySelector('#target').getAttribute('maybe') === 'yes');
-    render(container, getTemplate({ maybe: undefined }));
-    assert(container.querySelector('#target').getAttribute('maybe') === null);
-    render(container, getTemplate({ maybe: false }));
-    assert(container.querySelector('#target').getAttribute('maybe') === 'false');
-    render(container, getTemplate({ maybe: null }));
-    assert(container.querySelector('#target').getAttribute('maybe') === null);
-    container.remove();
-  });
-
-  it('nullish', () => {
-    const getTemplate = ({ maybe }) => {
-      return html`<div id="target" maybe="${nullish(maybe)}"></div>`;
     };
     const container = document.createElement('div');
     document.body.append(container);
@@ -1044,19 +1023,6 @@ describe('html updaters', () => {
     render(container, getTemplate({ alive: 'lively', dead: 'deadly' }));
     assert(container.querySelector('#target').alive === 'lively');
     assert(container.querySelector('#target').dead === 'changed');
-    container.remove();
-  });
-
-  it('unsafeHTML', () => {
-    const getTemplate = ({ content }) => {
-      return html`<div id="target">${unsafeHTML(content)}</div>`;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ content: '<div id="injected">oh hai</div>' }));
-    assert(!!container.querySelector('#injected'));
-    render(container, getTemplate({ content: '<div id="booster">oh hai, again</div>' }));
-    assert(!!container.querySelector('#booster'));
     container.remove();
   });
 
@@ -1188,66 +1154,6 @@ describe('html updaters', () => {
     assert(container.querySelector('#c').textContent === 'fuzz');
     container.remove();
   });
-
-  it('map', () => {
-    const getTemplate = ({ items }) => {
-      return html`
-        <div id="target">
-          ${map(items, item => item.id, item => {
-            return html`<div id="${item.id}" class="item">${item.id}</div>`;
-          })}
-        </div>
-      `;
-    };
-    const container = document.createElement('div');
-    document.body.append(container);
-    render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }] }));
-    const foo = container.querySelector('#foo');
-    const bar = container.querySelector('#bar');
-    const baz = container.querySelector('#baz');
-    assert(container.querySelector('#target').childElementCount === 3);
-    assert(!!foo);
-    assert(!!bar);
-    assert(!!baz);
-    assert(container.querySelector('#target').children[0] === foo);
-    assert(container.querySelector('#target').children[1] === bar);
-    assert(container.querySelector('#target').children[2] === baz);
-    render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }] }));
-    assert(container.querySelector('#target').childElementCount === 3);
-    assert(container.querySelector('#target').children[0] === foo);
-    assert(container.querySelector('#target').children[1] === bar);
-    assert(container.querySelector('#target').children[2] === baz);
-    render(container, getTemplate({ items: [{ id: 'baz' }, { id: 'foo' }, { id: 'bar'}] }));
-    assert(container.querySelector('#target').childElementCount === 3);
-    assert(container.querySelector('#target').children[0] === baz);
-    assert(container.querySelector('#target').children[1] === foo);
-    assert(container.querySelector('#target').children[2] === bar);
-    render(container, getTemplate({ items: [{ id: 'bar'}, { id: 'baz' }, { id: 'foo' }] }));
-    assert(container.querySelector('#target').childElementCount === 3);
-    assert(container.querySelector('#target').children[0] === bar);
-    assert(container.querySelector('#target').children[1] === baz);
-    assert(container.querySelector('#target').children[2] === foo);
-    render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }] }));
-    assert(container.querySelector('#target').childElementCount === 3);
-    assert(container.querySelector('#target').children[0] === foo);
-    assert(container.querySelector('#target').children[1] === bar);
-    assert(container.querySelector('#target').children[2] === baz);
-    render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar'}] }));
-    assert(container.querySelector('#target').childElementCount === 2);
-    assert(container.querySelector('#target').children[0] === foo);
-    assert(container.querySelector('#target').children[1] === bar);
-    render(container, getTemplate({ items: [{ id: 'foo' }] }));
-    assert(container.querySelector('#target').childElementCount === 1);
-    assert(container.querySelector('#target').children[0] === foo);
-    render(container, getTemplate({ items: [] }));
-    assert(container.querySelector('#target').childElementCount === 0);
-    render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }] }));
-    assert(container.querySelector('#target').childElementCount === 3);
-    assert(container.querySelector('#target').children[0] !== foo);
-    assert(container.querySelector('#target').children[1] !== bar);
-    assert(container.querySelector('#target').children[2] !== baz);
-    container.remove();
-  });
 });
 
 describe('updater errors', () => {
@@ -1310,80 +1216,6 @@ describe('updater errors', () => {
       const expected = 'The ifDefined update must be used on an attribute, not on text content.';
       const getTemplate = ({ maybe }) => {
         return html`<textarea id="target">${ifDefined(maybe)}</textarea>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-  });
-
-  describe('nullish', () => {
-    it('throws if used on a "boolean"', () => {
-      const expected = 'The nullish update must be used on an attribute, not on a boolean attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ?maybe="${nullish(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on a "property"', () => {
-      const expected = 'The nullish update must be used on an attribute, not on a property.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" .maybe="${nullish(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with "content"', () => {
-      const expected = 'The nullish update must be used on an attribute, not on content.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target">${nullish(maybe)}</div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with "text"', () => {
-      const expected = 'The nullish update must be used on an attribute, not on text content.';
-      const getTemplate = ({ maybe }) => {
-        return html`<textarea id="target">${nullish(maybe)}</textarea>`;
       };
       const container = document.createElement('div');
       document.body.append(container);
@@ -1487,258 +1319,6 @@ describe('updater errors', () => {
       }
       assert(!!actual, 'No error was thrown.');
       assert(actual === expected, actual);
-      container.remove();
-    });
-  });
-
-  describe('unsafeHTML', () => {
-    it('throws if used on an "attribute"', () => {
-      const expected = 'The unsafeHTML update must be used on content, not on an attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${unsafeHTML(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on a "boolean"', () => {
-      const expected = 'The unsafeHTML update must be used on content, not on a boolean attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ?maybe="${unsafeHTML(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used on a "defined"', () => {
-      const expected = 'The unsafeHTML update must be used on content, not on a defined attribute.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" ??maybe="${unsafeHTML(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with a "property"', () => {
-      const expected = 'The unsafeHTML update must be used on content, not on a property.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" .maybe="${unsafeHTML(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with "text"', () => {
-      const expected = 'The unsafeHTML update must be used on content, not on text content.';
-      const getTemplate = ({ maybe }) => {
-        return html`<textarea id="target">${unsafeHTML(maybe)}</textarea>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws for non-string value', () => {
-      const getTemplate = ({ content }) => {
-        return html`
-          <div id="target">
-            ${unsafeHTML(content)}
-          </div>
-        `;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let error;
-      try {
-        render(container, getTemplate({ content: null }));
-      } catch (e) {
-        error = e;
-      }
-      assert(error?.message === 'Unexpected unsafeHTML value "null".', error?.message);
-      container.remove();
-    });
-  });
-
-  describe('map', () => {
-    it('throws if identify is not a function', () => {
-      const expected = 'Unexpected map identify "undefined" provided, expected a function.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${map(maybe)}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: ['yes'] }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if callback is not a function', () => {
-      const expected = 'Unexpected map callback "undefined" provided, expected a function.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target" maybe="${map(maybe, () => {})}"></div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: ['yes'] }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws for duplicate identify responses on initial render', () => {
-      const getTemplate = ({ array }) => {
-        return html`
-          <div id="target">
-            ${map(array, () => 'foo', () => html``)}
-          </div>
-        `;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let error;
-      try {
-        render(container, getTemplate({ array: [1, 2, 3] }));
-      } catch (e) {
-        error = e;
-      }
-      assert(error?.message === 'Unexpected duplicate key found in map entry at 1 "foo".', error?.message);
-      container.remove();
-    });
-
-    it('throws for duplicate identify responses on subsequent render', () => {
-      const getTemplate = ({ array }) => {
-        return html`
-          <div id="target">
-            ${map(array, item => String(item), () => html``)}
-          </div>
-        `;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let error;
-      render(container, getTemplate({ array: [1, 2, 3] }));
-      try {
-        render(container, getTemplate({ array: [1, 2, 3, 4, 4] }));
-      } catch (e) {
-        error = e;
-      }
-      assert(error?.message === 'Unexpected duplicate key found in map entry at 4 "4".', error?.message);
-      container.remove();
-    });
-
-    it('throws for non-array value', () => {
-      const getTemplate = ({ array }) => {
-        return html`
-          <div id="target">
-            ${map(array, () => {}, () => html``)}
-          </div>
-        `;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let error;
-      try {
-        render(container, getTemplate({ array: 5 }));
-      } catch (e) {
-        error = e;
-      }
-      assert(error?.message === 'Unexpected map items "5" provided, expected an array.', error?.message);
-      container.remove();
-    });
-
-    it('throws for non-template callback value', () => {
-      const getTemplate = ({ array }) => {
-        return html`
-          <div id="target">
-            ${map(array, item => item.id, item => item.value ? html`<div>${item.value}</div>` : null)}
-          </div>
-        `;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let error;
-      try {
-        render(container, getTemplate({ array: [{ id: 'foo', value: null }] }));
-      } catch (e) {
-        error = e;
-      }
-      assert(error?.message === 'Unexpected non-template value found in map entry at 0 "null".', error?.message);
-      container.remove();
-    });
-
-    it('throws for non-template callback value (on re-render)', () => {
-      const getTemplate = ({ array }) => {
-        return html`
-          <div id="target">
-            ${map(array, item => item.id, item => item.value ? html`<div>${item.value}</div>` : null)}
-          </div>
-        `;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      render(container, getTemplate({ array: [{ id: 'foo', value: 'oh hai' }] }));
-      let error;
-      try {
-        render(container, getTemplate({ array: [{ id: 'foo', value: null }] }));
-      } catch (e) {
-        error = e;
-      }
-      assert(error?.message === 'Unexpected non-template value found in map entry at 0 "null".', error?.message);
       container.remove();
     });
   });
