@@ -143,9 +143,9 @@ export default class XElement extends HTMLElement {
   /**
    * Setup template callback to update DOM when properties change.
    * ```js
-   * static template(html, { nullish }) {
-   *   return (href) => {
-   *     return html`<a href=${nullish(href)}>click me</a>`;
+   * static template(html) {
+   *   return ({ href }) => {
+   *     return html`<a href="${href}">click me</a>`;
    *   }
    * }
    * ```
