@@ -296,49 +296,40 @@ class TemplateEngine {
       const lastUpdate = TemplateEngine.#symbolToUpdate.get(lastValue);
       TemplateEngine.#ifDefined(node, name, update.value, lastUpdate?.value);
     } else {
-      if (value !== lastValue) {
-        node.setAttribute(name, value);
-      }
+      node.setAttribute(name, value);
     }
   }
 
-  static #commitBoolean(node, name, value, lastValue) {
+  static #commitBoolean(node, name, value) {
     const update = TemplateEngine.#symbolToUpdate.get(value);
     if (update) {
       TemplateEngine.#throwIfDefinedError(TemplateEngine.#BOOLEAN);
     } else {
-      if (value !== lastValue) {
-        value ? node.setAttribute(name, '') : node.removeAttribute(name);
-      }
+      value ? node.setAttribute(name, '') : node.removeAttribute(name);
     }
   }
 
-  static #commitDefined(node, name, value, lastValue) {
+  static #commitDefined(node, name, value) {
     const update = TemplateEngine.#symbolToUpdate.get(value);
     if (update) {
       TemplateEngine.#throwIfDefinedError(TemplateEngine.#DEFINED);
     } else {
-      if (value !== lastValue) {
-        value === undefined || value === null
-          ? node.removeAttribute(name)
-          : node.setAttribute(name, value);
-      }
+      value === undefined || value === null
+        ? node.removeAttribute(name)
+        : node.setAttribute(name, value);
     }
   }
 
-  static #commitProperty(node, name, value, lastValue) {
+  static #commitProperty(node, name, value) {
     const update = TemplateEngine.#symbolToUpdate.get(value);
     if (update) {
       TemplateEngine.#throwIfDefinedError(TemplateEngine.#PROPERTY);
     } else {
-      if (value !== lastValue) {
-        node[name] = value;
-      }
+      node[name] = value;
     }
   }
 
-  // TODO: Future state here — we’ll eventually just guard against value changes
-  //  at a higher level and will remove all updater logic.
+  // TODO: Future state here once “ifDefined” is gone.
   // static #commitAttribute(node, name, value) {
   //   node.setAttribute(name, value);
   // }
@@ -353,68 +344,11 @@ class TemplateEngine {
   // static #commitProperty(node, name, value) {
   //   node[name] = value;
   // }
-  // static #commitContent(node, startNode, value, lastValue) {
-  //   const category = TemplateEngine.#getCategory(value);
-  //   const lastCategory = TemplateEngine.#getCategory(lastValue);
-  //   if (category !== lastCategory && lastValue !== TemplateEngine.#UNSET) {
-  //     // Reset content under certain conditions. E.g., `map` >> `null`.
-  //     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
-  //     const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
-  //     TemplateEngine.#removeBetween(startNode, node);
-  //     TemplateEngine.#clearObject(state);
-  //     TemplateEngine.#clearObject(arrayState);
-  //   }
-  //   if (category === 'result') {
-  //     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
-  //     const rawResult = value;
-  //     if (!TemplateEngine.#canReuseDom(state.preparedResult, rawResult)) {
-  //       TemplateEngine.#removeBetween(startNode, node);
-  //       TemplateEngine.#clearObject(state);
-  //       const preparedResult = TemplateEngine.#inject(rawResult, node, true);
-  //       state.preparedResult = preparedResult;
-  //     } else {
-  //       TemplateEngine.#update(state.preparedResult, rawResult);
-  //     }
-  //   } else if (category === 'array' || category === 'map') {
-  //     TemplateEngine.#list(node, startNode, value, category);
-  //   } else if (category === 'fragment') {
-  //     if (value.childElementCount === 0) {
-  //       throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
-  //     }
-  //     const previousSibling = node.previousSibling;
-  //     if (previousSibling !== startNode) {
-  //       TemplateEngine.#removeBetween(startNode, node);
-  //     }
-  //     node.parentNode.insertBefore(value, node);
-  //   } else {
-  //     // TODO: Is there a way to more-performantly skip this init step? E.g., if
-  //     //  the prior value here was not “unset” and we didn’t just reset? We
-  //     //  could cache the target node in these cases or something?
-  //     const previousSibling = node.previousSibling;
-  //     if (previousSibling === startNode) {
-  //       // The `?? ''` is a shortcut for creating a text node and then
-  //       //  setting its textContent. It’s exactly equivalent to the
-  //       //  following code, but faster.
-  //       // const textNode = document.createTextNode('');
-  //       // textNode.textContent = value;
-  //       const textNode = document.createTextNode(value ?? '');
-  //       node.parentNode.insertBefore(textNode, node);
-  //     } else {
-  //       previousSibling.textContent = value;
-  //     }
-  //   }
-  // }
-  // static #commitText(node, value) {
-  //   node.textContent = value;
-  // }
 
   static #commitContent(node, startNode, value, lastValue) {
-    const introspection = TemplateEngine.#getValueIntrospection(value);
-    const lastIntrospection = TemplateEngine.#getValueIntrospection(lastValue);
-    if (
-      lastValue !== TemplateEngine.#UNSET &&
-      introspection?.category !== lastIntrospection?.category
-    ) {
+    const category = TemplateEngine.#getCategory(value);
+    const lastCategory = TemplateEngine.#getCategory(lastValue);
+    if (category !== lastCategory && lastValue !== TemplateEngine.#UNSET) {
       // Reset content under certain conditions. E.g., `map` >> `null`.
       const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
       const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
@@ -422,80 +356,50 @@ class TemplateEngine {
       TemplateEngine.#clearObject(state);
       TemplateEngine.#clearObject(arrayState);
     }
-    if (introspection?.category === 'update') {
-      TemplateEngine.#throwIfDefinedError(TemplateEngine.#CONTENT);
+    if (category === 'result') {
+      const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
+      const rawResult = value;
+      if (!TemplateEngine.#canReuseDom(state.preparedResult, rawResult)) {
+        TemplateEngine.#removeBetween(startNode, node);
+        TemplateEngine.#clearObject(state);
+        const preparedResult = TemplateEngine.#inject(rawResult, node, true);
+        state.preparedResult = preparedResult;
+      } else {
+        TemplateEngine.#update(state.preparedResult, rawResult);
+      }
+    } else if (category === 'array' || category === 'map') {
+      TemplateEngine.#list(node, startNode, value, category);
+    } else if (category === 'fragment') {
+      if (value.childElementCount === 0) {
+        throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
+      }
+      const previousSibling = node.previousSibling;
+      if (previousSibling !== startNode) {
+        TemplateEngine.#removeBetween(startNode, node);
+      }
+      node.parentNode.insertBefore(value, node);
     } else {
-      // Note that we always want to re-render results / lists, but because the
-      //  way they are created, a new outer reference should always have been
-      //  generated, so it’s ok to leave inside this value check.
-      if (value !== lastValue) {
-        if (introspection?.category === 'result') {
-          const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
-          const rawResult = value;
-          if (!TemplateEngine.#canReuseDom(state.preparedResult, rawResult)) {
-            TemplateEngine.#removeBetween(startNode, node);
-            TemplateEngine.#clearObject(state);
-            const preparedResult = TemplateEngine.#inject(rawResult, node, true);
-            state.preparedResult = preparedResult;
-          } else {
-            TemplateEngine.#update(state.preparedResult, rawResult);
-          }
-        } else if (introspection?.category === 'array' || introspection?.category === 'map') {
-          TemplateEngine.#list(node, startNode, value, introspection.category);
-        } else if (introspection?.category === 'fragment') {
-          if (value.childElementCount === 0) {
-            throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
-          }
-          const previousSibling = node.previousSibling;
-          if (previousSibling !== startNode) {
-            TemplateEngine.#removeBetween(startNode, node);
-          }
-          node.parentNode.insertBefore(value, node);
-        } else {
-          const previousSibling = node.previousSibling;
-          if (previousSibling === startNode) {
-            // The `?? ''` is a shortcut for creating a text node and then
-            //  setting its textContent. It’s exactly equivalent to the
-            //  following code, but faster.
-            // const textNode = document.createTextNode('');
-            // textNode.textContent = value;
-            const textNode = document.createTextNode(value ?? '');
-            node.parentNode.insertBefore(textNode, node);
-          } else {
-            previousSibling.textContent = value;
-          }
-        }
+      // TODO: Is there a way to more-performantly skip this init step? E.g., if
+      //  the prior value here was not “unset” and we didn’t just reset? We
+      //  could cache the target node in these cases or something?
+      const previousSibling = node.previousSibling;
+      if (previousSibling === startNode) {
+        // The `?? ''` is a shortcut for creating a text node and then
+        //  setting its textContent. It’s exactly equivalent to the
+        //  following code, but faster.
+        // const textNode = document.createTextNode('');
+        // textNode.textContent = value;
+        const textNode = document.createTextNode(value ?? '');
+        node.parentNode.insertBefore(textNode, node);
+      } else {
+        previousSibling.textContent = value;
       }
     }
   }
 
-  static #commitText(node, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      TemplateEngine.#throwIfDefinedError(TemplateEngine.#TEXT);
-    } else {
-      if (value !== lastValue) {
-        node.textContent = value;
-      }
-    }
+  static #commitText(node, value) {
+    node.textContent = value;
   }
-
-  // TODO: Future state — we’ll later do change-by-reference detection here.
-  // // Bind the current values from a result by walking through each target and
-  // //  updating the DOM if things have changed.
-  // static #commit(preparedResult) {
-  //   preparedResult.values ??= preparedResult.rawResult.values;
-  //   preparedResult.lastValues ??= preparedResult.values.map(() => TemplateEngine.#UNSET);
-  //   const { targets, values, lastValues } = preparedResult;
-  //   for (let iii = 0; iii < targets.length; iii++) {
-  //     const value = values[iii];
-  //     const lastValue = lastValues[iii];
-  //     if (value !== lastValue) {
-  //       const target = targets[iii];
-  //       target(value, lastValue);
-  //     }
-  //   }
-  // }
 
   // Bind the current values from a result by walking through each target and
   //  updating the DOM if things have changed.
@@ -504,10 +408,12 @@ class TemplateEngine {
     preparedResult.lastValues ??= preparedResult.values.map(() => TemplateEngine.#UNSET);
     const { targets, values, lastValues } = preparedResult;
     for (let iii = 0; iii < targets.length; iii++) {
-      const target = targets[iii];
       const value = values[iii];
       const lastValue = lastValues[iii];
-      target(value, lastValue);
+      if (value !== lastValue) {
+        const target = targets[iii];
+        target(value, lastValue);
+      }
     }
   }
 
@@ -599,36 +505,14 @@ class TemplateEngine {
     return !!value?.[TemplateEngine.#ANALYSIS];
   }
 
-  // TODO: Revisit this concept when we delete deprecated interfaces. Once that
-  //  happens, the _only_ updater available for content is `map`, and we may be
-  //  able to make this more performant.
-  // We can probably change this to something like the following eventually:
-  //
-  // static #getCategory(value) {
-  //   if (typeof value === 'object') {
-  //     if (TemplateEngine.#isRawResult(value)) {
-  //       return 'result';
-  //     } else if (Array.isArray(value)) {
-  //       return Array.isArray(value[0]) ? 'map' : 'array';
-  //     } else if (value instanceof DocumentFragment) {
-  //       return 'fragment';
-  //     }
-  //   }
-  // }
-  //
-  static #getValueIntrospection(value) {
-    if (Array.isArray(value)) {
-      return Array.isArray(value[0]) ? { category: 'map' } : { category: 'array' };
-    } else if (value instanceof DocumentFragment) {
-      return { category: 'fragment' };
-    } else if (value !== null && typeof value === 'object') {
+  static #getCategory(value) {
+    if (typeof value === 'object') {
       if (TemplateEngine.#isRawResult(value)) {
-        return { category: 'result' };
-      } else {
-        const update = TemplateEngine.#symbolToUpdate.get(value);
-        if (update) {
-          return { category: 'update', update };
-        }
+        return 'result';
+      } else if (Array.isArray(value)) {
+        return Array.isArray(value[0]) ? 'map' : 'array';
+      } else if (value instanceof DocumentFragment) {
+        return 'fragment';
       }
     }
   }
@@ -638,8 +522,6 @@ class TemplateEngine {
   }
 
   static #canReuseDom(preparedResult, rawResult) {
-    // TODO: Is it possible that we might have the same strings from a different
-    //  template language? Probably not. The following check should suffice.
     return preparedResult?.rawResult.strings === rawResult?.strings;
   }
 
@@ -744,8 +626,6 @@ class TemplateEngine {
       case TemplateEngine.#BOOLEAN: return 'a boolean attribute';
       case TemplateEngine.#DEFINED: return 'a defined attribute';
       case TemplateEngine.#PROPERTY: return 'a property';
-      case TemplateEngine.#CONTENT: return 'content';
-      case TemplateEngine.#TEXT: return 'text content';
     }
   }
 
