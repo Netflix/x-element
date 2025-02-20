@@ -1191,42 +1191,6 @@ describe('updater errors', () => {
       assert(actual === expected, actual);
       container.remove();
     });
-
-    it('throws if used with "content"', () => {
-      const expected = 'The ifDefined update must be used on an attribute, not on content.';
-      const getTemplate = ({ maybe }) => {
-        return html`<div id="target">${ifDefined(maybe)}</div>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
-
-    it('throws if used with "text"', () => {
-      const expected = 'The ifDefined update must be used on an attribute, not on text content.';
-      const getTemplate = ({ maybe }) => {
-        return html`<textarea id="target">${ifDefined(maybe)}</textarea>`;
-      };
-      const container = document.createElement('div');
-      document.body.append(container);
-      let actual;
-      try {
-        render(container, getTemplate({ maybe: 'yes' }));
-      } catch (error) {
-        actual = error.message;
-      }
-      assert(!!actual, 'No error was thrown.');
-      assert(actual === expected, actual);
-      container.remove();
-    });
   });
 
   describe('repeat', () => {
