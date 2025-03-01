@@ -1,4 +1,4 @@
-import { test, coverage } from './x-test.js';
+import { test, coverage } from '@netflix/x-test/x-test.js';
 
 // We import these here so we can see code coverage.
 import '../x-element.js';

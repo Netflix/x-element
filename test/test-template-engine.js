@@ -1,5 +1,5 @@
+import { assert, describe, it } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
-import { assert, describe, it } from './x-test.js';
 
 // Long-term interface.
 const { render, html } = XElement.templateEngine;
