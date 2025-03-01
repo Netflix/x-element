@@ -5,14 +5,9 @@ import puppeteer from 'puppeteer';
     // Open our browser.
     const browser = await puppeteer.launch({
       timeout: 10000,
-      // opt-in to the new Chrome headless implementation
-      // ref: https://developer.chrome.com/articles/new-headless/
-      headless: 'new',
-      args: [
-        // Disables interactive prompt: Do you want to the application Chromium.app to accept incoming network connections?
-        // ref: https://github.com/puppeteer/puppeteer/issues/4752#issuecomment-586599843
-        '--disable-features=DialMediaRouteProvider',
-      ],
+      // These args fix “Error: Failed to launch the browser process!” when
+      //  run in GitHub. We are only running our own code here, so this is ok.
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     const page = await browser.newPage();
 
@@ -66,6 +61,9 @@ import puppeteer from 'puppeteer';
     // Close our browser.
     await browser.close();
   } catch (err) {
+    // Ensure that we “Bail out!” (see TAP specification) if script fails. Note
+    //  that the tap stream is being read on stdout.
+    console.log('Bail out!'); // eslint-disable-line no-console
     // Ensure we exit with a non-zero code if anything fails (e.g., timeout).
     console.error(err); // eslint-disable-line no-console
     process.exit(1);
