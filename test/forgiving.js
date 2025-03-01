@@ -4,7 +4,7 @@
 //  parsing solution. In particular, it could be interesting to try and keep the
 //  interfaces to both “forgiving” and “unforgiving” as similar as possible to
 //  enable us to show performance-testing deltas in the future.
-/** Forgiving HTML parser which leverages innerHTML. */
+/** Forgiving HTML parser which leverages setHTMLUnsafe. */
 export default class Forgiving {
   // Special markers added to markup enabling discovery post-instantiation.
   static #NEXT_MARKER = 'forgiving-next:'; // The ":" helps for debugging.
@@ -150,7 +150,7 @@ export default class Forgiving {
   static #createFragment(language, strings) {
     const template = document.createElement('template');
     const html = Forgiving.#createHtml(language, strings);
-    template.innerHTML = html;
+    template.setHTMLUnsafe(html);
     return template.content;
   }
 
