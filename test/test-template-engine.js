@@ -547,11 +547,11 @@ describe('html rendering', () => {
     };
     const container = document.createElement('div');
     const template = document.createElement('template');
-    template.innerHTML = '<input>';
+    template.setHTMLUnsafe('<input>');
     render(container, getTemplate({ fragment: template.content.cloneNode(true) }));
     assert(container.childElementCount === 1);
     assert(container.children[0].localName === 'input');
-    template.innerHTML = '<textarea></textarea>';
+    template.setHTMLUnsafe('<textarea></textarea>');
     render(container, getTemplate({ fragment: template.content.cloneNode(true) }));
     assert(container.childElementCount === 1);
     assert(container.children[0].localName === 'textarea');

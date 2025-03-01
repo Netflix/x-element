@@ -142,7 +142,7 @@ class TemplateEngine {
 
   // We only decode things we know to be encoded since it’s non-performant.
   static #decode(encoded) {
-    this.#htmlEntityContainer.innerHTML = encoded;
+    this.#htmlEntityContainer.setHTMLUnsafe(encoded);
     const decoded = this.#htmlEntityContainer.content.textContent;
     return decoded;
   }
