@@ -1085,6 +1085,12 @@ describe('errors', () => {
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
+  it('throws for misuse of a bound property prefix with a literal value', () => {
+    const callback = () => html`<div .literal="property"></div>`;
+    const expectedMessage = '[#105]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
   it('throws if a bound property starts with an underscore', () => {
     const callback = () => html`<div ._what="${VALUE}"></div>`;
     const expectedMessage = '[#129]';

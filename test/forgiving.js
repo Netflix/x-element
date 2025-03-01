@@ -1,5 +1,3 @@
-// TODO: The `XParser` interface now requires instantiation.
-
 // This is just kept here as an example alternative to our more “unforgiving”
 //  parsing solution. In particular, it could be interesting to try and keep the
 //  interfaces to both “forgiving” and “unforgiving” as similar as possible to
