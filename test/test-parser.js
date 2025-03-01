@@ -1,5 +1,5 @@
+import { assert, describe, it } from '@netflix/x-test/x-test.js';
 import { XParser } from '../x-parser.js';
-import { assert, describe, it } from './x-test.js';
 
 // Special symbol to hang test information off of.
 const TEST = Symbol();

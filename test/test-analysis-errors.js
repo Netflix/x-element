@@ -1,5 +1,5 @@
+import { assert, it } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
-import { assert, it } from './x-test.js';
 
 it('properties should not have hyphens (conflicts with attribute names)', () => {
   let passed = false;

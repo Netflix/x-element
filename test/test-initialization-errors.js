@@ -1,5 +1,5 @@
+import { assert, it } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
-import { assert, it } from './x-test.js';
 
 it('errors are thrown in connectedCallback for initializing values with bad types', () => {
   // We cannot try-catch append, so we fake the connectedCallback.

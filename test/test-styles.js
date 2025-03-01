@@ -1,5 +1,5 @@
-import { assert, it } from './x-test.js';
-import styleSheet from './test-styles.css.js';
+import { assert, it } from '@netflix/x-test/x-test.js';
+import styleSheet from './test-styles.css' with { type: 'css' };
 import XElement from '../x-element.js';
 
 class TestElement1 extends XElement {

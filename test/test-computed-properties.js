@@ -1,5 +1,5 @@
+import { it, assert } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
-import { it, assert } from './x-test.js';
 
 let _count = 0;
 
