@@ -1,73 +1,75 @@
 import { XParser } from '../x-parser.js';
 import { assert, describe, it } from './x-test.js';
 
-const parser = new XParser();
-
-// To prevent DOM creation or to run in non-browser environments, validation can
-//  be made to work by injecting a mock window object.
-class MockWindow {
-  static #getMockNode = () => {
-    return {
-      appendChild() {/* Do nothing. */},
-      textContent: '',
-    };
-  };
-  static #getMockCommentNode = () => {
-    return { ...MockWindow.#getMockNode() };
-  };
-  static #getMockTextNode = () => {
-    return { ...MockWindow.#getMockNode() };
-  };
-  static #getMockElement = () => {
-    return {
-      ...MockWindow.#getMockNode(),
-      __attributes: {},
-      setAttribute(name, value) { this.__attributes[name] = value; },
-      hasAttribute(name) { return Reflect.has(this.__attributes, name); },
-      append() {/* Do nothing. */},
-      cloneNode() { return MockWindow.#getMockElement(); },
-    };
-  };
-  static #getMockDocumentFragment = () => {
-    return { ...MockWindow.#getMockElement() };
-  };
-  static #getMockTemplate = () => {
-    return {
-      ...MockWindow.#getMockElement(),
-      content: MockWindow.#getMockDocumentFragment(),
-    };
-  };
-
-  static get console() {
-    return { warn: () => {/* Do nothing. */} };
-  }
-
-  static get document() {
-    return {
-      createDocumentFragment() {
-        return MockWindow.#getMockDocumentFragment();
-      },
-      createElementNS() {
-        return MockWindow.#getMockElement();
-      },
-      createElement(localName) {
-        return localName === 'template'
-          ? MockWindow.#getMockTemplate()
-          : MockWindow.#getMockElement();
-      },
-      createTextNode() {
-        return MockWindow.#getMockTextNode();
-      },
-      createComment() {
-        return MockWindow.#getMockCommentNode();
-      },
-    };
-  }
-}
-const validator = new XParser({ window: MockWindow });
-
 // Special symbol to hang test information off of.
 const TEST = Symbol();
+
+// Placeholder for values which delimit tagged template functions. These are
+//  not considered by the parser, so the value here has no significance and will
+//  not show up in any of the resulting fragments from the initial parse.
+const VALUE = '…';
+
+// Helper to stringify tokens the way we want to write them in our assertions.
+const escape = string => {
+  return string
+    .replaceAll('\'', '\\\'')
+    .replaceAll('\n', '\\n')
+    .replaceAll('\\u', '\\\\u');
+};
+const stringifyObject = object => {
+  if (object === null) {
+    return 'null';
+  }
+  let text = '{ ';
+  const keys = [...Object.keys(object)];
+  let index = 0;
+  for (const key of keys) {
+    const value = object[key];
+    switch (typeof value) {
+      case 'object':
+        text += `${key}: ${stringifyObject(value)}`;
+        break;
+      case 'string':
+        text += `${key}: '${escape(value)}'`;
+        break;
+      case 'undefined':
+      case 'number':
+      case 'boolean':
+        text += `${key}: ${value}`;
+        break;
+      default:
+        // Make sure we print _something_ for debugging even if it’s wrong.
+        text += `${key}: "${value}"`;
+    }
+    if (index++ < keys.length - 1) {
+      text += ', ';
+    }
+  }
+  text += ' }';
+  return text;
+};
+const stringifyTokens = tokens => {
+  const lines = [];
+  for (const token of tokens) {
+    lines.push(`  ${stringifyObject(token)},`);
+  }
+  return `[\n${lines.join('\n')}\n]`;
+};
+
+// Helper for figuring out if the tokens we got were correct.
+const isObject = obj => obj instanceof Object && obj !== null;
+const deepEqual = (a, b) => {
+  if (a === b) {
+    return true;
+  }
+  return (
+    isObject(a) &&
+    isObject(b) &&
+    // Note, we ignore non-enumerable properties (Symbols) here.
+    Object.keys(a).length === Object.keys(b).length &&
+    Object.keys(a).every(key => deepEqual(a[key], b[key]))
+  );
+};
 
 // Simple helper for asserting thrown messages.
 const assertThrows = (callback, expectedMessage, options) => {
@@ -85,115 +87,214 @@ const assertThrows = (callback, expectedMessage, options) => {
   assert(thrown, 'no error was thrown');
 };
 
-const wrapper = (instance, strings, language) => {
-  const bindings = {
-    boolean: [],
-    defined: [],
-    attribute: [],
-    property: [],
-    content: [],
-    text: [],
+// Simpler helper to add some test information under a TEST symbol.
+const wrapper = strings => {
+  const tokens = [];
+  const onToken = (type, index, start, end, substring) => {
+    tokens.push({ type, index, start, end, substring });
   };
-  const onBoolean = (name, path) => bindings.boolean.push({ name, path: String(path) });
-  const onDefined = (name, path) => bindings.defined.push({ name, path: String(path) });
-  const onAttribute = (name, path) => bindings.attribute.push({ name, path: String(path) });
-  const onProperty = (name, path) => bindings.property.push({ name, path: String(path) });
-  const onContent = path => bindings.content.push({ path: String(path) });
-  const onText = path => bindings.text.push({ path: String(path) });
-  const fragment = instance.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText, language);
-  fragment[TEST] = { bindings };
-  return fragment;
+  XParser.parse(strings, onToken);
+  tokens[TEST] = { strings };
+  return tokens;
 };
 
 // Simple function to return strings array from tagged template function call.
 //  Since IDEs will pick up on the “html” syntax, they should highlight, which
 //  will make this more readable.
-const html = strings => wrapper(parser, strings);
+const html = strings => wrapper(strings);
 
 // Certain tests require that we write _terribly broken_ html. To prevent IDEs
 //  from choking when trying to highlight, we also have a “htmlol” function.
-const htmlol = strings => wrapper(parser, strings);
-
-// Placeholder for values which delimit tagged template functions. These are
-//  not considered by the parser, so the value here has no significance and will
-//  not show up in any of the resulting fragments from the initial parse.
-const VALUE = '…';
+const htmlol = strings => wrapper(strings);
 
 describe('basic', () => {
   it('empty template works', () => {
-    const fragment = html``;
-    assert(fragment.childNodes.length === 0);
+    const expectedTokens = [];
+    const tokens = html``;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('single string works', () => {
-    const fragment = html`<div id="target">No interpolation.</div>`;
-    assert(fragment.childNodes.length === 1);
-    assert(fragment.querySelector('#target').textContent === 'No interpolation.');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 4, end: 5, substring: '>' },
+      { type: 'text-start', index: 0, start: 5, end: 5, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 5, end: 22, substring: 'No interpolation.' },
+      { type: 'text-end', index: 0, start: 22, end: 22, substring: '' },
+      { type: 'end-tag-open', index: 0, start: 22, end: 24, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 24, end: 27, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 27, end: 28, substring: '>' },
+    ];
+    const tokens = html`<div>No interpolation.</div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('multi-line string works', () => {
-    const fragment = html`
+    const expectedTokens = [
+      { type: 'text-start', index: 0, start: 0, end: 0, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 0, end: 37, substring: '\n      one\n      two\n      three\n    ' },
+      { type: 'text-end', index: 0, start: 37, end: 37, substring: '' },
+    ];
+    const tokens = html`
       one
       two
       three
     `;
-    assert(fragment.childNodes.length === 1);
-    assert(fragment.childNodes[0].nodeType === Node.TEXT_NODE);
-    assert(fragment.childNodes[0].textContent.trim() === 'one\n      two\n      three');
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 });
 
 describe('comments', () => {
   it('comments work', () => {
-    const fragment = html`<!--hi-->`;
-    assert(fragment.childNodes.length === 1);
-    assert(fragment.childNodes[0].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[0].data === 'hi');
+    const expectedTokens = [
+      { type: 'comment-open', index: 0, start: 0, end: 4, substring: '<!--' },
+      { type: 'comment', index: 0, start: 4, end: 6, substring: 'hi' },
+      { type: 'comment-close', index: 0, start: 6, end: 9, substring: '-->' },
+    ];
+    const tokens = html`<!--hi-->`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('multi-line comments work', () => {
-    const fragment = html`<!--
+    const expectedTokens = [
+      { type: 'comment-open', index: 0, start: 0, end: 4, substring: '<!--' },
+      { type: 'comment', index: 0, start: 4, end: 22, substring: '\n        hi\n      ' },
+      { type: 'comment-close', index: 0, start: 22, end: 25, substring: '-->' },
+    ];
+    const tokens = html`<!--
         hi
       -->`;
-    assert(fragment.childNodes.length === 1);
-    assert(fragment.childNodes[0].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[0].data.trim() === 'hi');
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 });
 
 describe('character references', () => {
-  it('replaces references in replaceable character data', () => {
-    const fragment = html`<div>&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;</div>`;
-    assert(fragment.childNodes.length === 1);
-    assert(fragment.childNodes[0].textContent === `{<&>'"}`);
+  it('accepts references in replaceable character data', () => {
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 4, end: 5, substring: '>' },
+      { type: 'text-start', index: 0, start: 5, end: 5, substring: '' },
+      { type: 'text-reference', index: 0, start: 5, end: 11, substring: '&#123;' },
+      { type: 'text-plaintext', index: 0, start: 11, end: 13, substring: '--' },
+      { type: 'text-reference', index: 0, start: 13, end: 17, substring: '&lt;' },
+      { type: 'text-reference', index: 0, start: 17, end: 22, substring: '&amp;' },
+      { type: 'text-plaintext', index: 0, start: 22, end: 24, substring: '--' },
+      { type: 'text-reference', index: 0, start: 24, end: 28, substring: '&gt;' },
+      { type: 'text-reference', index: 0, start: 28, end: 34, substring: '&apos;' },
+      { type: 'text-reference', index: 0, start: 34, end: 40, substring: '&quot;' },
+      { type: 'text-plaintext', index: 0, start: 40, end: 42, substring: '--' },
+      { type: 'text-reference', index: 0, start: 42, end: 50, substring: '&#x007D;' },
+      { type: 'text-end', index: 0, start: 50, end: 50, substring: '' },
+      { type: 'end-tag-open', index: 0, start: 50, end: 52, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 52, end: 55, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 55, end: 56, substring: '>' },
+    ];
+    const tokens = html`<div>&#123;--&lt;&amp;--&gt;&apos;&quot;--&#x007D;</div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
-  it('replaces references in replaceable character data for special syntax', () => {
-    const fragment = html`&amp;&lt;&gt;&quot;&apos;`;
-    assert(fragment.textContent === `&<>"'`);
+  it('accepts references in replaceable character data for special syntax', () => {
+    const expectedTokens = [
+      { type: 'text-start', index: 0, start: 0, end: 0, substring: '' },
+      { type: 'text-reference', index: 0, start: 0, end: 5, substring: '&amp;' },
+      { type: 'text-reference', index: 0, start: 5, end: 9, substring: '&lt;' },
+      { type: 'text-reference', index: 0, start: 9, end: 13, substring: '&gt;' },
+      { type: 'text-reference', index: 0, start: 13, end: 19, substring: '&quot;' },
+      { type: 'text-reference', index: 0, start: 19, end: 25, substring: '&apos;' },
+      { type: 'text-end', index: 0, start: 25, end: 25, substring: '' },
+    ];
+    const tokens = html`&amp;&lt;&gt;&quot;&apos;`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
-  it('replaces references for commonly-used characters', () => {
-    const fragment = html`&nbsp;&lsquo;&rsquo;&ldquo;&rdquo;&ndash;&mdash;&hellip;&bull;&middot;&dagger;`;
-    assert(fragment.textContent === '\u00A0\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u2022\u00B7\u2020');
+  it('accepts references for commonly-used characters', () => {
+    const expectedTokens = [
+      { type: 'text-start', index: 0, start: 0, end: 0, substring: '' },
+      { type: 'text-reference', index: 0, start: 0, end: 6, substring: '&nbsp;' },
+      { type: 'text-reference', index: 0, start: 6, end: 13, substring: '&lsquo;' },
+      { type: 'text-reference', index: 0, start: 13, end: 20, substring: '&rsquo;' },
+      { type: 'text-reference', index: 0, start: 20, end: 27, substring: '&ldquo;' },
+      { type: 'text-reference', index: 0, start: 27, end: 34, substring: '&rdquo;' },
+      { type: 'text-reference', index: 0, start: 34, end: 41, substring: '&ndash;' },
+      { type: 'text-reference', index: 0, start: 41, end: 48, substring: '&mdash;' },
+      { type: 'text-reference', index: 0, start: 48, end: 56, substring: '&hellip;' },
+      { type: 'text-reference', index: 0, start: 56, end: 62, substring: '&bull;' },
+      { type: 'text-reference', index: 0, start: 62, end: 70, substring: '&middot;' },
+      { type: 'text-reference', index: 0, start: 70, end: 78, substring: '&dagger;' },
+      { type: 'text-end', index: 0, start: 78, end: 78, substring: '' },
+    ];
+    const tokens = html`&nbsp;&lsquo;&rsquo;&ldquo;&rdquo;&ndash;&mdash;&hellip;&bull;&middot;&dagger;`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
-  it('replaces references in attribute values', () => {
-    const fragment = html`<div foo="--&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;--"></div>`;
-    assert(fragment.childElementCount === 1);
-    assert(fragment.children[0].getAttribute('foo') === `--{<&>'"}--`);
+  it('accepts references in attribute values', () => {
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'attribute-name', index: 0, start: 5, end: 8, substring: 'foo' },
+      { type: 'start-tag-equals', index: 0, start: 8, end: 9, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 9, end: 10, substring: '"' },
+      { type: 'attribute-value-start', index: 0, start: 10, end: 10, substring: '' },
+      { type: 'attribute-value-plaintext', index: 0, start: 10, end: 12, substring: '--' },
+      { type: 'attribute-value-reference', index: 0, start: 12, end: 18, substring: '&#123;' },
+      { type: 'attribute-value-reference', index: 0, start: 18, end: 22, substring: '&lt;' },
+      { type: 'attribute-value-reference', index: 0, start: 22, end: 27, substring: '&amp;' },
+      { type: 'attribute-value-reference', index: 0, start: 27, end: 31, substring: '&gt;' },
+      { type: 'attribute-value-reference', index: 0, start: 31, end: 37, substring: '&apos;' },
+      { type: 'attribute-value-reference', index: 0, start: 37, end: 43, substring: '&quot;' },
+      { type: 'attribute-value-reference', index: 0, start: 43, end: 51, substring: '&#x007D;' },
+      { type: 'attribute-value-plaintext', index: 0, start: 51, end: 53, substring: '--' },
+      { type: 'attribute-value-end', index: 0, start: 53, end: 53, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 53, end: 54, substring: '"' },
+      { type: 'start-tag-close', index: 0, start: 54, end: 55, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 55, end: 57, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 57, end: 60, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 60, end: 61, substring: '>' },
+    ];
+    const tokens = html`<div foo="--&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;--"></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
-  it('replaces named references which require surrogate pairs', () => {
-    const fragment = html`<div>--&bopf;&bopf;--&bopf;--</div>`;
-    assert(fragment.childElementCount === 1);
-    assert(fragment.children[0].textContent === `--\uD835\uDD53\uD835\uDD53--\uD835\uDD53--`);
+  it('accepts named references which require surrogate pairs', () => {
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 4, end: 5, substring: '>' },
+      { type: 'text-start', index: 0, start: 5, end: 5, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 5, end: 7, substring: '--' },
+      { type: 'text-reference', index: 0, start: 7, end: 13, substring: '&bopf;' },
+      { type: 'text-reference', index: 0, start: 13, end: 19, substring: '&bopf;' },
+      { type: 'text-plaintext', index: 0, start: 19, end: 21, substring: '--' },
+      { type: 'text-reference', index: 0, start: 21, end: 27, substring: '&bopf;' },
+      { type: 'text-plaintext', index: 0, start: 27, end: 29, substring: '--' },
+      { type: 'text-end', index: 0, start: 29, end: 29, substring: '' },
+      { type: 'end-tag-open', index: 0, start: 29, end: 31, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 31, end: 34, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 34, end: 35, substring: '>' },
+    ];
+    const tokens = html`<div>--&bopf;&bopf;--&bopf;--</div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('leaves malformed references as-is', () => {
-    const fragment = htmlol`<div>--&:^);--</div>`;
-    assert(fragment.childElementCount === 1);
-    assert(fragment.children[0].textContent === `--&:^);--`);
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 4, end: 5, substring: '>' },
+      { type: 'text-start', index: 0, start: 5, end: 5, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 5, end: 7, substring: '--' },
+      { type: 'text-reference', index: 0, start: 7, end: 12, substring: '&:^);' },
+      { type: 'text-plaintext', index: 0, start: 12, end: 14, substring: '--' },
+      { type: 'text-end', index: 0, start: 14, end: 14, substring: '' },
+      { type: 'end-tag-open', index: 0, start: 14, end: 16, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 16, end: 19, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 19, end: 20, substring: '>' },
+    ];
+    const tokens = htmlol`<div>--&:^);--</div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 });
 
@@ -218,180 +319,380 @@ describe('JS-y escapes', () => {
 });
 
 describe('attributes and properties', () => {
-  it('unbound attributes are stamped directly into fragment', () => {
-    const fragment = html`<div id="target" f="b"></div>`;
-    assert(fragment.querySelector('#target').getAttribute('f') === 'b');
+  it('unbound attributes are reported', () => {
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'attribute-name', index: 0, start: 5, end: 6, substring: 'f' },
+      { type: 'start-tag-equals', index: 0, start: 6, end: 7, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 7, end: 8, substring: '"' },
+      { type: 'attribute-value-start', index: 0, start: 8, end: 8, substring: '' },
+      { type: 'attribute-value-plaintext', index: 0, start: 8, end: 9, substring: 'b' },
+      { type: 'attribute-value-end', index: 0, start: 9, end: 9, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 9, end: 10, substring: '"' },
+      { type: 'start-tag-close', index: 0, start: 10, end: 11, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 11, end: 13, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 13, end: 16, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 16, end: 17, substring: '>' },
+    ];
+    const tokens = html`<div f="b"></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('bound attributes are reported', () => {
-    const fragment = html`<div id="target" attr="${VALUE}"></div>`;
-    assert(!fragment.querySelector('#target').hasAttribute('attr'));
-    assert(fragment[TEST].bindings.attribute.length === 1);
-    assert(fragment[TEST].bindings.attribute[0].name === 'attr');
-    assert(fragment[TEST].bindings.attribute[0].path === '0');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'bound-attribute-name', index: 0, start: 5, end: 9, substring: 'attr' },
+      { type: 'start-tag-equals', index: 0, start: 9, end: 10, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 10, end: 11, substring: '"' },
+      { type: 'bound-attribute-value', index: 0, start: 11, end: 11, substring: '' },
+      { type: 'start-tag-quote', index: 1, start: 0, end: 1, substring: '"' },
+      { type: 'start-tag-close', index: 1, start: 1, end: 2, substring: '>' },
+      { type: 'end-tag-open', index: 1, start: 2, end: 4, substring: '</' },
+      { type: 'end-tag-name', index: 1, start: 4, end: 7, substring: 'div' },
+      { type: 'end-tag-close', index: 1, start: 7, end: 8, substring: '>' },
+    ];
+    const tokens = html`<div attr="${VALUE}"></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   // It’s also a good test that this is at the _end_ of the opening tag. If we
   //  change this, we should write another test to separately check that.
-  it('unbound boolean attributes are stamped directly into fragment', () => {
-    const fragment = html`<div id="target" foo></div>`;
-    assert(fragment.querySelector('#target').getAttribute('foo') === '');
+  it('unbound boolean attributes are reported', () => {
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'boolean-name', index: 0, start: 5, end: 8, substring: 'foo' },
+      { type: 'start-tag-close', index: 0, start: 8, end: 9, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 9, end: 11, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 11, end: 14, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 14, end: 15, substring: '>' },
+    ];
+    const tokens = html`<div foo></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('bound boolean attributes are reported', () => {
-    const fragment = html`<div id="target" ?foo="${VALUE}"></div>`;
-    assert(!fragment.querySelector('#target').hasAttribute('foo'));
-    assert(fragment[TEST].bindings.boolean.length === 1);
-    assert(fragment[TEST].bindings.boolean[0].name === 'foo');
-    assert(fragment[TEST].bindings.boolean[0].path === '0');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'bound-boolean-prefix', index: 0, start: 5, end: 6, substring: '?' },
+      { type: 'bound-boolean-name', index: 0, start: 6, end: 9, substring: 'foo' },
+      { type: 'start-tag-equals', index: 0, start: 9, end: 10, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 10, end: 11, substring: '"' },
+      { type: 'bound-boolean-value', index: 0, start: 11, end: 11, substring: '' },
+      { type: 'start-tag-quote', index: 1, start: 0, end: 1, substring: '"' },
+      { type: 'start-tag-close', index: 1, start: 1, end: 2, substring: '>' },
+      { type: 'end-tag-open', index: 1, start: 2, end: 4, substring: '</' },
+      { type: 'end-tag-name', index: 1, start: 4, end: 7, substring: 'div' },
+      { type: 'end-tag-close', index: 1, start: 7, end: 8, substring: '>' },
+    ];
+    const tokens = html`<div ?foo="${VALUE}"></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('bound defined attributes are reported', () => {
-    const fragment = html`<div id="target" ??foo="${VALUE}"></div>`;
-    assert(!fragment.querySelector('#target').hasAttribute('foo'));
-    assert(fragment[TEST].bindings.defined.length === 1);
-    assert(fragment[TEST].bindings.defined[0].name === 'foo');
-    assert(fragment[TEST].bindings.defined[0].path === '0');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'bound-defined-prefix', index: 0, start: 5, end: 7, substring: '??' },
+      { type: 'bound-defined-name', index: 0, start: 7, end: 10, substring: 'foo' },
+      { type: 'start-tag-equals', index: 0, start: 10, end: 11, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 11, end: 12, substring: '"' },
+      { type: 'bound-defined-value', index: 0, start: 12, end: 12, substring: '' },
+      { type: 'start-tag-quote', index: 1, start: 0, end: 1, substring: '"' },
+      { type: 'start-tag-close', index: 1, start: 1, end: 2, substring: '>' },
+      { type: 'end-tag-open', index: 1, start: 2, end: 4, substring: '</' },
+      { type: 'end-tag-name', index: 1, start: 4, end: 7, substring: 'div' },
+      { type: 'end-tag-close', index: 1, start: 7, end: 8, substring: '>' },
+    ];
+    const tokens = html`<div ??foo="${VALUE}"></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('unbound “on*” attributes as event handlers work', () => {
-    const fragment = html`<div onclick="this.textContent = '&hellip;hi\\u2026';"></div>`;
-    const container = document.createElement('div');
-    container.append(fragment);
-    document.body.append(container);
-    container.firstElementChild.click();
-    // Because attributes have _replaceable_ content, the “&hellip;” should be
-    //  immediately replaced and injected as the actual character “…” within the
-    //  to-be-evaluated JS script. Because the “\\u2026” is escaped, it passes
-    //  validation. Finally, because this is valid HTML text, it ought to
-    //  highlight correctly in an IDE (you have to just confirm that visually).
-    assert(container.firstElementChild.textContent = '…hi…');
-    container.remove();
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'attribute-name', index: 0, start: 5, end: 12, substring: 'onclick' },
+      { type: 'start-tag-equals', index: 0, start: 12, end: 13, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 13, end: 14, substring: '"' },
+      { type: 'attribute-value-start', index: 0, start: 14, end: 14, substring: '' },
+      { type: 'attribute-value-plaintext', index: 0, start: 14, end: 34, substring: 'this.textContent = \'' },
+      { type: 'attribute-value-reference', index: 0, start: 34, end: 42, substring: '&hellip;' },
+      { type: 'attribute-value-plaintext', index: 0, start: 42, end: 52, substring: 'hi\\u2026\';' },
+      { type: 'attribute-value-end', index: 0, start: 52, end: 52, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 52, end: 53, substring: '"' },
+      { type: 'start-tag-close', index: 0, start: 53, end: 54, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 54, end: 56, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 56, end: 59, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 59, end: 60, substring: '>' },
+    ];
+    const tokens = html`<div onclick="this.textContent = '&hellip;hi\\u2026';"></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('properties are reported', () => {
-    const fragment = html`<div id="target" .prop="${VALUE}"></div>`;
-    assert(fragment.querySelector('#target').prop === undefined);
-    assert(fragment[TEST].bindings.property.length === 1);
-    assert(fragment[TEST].bindings.property[0].name === 'prop');
-    assert(fragment[TEST].bindings.property[0].path === '0');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-space', index: 0, start: 4, end: 5, substring: ' ' },
+      { type: 'bound-property-prefix', index: 0, start: 5, end: 6, substring: '.' },
+      { type: 'bound-property-name', index: 0, start: 6, end: 10, substring: 'prop' },
+      { type: 'start-tag-equals', index: 0, start: 10, end: 11, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 11, end: 12, substring: '"' },
+      { type: 'bound-property-value', index: 0, start: 12, end: 12, substring: '' },
+      { type: 'start-tag-quote', index: 1, start: 0, end: 1, substring: '"' },
+      { type: 'start-tag-close', index: 1, start: 1, end: 2, substring: '>' },
+      { type: 'end-tag-open', index: 1, start: 2, end: 4, substring: '</' },
+      { type: 'end-tag-name', index: 1, start: 4, end: 7, substring: 'div' },
+      { type: 'end-tag-close', index: 1, start: 7, end: 8, substring: '>' },
+    ];
+    const tokens = html`<div .prop="${VALUE}"></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 });
 
 describe('content interpolation', () => {
   it('solo interpolation works', () => {
-    const fragment = html`${VALUE}`;
-    assert(fragment.childNodes.length === 2);
-    assert(fragment.childNodes[0].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[0].data === '');
-    assert(fragment.childNodes[1].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[1].data === '');
-    assert(fragment[TEST].bindings.content.length === 1);
+    const expectedTokens = [
+      { type: 'bound-content-value', index: 0, start: 0, end: 0, substring: '' },
+    ];
+    const tokens = html`${VALUE}`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('adjacent interpolations work', () => {
-    const fragment = html`${VALUE}${VALUE}`;
-    assert(fragment.childNodes.length === 4);
-    assert(fragment.childNodes[0].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[0].data === '');
-    assert(fragment.childNodes[1].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[1].data === '');
-    assert(fragment.childNodes[2].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[2].data === '');
-    assert(fragment.childNodes[3].nodeType === Node.COMMENT_NODE);
-    assert(fragment.childNodes[3].data === '');
-    assert(fragment[TEST].bindings.content.length === 2);
+    const expectedTokens = [
+      { type: 'bound-content-value', index: 0, start: 0, end: 0, substring: '' },
+      { type: 'bound-content-value', index: 1, start: 0, end: 0, substring: '' },
+    ];
+    const tokens = html`${VALUE}${VALUE}`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 });
 
 describe('odds and ends', () => {
-  it ('throws if you try and extend the base class', () => {
-    const callback = () => new (class Foo extends XParser {})();
-    const expectedMessage = 'XParser class extension is not supported.';
-    assertThrows(callback, expectedMessage);
-  });
-
   it('surprisingly-accepted characters work', () => {
-    const fragment = html`>'"&& & &<div></div>&`;
-    assert(fragment.childElementCount === 1);
-    assert(fragment.children[0].textContent === ``);
+    const expectedTokens = [
+      { type: 'text-start', index: 0, start: 0, end: 0, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 0, end: 9, substring: '>\'"&& & &' },
+      { type: 'text-end', index: 0, start: 9, end: 9, substring: '' },
+      { type: 'start-tag-open', index: 0, start: 9, end: 10, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 10, end: 13, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 13, end: 14, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 14, end: 16, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 16, end: 19, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 19, end: 20, substring: '>' },
+      { type: 'text-start', index: 0, start: 20, end: 20, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 20, end: 21, substring: '&' },
+      { type: 'text-end', index: 0, start: 21, end: 21, substring: '' },
+    ];
+    const tokens = html`>'"&& & &<div></div>&`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('elements with "/" characters in attributes work', () => {
+    const expectedTokens = [
+      { type: 'text-start', index: 0, start: 0, end: 0, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 0, end: 7, substring: '\n      ' },
+      { type: 'text-end', index: 0, start: 7, end: 7, substring: '' },
+      { type: 'start-tag-open', index: 0, start: 7, end: 8, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 8, end: 9, substring: 'a' },
+      { type: 'start-tag-space', index: 0, start: 9, end: 18, substring: '\n        ' },
+      { type: 'attribute-name', index: 0, start: 18, end: 22, substring: 'href' },
+      { type: 'start-tag-equals', index: 0, start: 22, end: 23, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 23, end: 24, substring: '"' },
+      { type: 'attribute-value-start', index: 0, start: 24, end: 24, substring: '' },
+      { type: 'attribute-value-plaintext', index: 0, start: 24, end: 60, substring: 'https://github.com/Netflix/x-element' },
+      { type: 'attribute-value-end', index: 0, start: 60, end: 60, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 60, end: 61, substring: '"' },
+      { type: 'start-tag-close', index: 0, start: 61, end: 62, substring: '>' },
+      { type: 'text-start', index: 0, start: 62, end: 62, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 62, end: 86, substring: '\n        click me\n      ' },
+      { type: 'text-end', index: 0, start: 86, end: 86, substring: '' },
+      { type: 'end-tag-open', index: 0, start: 86, end: 88, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 88, end: 89, substring: 'a' },
+      { type: 'end-tag-close', index: 0, start: 89, end: 90, substring: '>' },
+      { type: 'text-start', index: 0, start: 90, end: 90, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 90, end: 95, substring: '\n    ' },
+      { type: 'text-end', index: 0, start: 95, end: 95, substring: '' },
+    ];
     // Note the "/" character.
-    const fragment = html`
+    const tokens = html`
       <a
-        id="a"
         href="https://github.com/Netflix/x-element">
         click me
       </a>
     `;
-    const link = fragment.querySelector('#a');
-    assert(link.href === 'https://github.com/Netflix/x-element');
-    assert(link.textContent.trim() === 'click me');
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('elements with "<" or ">" characters in attributes work', () => {
+    const expectedTokens = [
+      { type: 'text-start', index: 0, start: 0, end: 0, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 0, end: 7, substring: '\n      ' },
+      { type: 'text-end', index: 0, start: 7, end: 7, substring: '' },
+      { type: 'start-tag-open', index: 0, start: 7, end: 8, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 8, end: 9, substring: 'a' },
+      { type: 'start-tag-space', index: 0, start: 9, end: 18, substring: '\n        ' },
+      { type: 'attribute-name', index: 0, start: 18, end: 26, substring: 'data-foo' },
+      { type: 'start-tag-equals', index: 0, start: 26, end: 27, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 27, end: 28, substring: '"' },
+      { type: 'attribute-value-start', index: 0, start: 28, end: 28, substring: '' },
+      { type: 'attribute-value-plaintext', index: 0, start: 28, end: 38, substring: '<><></></>' },
+      { type: 'attribute-value-end', index: 0, start: 38, end: 38, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 38, end: 39, substring: '"' },
+      { type: 'start-tag-space', index: 0, start: 39, end: 48, substring: '\n        ' },
+      { type: 'attribute-name', index: 0, start: 48, end: 52, substring: 'href' },
+      { type: 'start-tag-equals', index: 0, start: 52, end: 53, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 53, end: 54, substring: '"' },
+      { type: 'attribute-value-start', index: 0, start: 54, end: 54, substring: '' },
+      { type: 'attribute-value-plaintext', index: 0, start: 54, end: 90, substring: 'https://github.com/Netflix/x-element' },
+      { type: 'attribute-value-end', index: 0, start: 90, end: 90, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 90, end: 91, substring: '"' },
+      { type: 'start-tag-close', index: 0, start: 91, end: 92, substring: '>' },
+      { type: 'text-start', index: 0, start: 92, end: 92, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 92, end: 116, substring: '\n        click me\n      ' },
+      { type: 'text-end', index: 0, start: 116, end: 116, substring: '' },
+      { type: 'end-tag-open', index: 0, start: 116, end: 118, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 118, end: 119, substring: 'a' },
+      { type: 'end-tag-close', index: 0, start: 119, end: 120, substring: '>' },
+      { type: 'text-start', index: 0, start: 120, end: 120, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 120, end: 125, substring: '\n    ' },
+      { type: 'text-end', index: 0, start: 125, end: 125, substring: '' },
+    ];
     // Note the "/", "<", and ">" characters.
-    const fragment = html`
+    const tokens = html`
       <a
-        id="a"
         data-foo="<><></></>"
         href="https://github.com/Netflix/x-element">
         click me
       </a>
     `;
-    const link = fragment.querySelector('#a');
-    assert(link.href === 'https://github.com/Netflix/x-element');
-    assert(link.textContent.trim() === 'click me');
-    assert(link.dataset.foo === '<><></></>');
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('multiple opening and closing tags work', () => {
-    const fragment = html`<div><div></div></div>`;
-    assert(fragment.childElementCount === 1);
-    assert(fragment.children[0].childElementCount === 1);
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 4, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 4, end: 5, substring: '>' },
+      { type: 'start-tag-open', index: 0, start: 5, end: 6, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 6, end: 9, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 9, end: 10, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 10, end: 12, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 12, end: 15, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 15, end: 16, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 16, end: 18, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 18, end: 21, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 21, end: 22, substring: '>' },
+    ];
+    const tokens = html`<div><div></div></div>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('void elements work', () => {
-    const fragment = html`<input type="checkbox" value="${VALUE}">`;
-    assert(fragment.querySelector('input').type === 'checkbox');
-    assert(fragment[TEST].bindings.attribute.length === 1);
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 6, substring: 'input' },
+      { type: 'start-tag-space', index: 0, start: 6, end: 7, substring: ' ' },
+      { type: 'attribute-name', index: 0, start: 7, end: 11, substring: 'type' },
+      { type: 'start-tag-equals', index: 0, start: 11, end: 12, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 12, end: 13, substring: '"' },
+      { type: 'attribute-value-start', index: 0, start: 13, end: 13, substring: '' },
+      { type: 'attribute-value-plaintext', index: 0, start: 13, end: 21, substring: 'checkbox' },
+      { type: 'attribute-value-end', index: 0, start: 21, end: 21, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 21, end: 22, substring: '"' },
+      { type: 'start-tag-space', index: 0, start: 22, end: 23, substring: ' ' },
+      { type: 'bound-attribute-name', index: 0, start: 23, end: 28, substring: 'value' },
+      { type: 'start-tag-equals', index: 0, start: 28, end: 29, substring: '=' },
+      { type: 'start-tag-quote', index: 0, start: 29, end: 30, substring: '"' },
+      { type: 'bound-attribute-value', index: 0, start: 30, end: 30, substring: '' },
+      { type: 'start-tag-quote', index: 1, start: 0, end: 1, substring: '"' },
+      { type: 'void-tag-close', index: 1, start: 1, end: 2, substring: '>' },
+    ];
+    const tokens = html`<input type="checkbox" value="${VALUE}">`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('textarea elements work', () => {
-    const fragment = html`<textarea><em>this</em> is the &ldquo;default&rdquo; value</textarea>`;
-    assert(fragment.querySelector('textarea').value === '<em>this</em> is the “default” value');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 9, substring: 'textarea' },
+      { type: 'start-tag-close', index: 0, start: 9, end: 10, substring: '>' },
+      { type: 'text-start', index: 0, start: 10, end: 10, substring: '' },
+      { type: 'text-plaintext', index: 0, start: 10, end: 31, substring: '<em>this</em> is the ' },
+      { type: 'text-reference', index: 0, start: 31, end: 38, substring: '&ldquo;' },
+      { type: 'text-plaintext', index: 0, start: 38, end: 45, substring: 'default' },
+      { type: 'text-reference', index: 0, start: 45, end: 52, substring: '&rdquo;' },
+      { type: 'text-plaintext', index: 0, start: 52, end: 58, substring: ' value' },
+      { type: 'text-end', index: 0, start: 58, end: 58, substring: '' },
+      { type: 'end-tag-open', index: 0, start: 58, end: 60, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 60, end: 68, substring: 'textarea' },
+      { type: 'end-tag-close', index: 0, start: 68, end: 69, substring: '>' },
+    ];
+    const tokens = html`<textarea><em>this</em> is the &ldquo;default&rdquo; value</textarea>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('textarea elements with strict interpolation work', () => {
-    const fragment = html`<textarea>${VALUE}</textarea>`;
-    assert(fragment[TEST].bindings.text.length === 1);
-  });
-
-  it('pre elements with optional, initial newline work', () => {
-    const expected = '        hi\n      ';
-    const fragment = html`
-      <pre>
-        <span>hi</span>
-      </pre>
-    `;
-    assert(fragment.querySelector('pre').textContent === expected); // first newline is removed
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 9, substring: 'textarea' },
+      { type: 'start-tag-close', index: 0, start: 9, end: 10, substring: '>' },
+      { type: 'bound-text-value', index: 0, start: 10, end: 10, substring: '' },
+      { type: 'end-tag-open', index: 1, start: 0, end: 2, substring: '</' },
+      { type: 'end-tag-name', index: 1, start: 2, end: 10, substring: 'textarea' },
+      { type: 'end-tag-close', index: 1, start: 10, end: 11, substring: '>' },
+    ];
+    const tokens = html`<textarea>${VALUE}</textarea>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('custom elements work', () => {
-    const fragment = html`<foo-bar></foo-bar>`;
-    assert(fragment.childElementCount === 1);
-    assert(fragment.children[0].localName === 'foo-bar');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 8, substring: 'foo-bar' },
+      { type: 'start-tag-close', index: 0, start: 8, end: 9, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 9, end: 11, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 11, end: 18, substring: 'foo-bar' },
+      { type: 'end-tag-close', index: 0, start: 18, end: 19, substring: '>' },
+    ];
+    const tokens = html`<foo-bar></foo-bar>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
   it('template elements work', () => {
-    // It’s important that the _content_ is populated here. Not the template.
-    const fragment = html`<template><div><p></p></div></template>`;
-    assert(!!fragment.querySelector('template'));
-    assert(fragment.querySelector('template').content.childElementCount === 1);
-    assert(fragment.querySelector('template').content.children[0].childElementCount === 1);
-    assert(fragment.querySelector('template').content.children[0].children[0].localName === 'p');
+    const expectedTokens = [
+      { type: 'start-tag-open', index: 0, start: 0, end: 1, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 1, end: 9, substring: 'template' },
+      { type: 'start-tag-close', index: 0, start: 9, end: 10, substring: '>' },
+      { type: 'start-tag-open', index: 0, start: 10, end: 11, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 11, end: 14, substring: 'div' },
+      { type: 'start-tag-close', index: 0, start: 14, end: 15, substring: '>' },
+      { type: 'start-tag-open', index: 0, start: 15, end: 16, substring: '<' },
+      { type: 'start-tag-name', index: 0, start: 16, end: 17, substring: 'p' },
+      { type: 'start-tag-close', index: 0, start: 17, end: 18, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 18, end: 20, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 20, end: 21, substring: 'p' },
+      { type: 'end-tag-close', index: 0, start: 21, end: 22, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 22, end: 24, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 24, end: 27, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 27, end: 28, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 28, end: 30, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 30, end: 38, substring: 'template' },
+      { type: 'end-tag-close', index: 0, start: 38, end: 39, substring: '>' },
+    ];
+    const tokens = html`<template><div><p></p></div></template>`;
+    assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 });
 
@@ -1080,8 +1381,10 @@ describe('html error formatting', () => {
 });
 
 describe('validate', () => {
+  // For simple validation purposes — a noop “onToken” can be provided.
+  const onToken = () => {};
   // eslint-disable-next-line no-shadow
-  const html = strings => wrapper(validator, strings);
+  const html = strings => XParser.parse(strings, onToken);
 
   it('basic templates work', () => {
     html`<div>hello world</div>`;

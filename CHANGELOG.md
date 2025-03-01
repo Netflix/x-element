@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the usage of spaces and newlines (#239).
 - There are now three files in this repo — “x-element.js” which is all about
   element interfaces, “x-template.js” which is all about DOM management, and
-  “x-parser.js” which is all about turning markup into a document fragment.
+  “x-parser.js” which is all about interpolated html markup interpretation.
 
 ### Removed
 

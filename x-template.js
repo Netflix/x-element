@@ -1,7 +1,5 @@
 import { XParser } from './x-parser.js';
 
-const parser = new XParser();
-
 /** Internal implementation details for template engine. */
 class TemplateEngine {
   // Types of bindings that we can have.
@@ -22,6 +20,12 @@ class TemplateEngine {
   // Sentinels to manage internal state on nodes.
   static #STATE = Symbol();
   static #ARRAY_STATE = Symbol();
+
+  // It’s more performant to clone a single fragment, so we keep a reference.
+  static #fragment = new DocumentFragment();
+
+  // We decode character references via “setHTMLUnsafe” on this container.
+  static #htmlEntityContainer = document.createElement('template');
 
   // Mapping of tagged template function “strings” to caches computations.
   static #stringsToAnalysis = new WeakMap();
@@ -132,6 +136,134 @@ class TemplateEngine {
       value === undefined || value === null
         ? node.removeAttribute(name)
         : node.setAttribute(name, value);
+    }
+  }
+
+
+  // We only decode things we know to be encoded since it’s non-performant.
+  static #decode(encoded) {
+    this.#htmlEntityContainer.innerHTML = encoded;
+    const decoded = this.#htmlEntityContainer.content.textContent;
+    return decoded;
+  }
+
+  // Walk over a pre-validated set of tokens from our parser. Note that because
+  //  the parser is _very_ strict, we can make a lot of simplifying assumptions.
+  static #onToken(
+    // These areguments are passed in through a “bind”.
+    state, onBoolean, onDefined, onAttribute, onProperty, onContent, onText,
+    // These arguments are passed in through the “onToken” callback.
+    type, index, start, end, substring
+  ) {
+    switch (type) {
+      case XParser.tokenTypes.startTagName: {
+        const tagName = substring;
+        const childNode = globalThis.document.createElement(tagName);
+        state.tagName === 'template'
+          // @ts-ignore — TypeScript doesn’t get that this is a template.
+          ? state.element.content.appendChild(childNode)
+          : state.element.appendChild(childNode);
+        state.parentElements.push(state.element);
+        state.parentTagNames.push(state.tagName);
+        state.element = childNode;
+        state.tagName = tagName;
+        state.childNodesIndex += 1;
+        state.path.push(state.childNodesIndex);
+        break;
+      }
+      case XParser.tokenTypes.voidTagClose:
+        state.element = state.parentElements.pop();
+        state.tagName = state.parentTagNames.pop();
+        state.childNodesIndex = state.path.pop();
+        break;
+      case XParser.tokenTypes.startTagClose:
+        // Assume we’re traversing into the new element and reset index.
+        state.childNodesIndex = -1;
+        break;
+      case XParser.tokenTypes.endTagName:
+        state.childNodesIndex = state.path.pop();
+        state.element = state.parentElements.pop();
+        state.tagName = state.parentTagNames.pop();
+        break;
+      case XParser.tokenTypes.attributeName:
+      case XParser.tokenTypes.boundAttributeName:
+      case XParser.tokenTypes.boundBooleanName:
+      case XParser.tokenTypes.boundDefinedName:
+      case XParser.tokenTypes.boundPropertyName:
+        state.name = substring;
+        break;
+      case XParser.tokenTypes.booleanName: {
+        // @ts-ignore — TypeScript doesn’t get that this is an element.
+        state.element.setAttribute(substring, '');
+        break;
+      }
+      case XParser.tokenTypes.comment:
+        state.element.appendChild(document.createComment(substring));
+        state.childNodesIndex += 1;
+        break;
+      case XParser.tokenTypes.textPlaintext:
+      case XParser.tokenTypes.attributeValuePlaintext:
+        state.text += substring;
+        break;
+      case XParser.tokenTypes.textReference:
+      case XParser.tokenTypes.attributeValueReference:
+        state.text += substring;
+        state.encoded = true;
+        break;
+      case XParser.tokenTypes.textEnd: {
+        const decoded = state.encoded ? TemplateEngine.#decode(state.text) : state.text;
+        if (
+          state.tagName === 'pre' &&
+          state.childNodesIndex === -1 &&
+          decoded.startsWith('\n')
+        ) {
+          // First newline is stripped according to the <pre> tag specification.
+          //  https://html.spec.whatwg.org/multipage/grouping-content.html#the-pre-element
+          state.element.appendChild(document.createTextNode(decoded.slice(1)));
+        } else {
+          state.element.appendChild(document.createTextNode(decoded));
+        }
+        state.childNodesIndex += 1;
+        state.encoded = false;
+        state.text = '';
+        break;
+      }
+      case XParser.tokenTypes.attributeValueEnd: {
+        const decoded = state.encoded ? TemplateEngine.#decode(state.text) : state.text;
+        // @ts-ignore — TypeScript doesn’t get that this is an element.
+        state.element.setAttribute(state.name, decoded);
+        state.name = null;
+        state.encoded = false;
+        state.text = '';
+        break;
+      }
+      case XParser.tokenTypes.boundTextValue:
+        onText(state.path);
+        break;
+      case XParser.tokenTypes.boundContentValue:
+        // @ts-ignore — TypeScript doesn’t get that this is an element.
+        state.element.append(document.createComment(''), document.createComment(''));
+        state.childNodesIndex += 2;
+        state.path.push(state.childNodesIndex);
+        onContent(state.path);
+        state.path.pop();
+        break;
+      case XParser.tokenTypes.boundAttributeValue:
+        onAttribute(state.name, state.path);
+        state.name = null;
+        break;
+      case XParser.tokenTypes.boundBooleanValue:
+        onBoolean(state.name, state.path);
+        state.name = null;
+        break;
+      case XParser.tokenTypes.boundDefinedValue:
+        onDefined(state.name, state.path);
+        state.name = null;
+        break;
+      case XParser.tokenTypes.boundPropertyValue:
+        onProperty(state.name, state.path);
+        state.name = null;
+        break;
     }
   }
 
@@ -484,6 +616,18 @@ class TemplateEngine {
   static #createRawResult(strings, values) {
     const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
     if (!analysis.done) {
+      const fragment = TemplateEngine.#fragment.cloneNode(false);
+      const state = {
+        path: [],
+        parentElements: [],
+        parentTagNames: [],
+        element: fragment,
+        tagName: null,
+        childNodesIndex: -1,
+        encoded: false,
+        text: '',
+        name: null,
+      };
       const lookups = {};
       const onBoolean = TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#BOOLEAN);
       const onDefined = TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#DEFINED);
@@ -491,7 +635,8 @@ class TemplateEngine {
       const onProperty =  TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#PROPERTY);
       const onContent = TemplateEngine.#storeContentLookup.bind(null, lookups);
       const onText = TemplateEngine.#storeTextLookup.bind(null, lookups);
-      const fragment = parser.parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText);
+      const onToken = TemplateEngine.#onToken.bind(null, state, onBoolean, onDefined, onAttribute, onProperty, onContent, onText);
+      XParser.parse(strings, onToken);
       analysis.fragment = fragment;
       analysis.lookups = lookups;
       analysis.done = true;
