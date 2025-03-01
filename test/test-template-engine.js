@@ -61,6 +61,15 @@ describe('html rendering', () => {
     assert(container.childNodes[0].textContent === 'This is HTML: "&ldquo;<div></div>&rdquo;"');
   });
 
+  it('renders void tags', () => {
+    const container = document.createElement('div');
+    render(container, html`<input><br><input>`);
+    assert(container.childNodes.length === 3);
+    assert(container.childNodes[0].localName === 'input');
+    assert(container.childNodes[1].localName === 'br');
+    assert(container.childNodes[2].localName === 'input');
+  });
+
   it('renders template elements', () => {
     // It’s important that the _content_ is populated here. Not the template.
     const container = document.createElement('div');

@@ -641,6 +641,16 @@ export class XParser {
     }
   }
 
+  // This validates a specific case where we need to reject “template” elements
+  //  which have “declarative shadow roots” via a “shadowrootmode” attribute.
+  static #validateNoDeclarativeShadowRoots(tagName, attributeName) {
+    if (tagName === 'template' && attributeName === 'shadowrootmode') {
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+    }
+  }
+
   // This can only happen with a “textarea” element, currently. Note that the
   //  subscriber is notified about this as a “text” binding not a “content”
   //  binding so that it correctly bind _any_ interpolated value to the
@@ -715,13 +725,7 @@ export class XParser {
   static #sendBooleanTokens(onToken, tagName, stringsIndex, string, stringIndex, nextStringIndex) {
     // A boolean attribute in a start tag — “data-has-flag”
     const attributeName = string.slice(stringIndex, nextStringIndex);
-    if (tagName === 'template') {
-      if (attributeName === 'shadowrootmode') {
-        const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
-        const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
-        throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
-      }
-    }
+    XParser.#validateNoDeclarativeShadowRoots(tagName, attributeName);
     onToken(XParser.tokenTypes.booleanName, stringsIndex, stringIndex, nextStringIndex, attributeName);
   }
 
@@ -731,13 +735,7 @@ export class XParser {
     // An attribute in a start tag — “data-foo="bar"”
     const equalsStart = string.indexOf('=', stringIndex);
     const attributeName = string.slice(stringIndex, equalsStart);
-    if (tagName === 'template') {
-      if (attributeName === 'shadowrootmode') {
-        const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
-        const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
-        throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
-      }
-    }
+    XParser.#validateNoDeclarativeShadowRoots(tagName, attributeName);
     const equalsEnd = equalsStart + 1;
     const valueStart = equalsEnd + 1;
     const valueEnd = nextStringIndex - 1;

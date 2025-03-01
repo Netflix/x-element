@@ -55,6 +55,7 @@ export class XParser {
     static "__#1@#validateExit"(tagName: any): void;
     static "__#1@#sendInnerTextTokens"(onToken: any, string: any, index: any, start: any, end: any, plaintextType: any, referenceType: any): void;
     static "__#1@#validateTagName"(tagName: any): void;
+    static "__#1@#validateNoDeclarativeShadowRoots"(tagName: any, attributeName: any): void;
     static "__#1@#sendBoundTextTokens"(onToken: any, stringsIndex: any, string: any, stringIndex: any, sloppyStartInterpolation: any): void;
     static "__#1@#sendBoundContentTokens"(onToken: any, stringsIndex: any, string: any, stringIndex: any): void;
     static "__#1@#sendTextTokens"(onToken: any, stringsIndex: any, string: any, stringIndex: any, nextStringIndex: any): void;
