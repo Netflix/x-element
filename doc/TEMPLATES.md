@@ -1,7 +1,8 @@
 # Templates & DOM
 
-Because `x-element` has zero dependencies it ships with an integrated template
-engine. Developers can choose alternatives according to their preference, e.g.
+Because `x-element` has zero dependencies, it ships with an integrated template
+engine which is invoked when you use the `html` tagged template function.
+Developers can choose alternatives according to their preference, e.g.
 `lit-html`, `ReactDOM`, etc.
 
 Add a static template function in your `x-element` definition in order to
@@ -44,11 +45,6 @@ Browsers must serialize values assigned to a DOM node’s attributes using
 you can specify the anticipated type of an `x-element` property which will
 throw a runtime error if it’s ever set to a value of an unanticipated type.
 
-The following template languages are supported:
-
-* `html`
-* `svg`
-
 **A note on non-primitive data:**
 
 Because DOM manipulation is *slow* — template engines do their best to avoid it
@@ -62,7 +58,7 @@ and don’t do this: `element.property.foo = 'bar'`.
 
 There are only a handful of bindings. And for each of those bindings, there are
 only a handful of _value types_ that are appropriate. This section will cover
-everything by binding, and then by value type.
+everything by “binding”, and then by “value type”.
 
 ### Attribute binding
 
@@ -272,6 +268,27 @@ const template = item => html`<span>${item.text}</span>`;
 const bar = items.map(item => [identify(item), template(item)]);
 html`<div>${bar}</div>`;
 // <div><span>♥1</span>…<span>♣A</span></div>
+```
+
+#### DocumentFragment content binding
+
+When the content being bound is a `DocumentFragment` (e.g., from a `<template>`
+element’s `.content` property), the child nodes of that fragment will be added
+via an `.append(fragment)` on the parent container. This _moves_ those nodes
+from the fragment to the container (i.e., _not_ a copy). To prevent developers
+from unintentionally re-binding an already-exhausted fragment, the template
+engine _will throw_ when an empty document fragment is provided.
+
+```js
+const template = document.createElement('template');
+template.setHTMLUnsafe(`<script>console.log('hello world');</script>`);
+const fragment = template.content.cloneNode(true);
+
+html`<div>${fragment}</div>`;
+// <div><script>console.log('hello world');</script></div>
+
+html`<div>${fragment}</div>`;
+// Error: Unexpected child element count of zero for given DocumentFragment.
 ```
 
 ## Customizing your base class

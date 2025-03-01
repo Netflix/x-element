@@ -204,7 +204,7 @@ function html(strings, ...values) {
 
 // Renderer to update DOM in the desired container.
 const render = (container, result) => {
-  container.innerHTML = createHtml(result);
+  container.setHTMLUnsafe(createHtml(result));
 };
 
 export { html, render };
@@ -257,8 +257,8 @@ DOM manipulation is expensive! We should guard against unnecessary updates.
 
 Our `html` tagged template function has the _right name_, but all it really does
 is concatenate a series of strings. The `render` function just resets the
-content of the container by fully replacing it’s `innerHTML` string. So, room
-for improvement! Let‘s try to make this more _html-aware_.
+content of the container by fully replacing it’s inner html via `setHTMLUnsafe`.
+So, room for improvement! Let‘s try to make this more _html-aware_.
 
 ```js
 // Patterns to find special edges in original html strings.
@@ -296,10 +296,10 @@ function createHtml(strings) {
   return html;
 }
 
-// Instantiate a fragment by setting innerHTML.
+// Instantiate a fragment by calling setHTMLUnsafe.
 function createFragment(strings) {
   const template = document.createElement('template');
-  template.innerHTML = createHtml(strings);
+  template.setHTMLUnsafe(createHtml(strings));
   return template.content;
 }
 
@@ -533,10 +533,10 @@ function createHtml(strings) {
   return html;
 }
 
-// Instantiate a fragment by setting innerHTML.
+// Instantiate a fragment by calling setHTMLUnsafe.
 function createFragment(strings) {
   const template = document.createElement('template');
-  template.innerHTML = createHtml(strings);
+  template.setHTMLUnsafe(createHtml(strings));
   return template.content;
 }
 
