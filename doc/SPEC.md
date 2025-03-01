@@ -80,7 +80,7 @@ class RightTriangle extends XElement {
 
   static template(html) {
     return ({ base, height, hypotenuse }) => html`
-      <code>Math.hypot(${base}, ${height}) = ${hypotenuse}<code>
+      <code>Math.hypot(${base}, ${height}) = ${hypotenuse}</code>
     `;
   }
 }
@@ -137,7 +137,7 @@ class MyElement extends XElement {
   }
 
   static template(html) {
-    return ({ date }) => html`<span>${date}<span>`;
+    return ({ date }) => html`<span>${date}</span>`;
   }
 }
 ```
@@ -351,7 +351,7 @@ class MyElement extends XElement {
         compute: tag => document.createElement(tag),
         observe: (host, element) => {
           const container = host.shadowRoot.getElementById('container');
-          container.innerHTML = '';
+          container.setHTMLUnsafe('');
           container.append(element);
         }
       },
@@ -369,7 +369,7 @@ class MyElement extends XElement {
 
   static template(html) {
     return () => {
-      return html`<div id="container"></span>`;
+      return html`<div id="container"></div>`;
     }
   }
 }
