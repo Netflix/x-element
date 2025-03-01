@@ -53,11 +53,64 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').textContent === 'No interpolation.');
   });
 
+  it('renders comments', () => {
+    const container = document.createElement('div');
+    render(container, html`<!--This is HTML: "&ldquo;<div></div>&rdquo;"-->`);
+    assert(container.childNodes.length === 1);
+    // Note that character references are _not_ replaced — this is _just text_.
+    assert(container.childNodes[0].textContent === 'This is HTML: "&ldquo;<div></div>&rdquo;"');
+  });
+
+  it('renders template elements', () => {
+    // It’s important that the _content_ is populated here. Not the template.
+    const container = document.createElement('div');
+    render(container, html`<template><div><p></p></div></template>`);
+    assert(!!container.querySelector('template'));
+    assert(container.querySelector('template').content.childElementCount === 1);
+    assert(container.querySelector('template').content.children[0].childElementCount === 1);
+    assert(container.querySelector('template').content.children[0].children[0].localName === 'p');
+  });
+
+  it('renders pre elements with optional, initial newline', () => {
+    const expected = '        hi\n      ';
+    const container = document.createElement('div');
+    render(container, html`
+      <pre>
+        <span>hi</span>
+      </pre>
+    `);
+    assert(container.querySelector('pre').textContent === expected); // first newline is removed
+  });
+
   it('renders named html entities in text content', () => {
     const container = document.createElement('div');
     render(container, html`<div>${'--'}&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;${'--'}</div>`);
     assert(container.childNodes.length === 1);
     assert(container.childNodes[0].textContent === `--{<&>'"}--`);
+  });
+
+  it('renders direct references in replaceable character data', () => {
+    const container = document.createElement('div');
+    render(container, html`&amp;&lt;&gt;&quot;&apos;`);
+    assert(container.textContent === `&<>"'`);
+  });
+
+  it('renders references for commonly-used characters', () => {
+    const container = document.createElement('div');
+    render(container, html`&nbsp;&lsquo;&rsquo;&ldquo;&rdquo;&ndash;&mdash;&hellip;&bull;&middot;&dagger;`);
+    assert(container.textContent === '\u00A0\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u2022\u00B7\u2020');
+  });
+
+  it('renders named references which require surrogate pairs', () => {
+    const container = document.createElement('div');
+    render(container,  html`<div>--&bopf;&bopf;--&bopf;--</div>`);
+    assert(container.children[0].textContent === `--\uD835\uDD53\uD835\uDD53--\uD835\uDD53--`);
+  });
+
+  it('leaves malformed references as-is', () => {
+    const container = document.createElement('div');
+    render(container,  html`<div>--&:^);--</div>`);
+    assert(container.children[0].textContent === `--&:^);--`);
   });
 
   it('renders interpolated content without parsing', () => {
@@ -225,6 +278,13 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').getAttribute('attr') === 'bar');
   });
 
+  it('renders references in attribute values', () => {
+    const container = document.createElement('div');
+    render(container, html`<div foo="--&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;--"></div>`);
+    assert(container.childElementCount === 1);
+    assert(container.children[0].getAttribute('foo') === `--{<&>'"}--`);
+  });
+
   it('renders boolean attributes', () => {
     const getTemplate = ({ attr }) => {
       return html`<div id="target" ?attr="${attr}"></div>`;
@@ -290,6 +350,11 @@ describe('html rendering', () => {
     document.body.append(container);
     render(container, html`<div .onclick="${function() { this.textContent = '…hi\u2026'; }}"></div>`);
     container.firstElementChild.click();
+    // Because attributes have _replaceable_ content, the “&hellip;” should be
+    //  immediately replaced and injected as the actual character “…” within the
+    //  to-be-evaluated JS script. Because the “\\u2026” is escaped, it passes
+    //  validation. Finally, because this is valid HTML text, it ought to
+    //  highlight correctly in an IDE (you have to just confirm that visually).
     assert(container.firstElementChild.textContent = '…hi…');
     container.remove();
   });

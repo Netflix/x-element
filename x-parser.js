@@ -3,34 +3,20 @@ export class XParser {
   // We use this to add machine-readable context to parsing errors.
   static #errorContextKey = Symbol();
 
-  // Integrators may mock global window object (e.g., for eslint validation).
-  #window = null;
-
-  // It’s more performant to clone a single fragment, so we keep a reference.
-  #fragment = null;
-
-  // We decode character references via “setHTMLUnsafe” on this container.
-  #htmlEntityContainer = null;
-
-  // DOM introspection is expensive. Since we are creating all of the elements,
-  //  we can cache the introspections we need behind performant lookups.
-  #localName = Symbol();
-  #parentNode = Symbol();
-
   // Delimiter we add to improve debugging. E.g., `<div id="${…}"></div>`.
-  #delimiter = '${\u2026}';
+  static #delimiter = '${\u2026}';
 
   //////////////////////////////////////////////////////////////////////////////
   // HTML - https://developer.mozilla.org/en-US/docs/Web/HTML/Element //////////
   //////////////////////////////////////////////////////////////////////////////
 
   // Void tags - https://developer.mozilla.org/en-US/docs/Glossary/Void_element
-  #voidHtmlElements = new Set([
+  static #voidHtmlElements = new Set([
     'area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input',
     'keygen', 'link', 'meta', 'source', 'track', 'wbr',
   ]);
 
-  #htmlElements = new Set([
+  static #htmlElements = new Set([
     // Main Root
     'html',
     // Document metadata
@@ -72,14 +58,14 @@ export class XParser {
     'image', 'marquee', 'menuitem', 'nobr', 'noembed', 'noframes', 'param',
     'plaintext', 'rb', 'rtc', 'shadow', 'strike', 'tt', 'xmp',
   ]);
-  #deniedHtmlElements = new Set([
+  static #deniedHtmlElements = new Set([
     'html', 'head', 'base', 'link', 'meta', 'title', 'style', 'body', 'script',
     'noscript', 'canvas', 'acronym', 'big', 'center', 'content', 'dir', 'font',
     'frame', 'frameset', 'image', 'marquee', 'menuitem', 'nobr', 'noembed',
     'noframes', 'param', 'plaintext', 'rb', 'rtc', 'shadow', 'strike',
     'tt', 'xmp', 'math', 'svg',
   ]);
-  #allowedHtmlElements = this.#htmlElements.difference(this.#deniedHtmlElements);
+  static #allowedHtmlElements = XParser.#htmlElements.difference(XParser.#deniedHtmlElements);
 
   //////////////////////////////////////////////////////////////////////////////
   // Parsing State Values //////////////////////////////////////////////////////
@@ -92,16 +78,16 @@ export class XParser {
   //  related pattern to match. Initial is just the state we start in and we
   //  only find bound content at string terminals (i.e., interpolations). The
   //  patterns below are intentionally unmatchable.
-  #initial =      /\b\B/y;
-  #boundContent = /\b\B/y;
+  static #initial =      /\b\B/y;
+  static #boundContent = /\b\B/y;
 
-  // Our unbound content rules follow the “normal character data” spec.
+  // Our text rules follow the “normal character data” spec.
   //  https://w3c.github.io/html-reference/syntax.html#normal-character-data
-  #unboundContent = /[^<]+/y;
+  static #text = /[^<]+/y;
 
   // Our comment rules follow the “comments” spec.
   //  https://w3c.github.io/html-reference/syntax.html#comments
-  #unboundComment = /<!--.*?-->/ys;
+  static #comment = /<!--.*?-->/ys;
 
   // Our tag name rules are more restrictive than the “tag name” spec.
   //  https://html.spec.whatwg.org/multipage/syntax.html#syntax-tag-name
@@ -113,9 +99,9 @@ export class XParser {
   // Examples:
   //  - ok: <h6>, <my-element-1>
   //  - not ok: <-div>, <1-my-element>
-  #openTagStart = /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
-  #closeTag =   /<\/(?![0-9-])[a-z0-9-]+(?<!-)>/y;
-  #openTagEnd = /(?<![\s\n])>/y;
+  static #startTagOpen = /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  static #endTag =     /<\/(?![0-9-])[a-z0-9-]+(?<!-)>/y;
+  static #startTagClose = /(?<![\s\n])>/y;
 
   // TODO: Check on performance for this pattern. We want to do a positive
   //  lookahead so that we report the correct failure on fail.
@@ -127,7 +113,7 @@ export class XParser {
   // Examples:
   //  - ok: <div foo bar>, <div\n  foo\n  bar>
   //  - not ok: <div foo  bar>, <div\n\n  foo\n\n  bar>, <div\tfoo\tbar>
-  #openTagSpace = / (?! )|\n *(?!\n)(?=[-_.?a-zA-Z0-9>])/y;
+  static #startTagSpace = / (?! )|\n *(?!\n)(?=[-_.?a-zA-Z0-9>])/y;
 
   // Our attribute rules are more restrictive than the “attribute” spec.
   //  https://html.spec.whatwg.org/multipage/syntax.html#attributes-2
@@ -143,11 +129,11 @@ export class XParser {
   // Full attribute examples:
   //  - ok: foo, foo="bar", ?foo="${'bar'}", ??foo="${'bar'}", foo="${'bar'}"
   //  - not ok: foo='bar', ?foo, foo=${'bar'}
-  #unboundBoolean =   /(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
-  #unboundAttribute = /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
-  #boundBoolean =   /\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
-  #boundDefined = /\?\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
-  #boundAttribute =   /(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  static #boolean =          /(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  static #attribute =        /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
+  static #boundBoolean =   /\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  static #boundDefined = /\?\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  static #boundAttribute =   /(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
 
   // There is no concept of a property binding in the HTML specification, but
   //  our DSL allows for a preceding “.” for bound properties.
@@ -162,14 +148,14 @@ export class XParser {
   // Full property examples:
   //  - ok: .foo="${'bar'}"
   //  - not ok: .foo='${'bar'}', .foo="bar"
-  #boundProperty = /\.(?![A-Z0-9_])[a-zA-Z0-9_]+(?<!_)="$/y;
+  static #boundProperty = /\.(?![A-Z0-9_])[a-zA-Z0-9_]+(?<!_)="$/y;
 
   // We require that values bound to attributes and properties be enclosed
   //  in double-quotes (see above patterns). Because interpolations delimit our
   //  “strings”, we need to check that the _next_ string begins with a
   //  double-quote. Note that it must precede a space, a newline, or the closing
   //  angle bracket of the opening tag.
-  #danglingQuote = /"(?=[ \n>])/y;
+  static #danglingQuote = /"(?=[ \n>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Special Tag Patterns //////////////////////////////////////////////////////
@@ -180,7 +166,7 @@ export class XParser {
   //  and closing tags as the content. Note that we allow the “.” to match
   //  across newlines.
   //  https://w3c.github.io/html-reference/syntax.html#replaceable-character-data
-  #throughTextarea = /.*?<\/textarea>/ys;
+  static #throughTextarea = /.*?<\/textarea>/ys;
 
   //////////////////////////////////////////////////////////////////////////////
   // JS-y Escapes //////////////////////////////////////////////////////////////
@@ -200,7 +186,7 @@ export class XParser {
   // Examples:
   //  - ok: html`&#8230;`, html`&#x2026;`, html`&mldr;`, html`&hellip;`, html`\\n`
   //  - not ok: html`\nhi\nthere`, html`\x8230`, html`\u2026`, html`\s\t\o\p\ \i\t\.`
-  #rawJsEscape = /.*(?<!\\)(?:\\{2})*\\(?![$\\`])/ys;
+  static #rawJsEscape = /.*(?<!\\)(?:\\{2})*\\(?![$\\`])/ys;
 
   //////////////////////////////////////////////////////////////////////////////
   // Character References //////////////////////////////////////////////////////
@@ -216,8 +202,8 @@ export class XParser {
   //  characters as replacement text. We match such entities broadly and then
   //  rely on setHTMLUnsafe to decode.
   // https://w3c.github.io/html-reference/syntax.html#character-encoding
-  #entity =          /&.*?;/ys;
-  #htmlEntityStart = /[^&]*&[^&\s\n<]/y;
+  static #entity =          /&.*?;/ys;
+  static #htmlEntityStart = /[^&]*&[^&\s\n<]/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // CDATA /////////////////////////////////////////////////////////////////////
@@ -230,7 +216,7 @@ export class XParser {
   //  - <div><![CDATA[x < y]]></div>
   //  - <div>x &lt; y</div>
   //  … we make an opinion that authors should just use the latter.
-  #cdataStart = /<!\[CDATA\[/y;
+  static #cdataStart = /<!\[CDATA\[/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Common Mistakes ///////////////////////////////////////////////////////////
@@ -238,25 +224,25 @@ export class XParser {
 
   // See if weird spaces were added or if incorrect characters were used in
   //  open or close tags.
-  #openTagStartMalformed = /<[\s\n]*[a-zA-Z0-9_-]+/y;
-  #openTagSpaceMalformed = /[\s\n]+/y;
-  #openTagEndMalformed =   /[\s\n]*\/?>/y;
-  #closeTagMalformed =     /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
+  static #startTagOpenMalformed = /<[\s\n]*[a-zA-Z0-9_-]+/y;
+  static #startTagSpaceMalformed = /[\s\n]+/y;
+  static #startTagCloseMalformed = /[\s\n]*\/?>/y;
+  static #endTagMalformed =       /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
-  //  either unbound or bound attributes.
-  #unboundBooleanMalformed =   /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
-  #unboundAttributeMalformed = /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
-  #boundBooleanMalformed =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
-  #boundDefinedMalformed = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
-  #boundAttributeMalformed =   /[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  //  either normal or bound attributes.
+  static #booleanMalformed =          /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
+  static #attributeMalformed =        /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
+  static #boundBooleanMalformed =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundDefinedMalformed = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundAttributeMalformed =   /[a-zA-Z0-9-_]+=(?:"|')?$/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
   //  a bound property.
-  #boundPropertyMalformed = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundPropertyMalformed = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
 
   // See if the quote pair was malformed or missing.
-  #danglingQuoteMalformed = /'?(?=[\s\n>])/y;
+  static #danglingQuoteMalformed = /'?(?=[\s\n>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Errors ////////////////////////////////////////////////////////////////////
@@ -264,7 +250,7 @@ export class XParser {
 
   // Simple mapping of all the errors which can be thrown by the parser. The
   //  parsing errors are allotted numbers #100-#199.
-  #errorMessages = new Map([
+  static #errorMessages = new Map([
     ['#100', 'Markup at the start of your template could not be parsed.'],
     ['#101', 'Markup after content text found in your template could not be parsed.'],
     ['#102', 'Markup after a comment found in your template could not be parsed.'],
@@ -306,46 +292,46 @@ export class XParser {
   ]);
 
   // Block #100-#119 — Invalid transition errors.
-  #valueToErrorMessagesKey = new Map([
-    [this.#initial,                   '#100'],
-    [this.#unboundContent,            '#101'],
-    [this.#unboundComment,            '#102'],
-    [this.#boundContent,              '#103'],
-    [this.#openTagStart,              '#104'],
-    [this.#openTagSpace,              '#105'],
-    [this.#openTagEnd,                '#106'],
-    [this.#unboundBoolean,            '#107'],
-    [this.#unboundAttribute,          '#108'],
-    [this.#boundBoolean,              '#109'],
-    [this.#boundDefined,              '#110'],
-    [this.#boundAttribute,            '#111'],
-    [this.#boundProperty,             '#112'],
-    [this.#danglingQuote,             '#113'],
-    [this.#closeTag,                  '#114'],
+  static #valueToErrorMessagesKey = new Map([
+    [XParser.#initial,                       '#100'],
+    [XParser.#text,                          '#101'],
+    [XParser.#comment,                       '#102'],
+    [XParser.#boundContent,                  '#103'],
+    [XParser.#startTagOpen,                  '#104'],
+    [XParser.#startTagSpace,                 '#105'],
+    [XParser.#startTagClose,                 '#106'],
+    [XParser.#boolean,                       '#107'],
+    [XParser.#attribute,                     '#108'],
+    [XParser.#boundBoolean,                  '#109'],
+    [XParser.#boundDefined,                  '#110'],
+    [XParser.#boundAttribute,                '#111'],
+    [XParser.#boundProperty,                 '#112'],
+    [XParser.#danglingQuote,                 '#113'],
+    [XParser.#endTag,                        '#114'],
   ]);
 
   // Block #120-#139 — Common mistakes.
-  #valueMalformedToErrorMessagesKey = new Map([
-    [this.#openTagStartMalformed,     '#120'],
-    [this.#openTagSpaceMalformed,     '#121'],
-    [this.#openTagEndMalformed,       '#122'],
-    [this.#closeTagMalformed,         '#123'],
-    [this.#unboundBooleanMalformed,   '#124'],
-    [this.#unboundAttributeMalformed, '#125'],
-    [this.#boundBooleanMalformed,     '#126'],
-    [this.#boundDefinedMalformed,     '#127'],
-    [this.#boundAttributeMalformed,   '#128'],
-    [this.#boundPropertyMalformed,    '#129'],
-    [this.#danglingQuoteMalformed,    '#130'],
+  static #valueMalformedToErrorMessagesKey = new Map([
+    [XParser.#startTagOpenMalformed,         '#120'],
+    [XParser.#startTagSpaceMalformed,        '#121'],
+    [XParser.#startTagCloseMalformed,        '#122'],
+    [XParser.#endTagMalformed,               '#123'],
+    [XParser.#booleanMalformed,              '#124'],
+    [XParser.#attributeMalformed,            '#125'],
+    [XParser.#boundBooleanMalformed,         '#126'],
+    [XParser.#boundDefinedMalformed,         '#127'],
+    [XParser.#boundAttributeMalformed,       '#128'],
+    [XParser.#boundPropertyMalformed,        '#129'],
+    [XParser.#danglingQuoteMalformed,        '#130'],
   ]);
 
   // Block #140-#149 — Forbidden transitions.
-  #valueForbiddenToErrorMessagesKey = new Map([
-    [this.#cdataStart,                '#140'],
+  static #valueForbiddenToErrorMessagesKey = new Map([
+    [XParser.#cdataStart,                    '#140'],
   ]);
 
   // Block #150+ — Special, named issues.
-  #namedErrorsToErrorMessagesKey = new Map([
+  static #namedErrorsToErrorMessagesKey = new Map([
     ['javascript-escape',                    '#150'],
     ['malformed-html-entity',                '#151'],
     ['malformed-comment',                    '#152'],
@@ -361,7 +347,7 @@ export class XParser {
   //////////////////////////////////////////////////////////////////////////////
 
   // Returns the first valid state-machine transition (if one exists).
-  #try(string, stringIndex, ...values) {
+  static #try(string, stringIndex, ...values) {
     for (const value of values) {
       value.lastIndex = stringIndex;
       if (value.test(string)) {
@@ -372,131 +358,130 @@ export class XParser {
 
   // Special cases we want to warn about, but which are not just malformed
   //  versions of valid transitions.
-  #forbiddenTransition(string, stringIndex, value) {
+  static #forbiddenTransition(string, stringIndex, value) {
     switch (value) {
-      case this.#initial:
-      case this.#boundContent:
-      case this.#unboundContent:
-      case this.#openTagEnd:
-      case this.#closeTag: return this.#try(string, stringIndex,
-        this.#cdataStart);
+      case XParser.#initial:
+      case XParser.#boundContent:
+      case XParser.#text:
+      case XParser.#startTagClose:
+      case XParser.#endTag: return XParser.#try(string, stringIndex,
+        XParser.#cdataStart);
     }
   }
 
   // This should roughly match our “valid” transition mapping, but for errors.
-  #invalidTransition(string, stringIndex, value) {
+  static #invalidTransition(string, stringIndex, value) {
     switch (value) {
-      case this.#initial: return this.#try(string, stringIndex,
-        this.#openTagStartMalformed);
-      case this.#unboundContent: return this.#try(string, stringIndex,
-        this.#closeTagMalformed,
-        this.#openTagStartMalformed);
-      case this.#boundContent: return this.#try(string, stringIndex,
-        this.#closeTagMalformed,
-        this.#openTagStartMalformed);
-      case this.#unboundComment: return this.#try(string, stringIndex,
-        this.#closeTagMalformed,
-        this.#openTagStartMalformed);
-      case this.#openTagStart:
-      case this.#unboundBoolean:
-      case this.#unboundAttribute:
-      case this.#danglingQuote: return this.#try(string, stringIndex,
-        this.#openTagSpaceMalformed);
-      case this.#openTagSpace: return this.#try(string, stringIndex,
-        this.#unboundBooleanMalformed,
-        this.#unboundAttributeMalformed,
-        this.#boundBooleanMalformed,
-        this.#boundDefinedMalformed,
-        this.#boundAttributeMalformed,
-        this.#boundPropertyMalformed,
-        this.#openTagEndMalformed);
-      case this.#openTagEnd: return this.#try(string, stringIndex,
-        this.#openTagStartMalformed,
-        this.#closeTagMalformed);
-      case this.#boundBoolean:
-      case this.#boundDefined:
-      case this.#boundAttribute:
-      case this.#boundProperty: return this.#try(string, stringIndex,
-        this.#danglingQuoteMalformed);
-      case this.#closeTag: return this.#try(string, stringIndex,
-        this.#openTagStartMalformed,
-        this.#closeTagMalformed);
+      case XParser.#initial: return XParser.#try(string, stringIndex,
+        XParser.#startTagOpenMalformed);
+      case XParser.#text: return XParser.#try(string, stringIndex,
+        XParser.#endTagMalformed,
+        XParser.#startTagOpenMalformed);
+      case XParser.#boundContent: return XParser.#try(string, stringIndex,
+        XParser.#endTagMalformed,
+        XParser.#startTagOpenMalformed);
+      case XParser.#comment: return XParser.#try(string, stringIndex,
+        XParser.#endTagMalformed,
+        XParser.#startTagOpenMalformed);
+      case XParser.#startTagOpen:
+      case XParser.#boolean:
+      case XParser.#attribute:
+      case XParser.#danglingQuote: return XParser.#try(string, stringIndex,
+        XParser.#startTagSpaceMalformed);
+      case XParser.#startTagSpace: return XParser.#try(string, stringIndex,
+        XParser.#booleanMalformed,
+        XParser.#attributeMalformed,
+        XParser.#boundBooleanMalformed,
+        XParser.#boundDefinedMalformed,
+        XParser.#boundAttributeMalformed,
+        XParser.#boundPropertyMalformed,
+        XParser.#startTagCloseMalformed);
+      case XParser.#startTagClose: return XParser.#try(string, stringIndex,
+        XParser.#startTagOpenMalformed,
+        XParser.#endTagMalformed);
+      case XParser.#boundBoolean:
+      case XParser.#boundDefined:
+      case XParser.#boundAttribute:
+      case XParser.#boundProperty: return XParser.#try(string, stringIndex,
+        XParser.#danglingQuoteMalformed);
+      case XParser.#endTag: return XParser.#try(string, stringIndex,
+        XParser.#startTagOpenMalformed,
+        XParser.#endTagMalformed);
     }
   }
 
   // This is the core of the state machine. It describes every valid traversal
   //  through a set of html template “strings” array.
-  #validTransition(string, stringIndex, value) {
+  static #validTransition(string, stringIndex, value) {
     switch (value) {
       // The “initial” state is where we start when we begin parsing.
       //  E.g., html`‸hello world!`
-      case this.#initial: return this.#try(string, stringIndex,
-        this.#unboundContent,
-        this.#openTagStart,
-        this.#unboundComment);
+      case XParser.#initial: return XParser.#try(string, stringIndex,
+        XParser.#text,
+        XParser.#startTagOpen,
+        XParser.#comment);
 
-      // The “unboundContent” state means that we’ve just parsed through some
-      //  literal html text either in the root of the template or between an
-      //  open / close tag pair.
+      // The “text” state means that we’ve just parsed through some literal html
+      //  text either in the root of the template or between an start / end tag.
       //  E.g., html`hello ‸${world}!`
-      case this.#unboundContent: return this.#try(string, stringIndex,
-        this.#closeTag,
-        this.#openTagStart,
-        this.#unboundComment);
+      case XParser.#text: return XParser.#try(string, stringIndex,
+        XParser.#endTag,
+        XParser.#startTagOpen,
+        XParser.#comment);
 
       // The “boundContent” state means that we just hit an interpolation (i.e.,
       //  started a new string).
       //  E.g., html`hello ${world}‸!`
-      // The “unboundComment” state means that we just completed a comment. We
-      //  don’t allow comment interpolations.
+      // The “comment” state means that we just completed a comment. We  don’t
+      //  allow comment interpolations.
       //  E.g., html`hello <!-- todo -->‸ ${world}!`
-      case this.#boundContent:
-      case this.#unboundComment: return this.#try(string, stringIndex,
-        this.#unboundContent,
-        this.#closeTag,
-        this.#openTagStart,
-        this.#unboundComment); 
+      case XParser.#boundContent:
+      case XParser.#comment: return XParser.#try(string, stringIndex,
+        XParser.#text,
+        XParser.#endTag,
+        XParser.#startTagOpen,
+        XParser.#comment); 
 
-      // The “openTagStart” means that we’ve successfully parsed through the
-      //  open angle bracket (“<”) and the tag name.
+      // The “startTagOpen” means that we’ve successfully parsed through the
+      //  open angle bracket (“<”) and the tag name in a start tag.
       //  E.g., html`<div‸></div>`
-      // The “unboundBoolean” means we parsed through a literal boolean
-      //  attribute which doesn’t have an interpolated binding.
+      // The “boolean” means we parsed through a literal boolean attribute which
+      //  doesn’t have an interpolated binding.
       //  E.g., html`<div foo‸></div>`
-      // The “unboundAttribute” means we parsed through a literal key-value
-      //  attribute pair which doesn’t have an interpolated binding.
+      // The “attribute” means we parsed through a literal key-value attribute
+      //  pair which doesn’t have an interpolated binding.
       //  E.g., html`<div foo="bar"‸></div>`
       // The “danglingQuote” means we parsed through a prefixing, closing quote
       //  as the first character in a new string on the other side of an
       //  interpolated value for a bound boolean attribute, a bound defined
       //  attribute, a bound normal attribute, or a bound property.
       //  E.g., html`<div foo="${bar}"‸></div>`
-      case this.#openTagStart:
-      case this.#unboundBoolean:
-      case this.#unboundAttribute:
-      case this.#danglingQuote: return this.#try(string, stringIndex,
-        this.#openTagSpace,
-        this.#openTagEnd);
+      case XParser.#startTagOpen:
+      case XParser.#boolean:
+      case XParser.#attribute:
+      case XParser.#danglingQuote: return XParser.#try(string, stringIndex,
+        XParser.#startTagSpace,
+        XParser.#startTagClose);
 
-      // The “openTagSpace” is either one space or a single newline and some
-      //  indentation space after the open tag name, an attribute, or property.
+      // The “startTagSpace” is either one space or a single newline and some
+      //  indentation space after the start tag name, an attribute, or property.
       //  E.g., html`<div ‸foo></div>`
-      case this.#openTagSpace: return this.#try(string, stringIndex,
-        this.#unboundBoolean,
-        this.#unboundAttribute,
-        this.#boundBoolean,
-        this.#boundDefined,
-        this.#boundAttribute,
-        this.#boundProperty,
-        this.#openTagEnd);
+      case XParser.#startTagSpace: return XParser.#try(string, stringIndex,
+        XParser.#boolean,
+        XParser.#attribute,
+        XParser.#boundBoolean,
+        XParser.#boundDefined,
+        XParser.#boundAttribute,
+        XParser.#boundProperty,
+        XParser.#startTagClose);
 
-      // The “openTagEnd” is just the “>” character.
+      // The “startTagClose” is just the “>” character.
       //  E.g., html`<div>‸</div>`
-      case this.#openTagEnd: return this.#try(string, stringIndex,
-        this.#openTagStart,
-        this.#unboundContent,
-        this.#closeTag,
-        this.#unboundComment);
+      case XParser.#startTagClose: return XParser.#try(string, stringIndex,
+        XParser.#startTagOpen,
+        XParser.#text,
+        XParser.#endTag,
+        XParser.#comment);
 
       // The “boundBoolean” state means we just ended our prior string with an
       //  interpolated boolean binding.
@@ -510,31 +495,31 @@ export class XParser {
       // The “boundProperty” state means we just ended our prior string with an
       //  interpolated property binding.
       //  E.g., html`<div .foo="${bar}‸"></div>`
-      case this.#boundBoolean:
-      case this.#boundDefined:
-      case this.#boundAttribute:
-      case this.#boundProperty: return this.#try(string, stringIndex,
-        this.#danglingQuote);
+      case XParser.#boundBoolean:
+      case XParser.#boundDefined:
+      case XParser.#boundAttribute:
+      case XParser.#boundProperty: return XParser.#try(string, stringIndex,
+        XParser.#danglingQuote);
 
-      // The “closeTag” state means we just closed some tag successfully,
+      // The “endTag” state means we just found an some end tag successfully,
       //  E.g., html`<div><span></span>‸</div>`
-      case this.#closeTag: return this.#try(string, stringIndex,
-        this.#unboundContent,
-        this.#openTagStart,
-        this.#closeTag,
-        this.#unboundComment);
+      case XParser.#endTag: return XParser.#try(string, stringIndex,
+        XParser.#text,
+        XParser.#startTagOpen,
+        XParser.#endTag,
+        XParser.#comment);
     }
   }
 
   // Common functionality to help print out template context when displaying
   //  helpful error messages to developers.
-  #getErrorInfo(strings, stringsIndex, string, stringIndex) {
+  static #getErrorInfo(strings, stringsIndex, string, stringIndex) {
     let prefix;
     let prefixIndex;
     if (stringsIndex > 0) {
-      const validPrefix = strings.slice(0, stringsIndex).join(this.#delimiter);
-      prefix = [validPrefix, string].join(this.#delimiter);
-      prefixIndex = validPrefix.length + this.#delimiter.length + stringIndex;
+      const validPrefix = strings.slice(0, stringsIndex).join(XParser.#delimiter);
+      prefix = [validPrefix, string].join(XParser.#delimiter);
+      prefixIndex = validPrefix.length + XParser.#delimiter.length + stringIndex;
     } else {
       prefix = string;
       prefixIndex = stringIndex;
@@ -550,16 +535,16 @@ export class XParser {
   //  throw an error. Because we have to halt execution anyhow, we can use it as
   //  an opportunity to test some additional patterns to improve our messaging.
   //  This would otherwise be non-performant — but we are about to error anyhow.
-  #throwTransitionError(strings, stringsIndex, string, stringIndex, value) {
-    const { parsed, notParsed } = this.#getErrorInfo(strings, stringsIndex, string, stringIndex);
-    const valueForbidden = this.#forbiddenTransition(string, stringIndex, value);
-    const valueMalformed = this.#invalidTransition(string, stringIndex, value);
+  static #throwTransitionError(strings, stringsIndex, string, stringIndex, value) {
+    const { parsed, notParsed } = XParser.#getErrorInfo(strings, stringsIndex, string, stringIndex);
+    const valueForbidden = XParser.#forbiddenTransition(string, stringIndex, value);
+    const valueMalformed = XParser.#invalidTransition(string, stringIndex, value);
     const errorMessagesKey = valueForbidden
-      ? this.#valueForbiddenToErrorMessagesKey.get(valueForbidden)
+      ? XParser.#valueForbiddenToErrorMessagesKey.get(valueForbidden)
       : valueMalformed
-        ? this.#valueMalformedToErrorMessagesKey.get(valueMalformed)
-        : this.#valueToErrorMessagesKey.get(value);
-    const errorMessage = this.#errorMessages.get(errorMessagesKey);
+        ? XParser.#valueMalformedToErrorMessagesKey.get(valueMalformed)
+        : XParser.#valueToErrorMessagesKey.get(value);
+    const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
     const substringMessage = `See substring \`${notParsed}\`.`;
     const parsedThroughMessage = `Your HTML was parsed through: \`${parsed}\`.`;
     const message = `[${errorMessagesKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`;
@@ -569,12 +554,12 @@ export class XParser {
   // This validates a value from our “strings.raw” array passed into our tagged
   //  template function. It checks to make sure superfluous, JS-y escapes are
   //  not being used as html (since there are perfectly-valid alternatives).
-  #validateRawString(rawString) {
-    this.#rawJsEscape.lastIndex = 0;
-    if (this.#rawJsEscape.test(rawString)) {
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('javascript-escape');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
-      const substringMessage = `See (raw) substring \`${rawString.slice(0, this.#rawJsEscape.lastIndex)}\`.`;
+  static #validateRawString(rawString) {
+    XParser.#rawJsEscape.lastIndex = 0;
+    if (XParser.#rawJsEscape.test(rawString)) {
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('javascript-escape');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const substringMessage = `See (raw) substring \`${rawString.slice(0, XParser.#rawJsEscape.lastIndex)}\`.`;
       const message = `[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`;
       throw new Error(message);
     }
@@ -582,239 +567,356 @@ export class XParser {
 
   // Before a successful exit, the parser ensures that all non-void opening tags
   //  have been matched successfully to prevent any unexpected behavior.
-  #validateExit(fragment, element) {
-    if (element.value !== fragment) {
-      const tagName = element.value[this.#localName];
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('missing-closing-tag');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
+  static #validateExit(tagName) {
+    if (tagName) {
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('missing-closing-tag');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
       const substringMessage = `Missing a closing </${tagName}>.`;
       throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
     }
   }
 
   // Certain parts of an html document may contain character references (html
-  //  entities). We find them via a performant pattern, and then replace them
-  //  via a non-performant usage of “setHTMLUnsafe”. This way, the cost is only
-  //  as high as the number of character references used (which is often low).
+  //  entities). We find them via a performant pattern, and then parse them out
+  //  via a non-performant pattern. This way, the cost is only as high as the
+  //  number of character references used (which is often low).
   //  Note that malformed references or ambiguous ampersands will cause errors.
   //  https://html.spec.whatwg.org/multipage/named-characters.html
-  #replaceHtmlEntities(originalContent) {
-    let content = originalContent;
-    this.#htmlEntityStart.lastIndex = 0;
-    while (this.#htmlEntityStart.test(content)) {
-      const contentIndex = this.#htmlEntityStart.lastIndex - 2;
-      this.#entity.lastIndex = contentIndex;
-      if (!this.#entity.test(content)) {
-        const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('malformed-html-entity');
-        const errorMessage = this.#errorMessages.get(errorMessagesKey);
-        const substringMessage = `See substring \`${originalContent}\`.`;
+  // Note that we test against the “content”, but ensure to report tokens as
+  //  compared to the original “string”. This is significantly more performant.
+  static #sendInnerTextTokens(onToken, string, index, start, end, plaintextType, referenceType) {
+    const content = string.slice(start, end);
+    const contentStart = 0;
+    const contentEnd = content.length;
+    let plaintextStart = contentStart;
+    XParser.#htmlEntityStart.lastIndex = plaintextStart;
+    let referenceEnd = contentEnd;
+    while (XParser.#htmlEntityStart.test(content)) {
+      const referenceStart = XParser.#htmlEntityStart.lastIndex - 2;
+      if (plaintextStart < referenceStart) {
+        const substringStart = start + plaintextStart;
+        const substringEnd = start + referenceStart;
+        const substring = string.slice(substringStart, substringEnd);
+        onToken(plaintextType, index, substringStart, substringEnd, substring);
+      }
+      XParser.#entity.lastIndex = referenceStart;
+      if (!XParser.#entity.test(content)) {
+        const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('malformed-html-entity');
+        const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+        const substringMessage = `See substring \`${content}\`.`;
         throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
       }
-      const encoded = content.slice(contentIndex, this.#entity.lastIndex);
-      this.#htmlEntityContainer.innerHTML = encoded;
-      const decoded = this.#htmlEntityContainer.content.textContent;
-      content = content.replace(encoded, decoded);
-      this.#htmlEntityStart.lastIndex = contentIndex + decoded.length;
+      referenceEnd = XParser.#entity.lastIndex;
+      plaintextStart = referenceEnd;
+      XParser.#htmlEntityStart.lastIndex = plaintextStart;
+      const substringStart = start + referenceStart;
+      const substringEnd = start + referenceEnd;
+      const substring = string.slice(substringStart, substringEnd);
+      onToken(referenceType, index, substringStart, substringEnd, substring);
     }
-    return content;
-  }
-
-  // Void elements are treated with special consideration as they will never
-  //  contain child nodes.
-  #finalizeVoidElement(path, element, childNodesIndex, nextStringIndex) {
-    childNodesIndex.value = path.pop();
-    element.value = element.value[this.#parentNode];
-    this.#closeTag.lastIndex = nextStringIndex;
-    return this.#closeTag;
-  }
-
-  // Textarea contains so-called “replaceable” character data. We throw an error
-  //  if a “complex” interpolation exists — anything other than a perfectly-fit
-  //  content interpolation between the opening and closing tags.
-  #finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex) {
-    const closeTagLength = 11; // </textarea>
-    this.#throughTextarea.lastIndex = nextStringIndex;
-    if (this.#throughTextarea.test(string)) {
-      const encoded = string.slice(nextStringIndex, this.#throughTextarea.lastIndex - closeTagLength);
-      const decoded = this.#replaceHtmlEntities(encoded);
-      element.value.textContent = decoded;
-    } else {
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+    if (plaintextStart === contentStart) {
+      // There were no references.
+      onToken(plaintextType, index, start, end, content);
+    } else if (referenceEnd !== contentEnd) {
+      // We had references and there was some leftover plaintext.
+      const substringStart = start + referenceEnd;
+      const substringEnd = start + contentEnd;
+      const substring = string.slice(substringStart, substringEnd);
+      onToken(plaintextType, index, substringStart, substringEnd, substring);
     }
-    childNodesIndex.value = path.pop();
-    element.value = element.value[this.#parentNode];
-    this.#closeTag.lastIndex = this.#throughTextarea.lastIndex;
-    return this.#closeTag;
   }
 
-  // Unbound content is just literal text in a template string that needs to
-  //  land as text content. We replace any character references (html entities)
-  //  found in the content.
-  #addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex) {
-    const encoded = string.slice(stringIndex, nextStringIndex);
-    const decoded = this.#replaceHtmlEntities(encoded);
-    element.value.appendChild(this.#window.document.createTextNode(decoded));
-    childNodesIndex.value += 1;
-  }
-
-  // An unbound comment is just a basic html comment. Comments may not be
-  //  interpolated and follow some specific rules from the html specification.
-  //  https://w3c.github.io/html-reference/syntax.html#comments
-  #addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex) {
-    const content = string.slice(stringIndex, nextStringIndex);
-    const data = content.slice(4, -3);
-    if (data.startsWith('>') || data.startsWith('->') || data.includes('--') || data.endsWith('-')) {
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('malformed-comment');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
-      const substringMessage = `See substring \`${content}\`.`;
+  // In addition to the allow-list of html tag names, any tag with a hyphen in
+  //  the middle is considered a valid custom element. Therefore, we must allow
+  //  for such declarations.
+  static #validateTagName(tagName) {
+    if (
+      tagName.indexOf('-') === -1 &&
+      !XParser.#allowedHtmlElements.has(tagName)
+    ) {
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('forbidden-html-element');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const substringMessage = `The <${tagName}> html element is forbidden.`;
       throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
     }
-    element.value.appendChild(this.#window.document.createComment(data));
-    childNodesIndex.value += 1;
-  }
-
-  // Bound content is simply an interpolation in the template which exists in a
-  //  location destined to be bound as “textContent” on some node. We notify our
-  //  listener about the content binding’s path.
-  #addBoundContent(onContent, path, element, childNodesIndex) {
-    element.value.append(
-      this.#window.document.createComment(''),
-      this.#window.document.createComment('')
-    );
-    childNodesIndex.value += 2;
-    path.push(childNodesIndex.value);
-    onContent(path);
-    path.pop();
   }
 
   // This can only happen with a “textarea” element, currently. Note that the
   //  subscriber is notified about this as a “text” binding not a “content”
   //  binding so that it correctly bind _any_ interpolated value to the
   //  “textContent” property as a string — no matter the type.
-  #addBoundText(onText, string, path, sloppyStartInterpolation) {
+  static #sendBoundTextTokens(onToken, stringsIndex, string, stringIndex, sloppyStartInterpolation) {
     // If the prior match isn’t our opening tag… that’s a problem. If the next
     //  match isn’t our closing tag… that’s also a problem.
     // Because we tightly control the end-tag format, we can predict what the
     //  next string’s prefix should be.
     if (sloppyStartInterpolation || !string.startsWith(`</textarea>`)) {
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
       throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
     }
-    onText(path);
+    onToken(XParser.tokenTypes.boundTextValue, stringsIndex, stringIndex, stringIndex, '');
   }
 
-  // An unbound boolean is a literal boolean attribute declaration with no
-  //  associated value at all.
-  #addUnboundBoolean(string, stringIndex, element, nextStringIndex) {
+  // Bound content is simply an interpolation in the template which exists in a
+  //  location destined to be bound as “textContent” on some node.
+  static #sendBoundContentTokens(onToken, stringsIndex, string, stringIndex) {
+    onToken(XParser.tokenTypes.boundContentValue, stringsIndex, stringIndex, stringIndex, '');
+  }
+
+  // This handles literal text in a template that needs to become text content.
+  static #sendTextTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    onToken(XParser.tokenTypes.textStart, stringsIndex, stringIndex, stringIndex, '');
+    XParser.#sendInnerTextTokens(onToken, string, stringsIndex, stringIndex, nextStringIndex, XParser.tokenTypes.textPlaintext, XParser.tokenTypes.textReference);
+    onToken(XParser.tokenTypes.textEnd, stringsIndex, nextStringIndex, nextStringIndex, '');
+  }
+
+  // A comment is just a basic html comment. Comments may not be interpolated
+  //  and follow some specific rules from the html specification. Note that
+  //  character references are not replaced in comments.
+  //  https://w3c.github.io/html-reference/syntax.html#comments
+  static #sendCommentTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    const commentStart = stringIndex + 4;
+    const commentEnd = nextStringIndex - 3;
+    onToken(XParser.tokenTypes.commentOpen, stringsIndex, stringIndex, commentStart, '<!--');
+    const data = string.slice(commentStart, commentEnd);
+    if (data.startsWith('>') || data.startsWith('->') || data.includes('--') || data.endsWith('-')) {
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('malformed-comment');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const substringMessage = `See substring \`${string.slice(stringIndex, nextStringIndex)}\`.`;
+      throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
+    }
+    onToken(XParser.tokenTypes.comment, stringsIndex, commentStart, commentEnd, data);
+    onToken(XParser.tokenTypes.commentClose, stringsIndex, commentEnd, nextStringIndex, '-->');
+  }
+
+  // The beginning of a start tag — e.g., “<div”.
+  static #sendStartTagOpenTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    const tagNameStart = stringIndex + 1;
+    const tagName = string.slice(tagNameStart, nextStringIndex);
+    XParser.#validateTagName(tagName);
+    onToken(XParser.tokenTypes.startTagOpen, stringsIndex, stringIndex, tagNameStart, '<');
+    onToken(XParser.tokenTypes.startTagName, stringsIndex, tagNameStart, nextStringIndex, tagName);
+    return tagName;
+  }
+
+  // Simple spaces and newlines withing a start tag.
+  static #sendStartTagSpaceTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    const substring = string.slice(stringIndex, nextStringIndex);
+    onToken(XParser.tokenTypes.startTagSpace, stringsIndex, stringIndex, nextStringIndex, substring);
+  }
+
+  // A single double-quote after a binding in a start tag.
+  static #sendDanglingQuoteTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    onToken(XParser.tokenTypes.startTagQuote, stringsIndex, stringIndex, nextStringIndex, '"');
+  }
+
+  // A boolean is a literal boolean attribute declaration with no value.
+  static #sendBooleanTokens(onToken, tagName, stringsIndex, string, stringIndex, nextStringIndex) {
+    // A boolean attribute in a start tag — “data-has-flag”
     const attributeName = string.slice(stringIndex, nextStringIndex);
-    element.value.setAttribute(attributeName, '');
+    if (tagName === 'template') {
+      if (attributeName === 'shadowrootmode') {
+        const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
+        const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+        throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+      }
+    }
+    onToken(XParser.tokenTypes.booleanName, stringsIndex, stringIndex, nextStringIndex, attributeName);
   }
 
-  // An unbound attribute is a literal attribute declaration, but this time, it
-  //  does have an associated value — forming a key-value pair.
-  #addUnboundAttribute(string, stringIndex, element, nextStringIndex) {
-    const unboundAttribute = string.slice(stringIndex, nextStringIndex);
-    const equalsIndex = unboundAttribute.indexOf('=');
-    const attributeName = unboundAttribute.slice(0, equalsIndex);
-    const encoded = unboundAttribute.slice(equalsIndex + 2, -1);
-    const decoded = this.#replaceHtmlEntities(encoded);
-    element.value.setAttribute(attributeName, decoded);
+  // An attribute is a literal attribute declaration. It has an associated value
+  //  which forms a key-value pair.
+  static #sendAttributeTokens(onToken, tagName, stringsIndex, string, stringIndex, nextStringIndex) {
+    // An attribute in a start tag — “data-foo="bar"”
+    const equalsStart = string.indexOf('=', stringIndex);
+    const attributeName = string.slice(stringIndex, equalsStart);
+    if (tagName === 'template') {
+      if (attributeName === 'shadowrootmode') {
+        const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
+        const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+        throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+      }
+    }
+    const equalsEnd = equalsStart + 1;
+    const valueStart = equalsEnd + 1;
+    const valueEnd = nextStringIndex - 1;
+    onToken(XParser.tokenTypes.attributeName, stringsIndex, stringIndex, equalsStart, attributeName);
+    onToken(XParser.tokenTypes.startTagEquals, stringsIndex, equalsStart, equalsEnd, '=');
+    onToken(XParser.tokenTypes.startTagQuote, stringsIndex, equalsEnd, valueStart, '"');
+    onToken(XParser.tokenTypes.attributeValueStart, stringsIndex, valueStart, valueStart, '');
+    XParser.#sendInnerTextTokens(onToken, string, stringsIndex, valueStart, valueEnd, XParser.tokenTypes.attributeValuePlaintext, XParser.tokenTypes.attributeValueReference);
+    onToken(XParser.tokenTypes.attributeValueEnd, stringsIndex, valueEnd, valueEnd, '');
+    onToken(XParser.tokenTypes.startTagQuote, stringsIndex, valueEnd, nextStringIndex, '"');
   }
 
   // A bound boolean is a boolean attribute flag with an associated value
-  //  binding. It has a single, preceding “?” character. We notify subscribers
-  //  about this flag.
-  #addBoundBoolean(onBoolean, string, stringIndex, path, element, nextStringIndex) {
-    const boundBoolean = string.slice(stringIndex, nextStringIndex);
-    const equalsIndex = boundBoolean.indexOf('=');
-    const attributeName = boundBoolean.slice(1, equalsIndex);
-    onBoolean(attributeName, path);
+  //  binding. It has a single, preceding “?” character.
+  static #sendBoundBooleanTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    // A bound boolean in a start tag — “?data-foo="”
+    const nameStart = stringIndex + 1;
+    const equalsStart = string.indexOf('=', stringIndex);
+    const equalsEnd = equalsStart + 1;
+    const attributeName = string.slice(nameStart, equalsStart);
+    onToken(XParser.tokenTypes.boundBooleanPrefix, stringsIndex, stringIndex, nameStart, '?');
+    onToken(XParser.tokenTypes.boundBooleanName, stringsIndex, nameStart, equalsStart, attributeName);
+    onToken(XParser.tokenTypes.startTagEquals, stringsIndex, equalsStart, equalsEnd, '=');
+    onToken(XParser.tokenTypes.startTagQuote, stringsIndex, equalsEnd, nextStringIndex, '"');
+    onToken(XParser.tokenTypes.boundBooleanValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
   // Similar to a bound boolean, but with two preceding “??” characters. We
   //  notify subscribers about this attribute which exists only when defined.
-  #addBoundDefined(onDefined, string, stringIndex, path, element, nextStringIndex) {
-    const boundDefined = string.slice(stringIndex, nextStringIndex);
-    const equalsIndex = boundDefined.indexOf('=');
-    const attributeName = boundDefined.slice(2, equalsIndex);
-    onDefined(attributeName, path);
+  static #sendBoundDefinedTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    // A bound defined in a start tag — “??data-foo="”
+    const nameStart = stringIndex + 2;
+    const equalsStart = string.indexOf('=', stringIndex);
+    const equalsEnd = equalsStart + 1;
+    const attributeName = string.slice(nameStart, equalsStart);
+    onToken(XParser.tokenTypes.boundDefinedPrefix, stringsIndex, stringIndex, nameStart, '??');
+    onToken(XParser.tokenTypes.boundDefinedName, stringsIndex, nameStart, equalsStart, attributeName);
+    onToken(XParser.tokenTypes.startTagEquals, stringsIndex, equalsStart, equalsEnd, '=');
+    onToken(XParser.tokenTypes.startTagQuote, stringsIndex, equalsEnd, nextStringIndex, '"');
+    onToken(XParser.tokenTypes.boundDefinedValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
   // This is an attribute with a name / value pair where the “value” is bound
-  //  as an interpolation. We notify subscribers about this attribute binding.
-  #addBoundAttribute(onAttribute, string, stringIndex, path, element, nextStringIndex) {
-    const boundAttribute = string.slice(stringIndex, nextStringIndex);
-    const equalsIndex = boundAttribute.indexOf('=');
-    const attributeName = boundAttribute.slice(0, equalsIndex);
-    onAttribute(attributeName, path);
+  //  as an interpolation.
+  static #sendBoundAttributeTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    // A bound attribute in a start tag — “data-foo="”
+    const equalsStart = string.indexOf('=', stringIndex);
+    const equalsEnd = equalsStart + 1;
+    const attributeName = string.slice(stringIndex, equalsStart);
+    onToken(XParser.tokenTypes.boundAttributeName, stringsIndex, stringIndex, equalsStart, attributeName);
+    onToken(XParser.tokenTypes.startTagEquals, stringsIndex, equalsStart, equalsEnd, '=');
+    onToken(XParser.tokenTypes.startTagQuote, stringsIndex, equalsEnd, nextStringIndex, '"');
+    onToken(XParser.tokenTypes.boundAttributeValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
   // This is an property with a name / value pair where the “value” is bound
-  //  as an interpolation. We notify subscribers about this property binding.
-  #addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex) {
-    const boundProperty = string.slice(stringIndex, nextStringIndex);
-    const equalsIndex = boundProperty.indexOf('=');
-    const propertyName = boundProperty.slice(1, equalsIndex);
-    onProperty(propertyName, path);
+  //  as an interpolation.
+  static #sendBoundPropertyTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    // A bound boolean in a start tag — “.dataFoo="”
+    const nameStart = stringIndex + 1;
+    const equalsStart = string.indexOf('=', stringIndex);
+    const equalsEnd = equalsStart + 1;
+    const attributeName = string.slice(nameStart, equalsStart);
+    onToken(XParser.tokenTypes.boundPropertyPrefix, stringsIndex, stringIndex, nameStart, '.');
+    onToken(XParser.tokenTypes.boundPropertyName, stringsIndex, nameStart, equalsStart, attributeName);
+    onToken(XParser.tokenTypes.startTagEquals, stringsIndex, equalsStart, equalsEnd, '=');
+    onToken(XParser.tokenTypes.startTagQuote, stringsIndex, equalsEnd, nextStringIndex, '"');
+    onToken(XParser.tokenTypes.boundPropertyValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
-  // In addition to the allow-list of html tag names, any tag with a hyphen in
-  //  the middle is considered a valid custom element. Therefore, we must allow
-  //  for such declarations.
-  #validateTagName(tagName) {
-    if (
-      tagName.indexOf('-') === -1 &&
-      !this.#allowedHtmlElements.has(tagName)
-    ) {
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('forbidden-html-element');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
-      const substringMessage = `The <${tagName}> html element is forbidden.`;
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
+  // Because void elements to not have an end tag, we close them slightly
+  //  differently so downstream consumers can track DOM paths easily.
+  static #sendVoidElementTokens(onToken, stringsIndex, stringIndex, nextStringIndex) {
+    // Void elements are treated with special consideration as they
+    //  will never contain child nodes.
+    onToken(XParser.tokenTypes.voidTagClose, stringsIndex, stringIndex, nextStringIndex, '>');
+  }
+
+  // Textarea contains so-called “replaceable” character data. We throw an error
+  //  if a “complex” interpolation exists — anything other than a perfectly-fit
+  //  content interpolation between the opening and closing tags.
+  static #sendTextareaTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
+    onToken(XParser.tokenTypes.startTagClose, stringsIndex, stringIndex, nextStringIndex, '>');
+    XParser.#throughTextarea.lastIndex = nextStringIndex;
+    if (XParser.#throughTextarea.test(string)) {
+      const nextNextStringIndex = XParser.#throughTextarea.lastIndex;
+      const textContentEnd = nextNextStringIndex - 11; // “</textarea>” has 11 characters.
+      const tagNameStart = textContentEnd + 2;
+      const tagNameEnd = nextNextStringIndex - 1;
+      onToken(XParser.tokenTypes.textStart, stringsIndex, nextStringIndex, nextStringIndex, '');
+      XParser.#sendInnerTextTokens(onToken, string, stringsIndex, nextStringIndex, textContentEnd, XParser.tokenTypes.textPlaintext, XParser.tokenTypes.textReference);
+      onToken(XParser.tokenTypes.textEnd, stringsIndex, textContentEnd, textContentEnd, '');
+      onToken(XParser.tokenTypes.endTagOpen, stringsIndex, textContentEnd, tagNameStart, '</');
+      onToken(XParser.tokenTypes.endTagName, stringsIndex, tagNameStart, tagNameEnd, 'textarea');
+      onToken(XParser.tokenTypes.endTagClose, stringsIndex, tagNameEnd, nextNextStringIndex, '>');
+      return nextNextStringIndex;
+    } else {
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
     }
   }
 
-  // We’ve parsed through and open tag start and are ready to instantiate a new
-  //  dom node and potentially add attributes, properties, and children.
-  #addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
-    const prefixedTagName = string.slice(stringIndex, nextStringIndex);
-    const tagName = prefixedTagName.slice(1);
-    this.#validateTagName(tagName);
-
-    const childNode = this.#window.document.createElement(tagName);
-    element.value[this.#localName] === 'template'
-      ? element.value.content.appendChild(childNode)
-      : element.value.appendChild(childNode);
-    childNode[this.#localName] = tagName;
-    childNode[this.#parentNode] = element.value;
-    element.value = childNode;
-    childNodesIndex.value += 1;
-    path.push(childNodesIndex.value);
+  // Literally just indicating the “>” to close a start tag.
+  static #sendStartTagCloseTokens(onToken, stringsIndex, stringIndex, nextStringIndex) {
+    onToken(XParser.tokenTypes.startTagClose, stringsIndex, stringIndex, nextStringIndex, '>');
   }
 
-  // We’ve parsed through a close tag and can validate it, update our state to
-  //  point back to our parent node, and continue parsing.
-  #finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex) {
-    const closeTag = string.slice(stringIndex, nextStringIndex);
-    const tagName = closeTag.slice(2, -1);
-    const expectedTagName = element.value[this.#localName];
-    if (tagName !== expectedTagName) {
-      const { parsed } = this.#getErrorInfo(strings, stringsIndex, string, stringIndex);
-      const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('mismatched-closing-tag');
-      const errorMessage = this.#errorMessages.get(errorMessagesKey);
-      const substringMessage = `The closing tag </${tagName}> does not match <${expectedTagName}>.`;
+  // An end tag — e.g., “</div>”.
+  static #sendEndTagTokens(onToken, tagName, strings, stringsIndex, string, stringIndex, nextStringIndex) {
+    const endTagNameStart = stringIndex + 2;
+    const endTagNameEnd = nextStringIndex - 1;
+    const endTagName = string.slice(endTagNameStart, endTagNameEnd);
+    if (endTagName !== tagName) {
+      const { parsed } = XParser.#getErrorInfo(strings, stringsIndex, string, stringIndex);
+      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('mismatched-closing-tag');
+      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const substringMessage = `The closing tag </${endTagName}> does not match <${tagName}>.`;
       const parsedThroughMessage = `Your HTML was parsed through: \`${parsed}\`.`;
       throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`);
     }
-    childNodesIndex.value = path.pop();
-    element.value = element.value[this.#parentNode];
+    onToken(XParser.tokenTypes.endTagOpen, stringsIndex, stringIndex, endTagNameStart, '</');
+    onToken(XParser.tokenTypes.endTagName, stringsIndex, endTagNameStart, endTagNameEnd, endTagName);
+    onToken(XParser.tokenTypes.endTagClose, stringsIndex, endTagNameEnd, nextStringIndex, '>');
   }
 
   //////////////////////////////////////////////////////////////////////////////
   // Public interface //////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
+
+  // This object enumerates all the different classifications we have for
+  //  substring interpretations and bindings for interpolated html markup.
+  static tokenTypes = {
+    // Syntax
+    startTagOpen: 'start-tag-open',                        // “<”
+    startTagSpace: 'start-tag-space',                      // “ ”, “\n”, etc.
+    startTagEquals: 'start-tag-equals',                    // “=”
+    startTagQuote: 'start-tag-quote',                      // “"”
+    startTagClose: 'start-tag-close',                      // “>”
+    voidTagClose: 'void-tag-close',                        // “>” (special case)
+    boundBooleanPrefix: 'bound-boolean-prefix',            // “?”
+    boundDefinedPrefix: 'bound-defined-prefix',            // “??”
+    boundPropertyPrefix: 'bound-property-prefix',          // “.”
+    endTagOpen: 'end-tag-open',                            // “</”
+    endTagClose: 'end-tag-close',                          // “>”
+    commentOpen: 'comment-open',                           // “<!--”
+    commentClose: 'comment-close',                         // “-->”
+
+    // Literals
+    startTagName: 'start-tag-name',                        // e.g., “div”
+    endTagName: 'end-tag-name',                            // e.g., “span”
+    comment: 'comment',                                    // text in comment
+    attributeName: 'attribute-name',                       // e.g., “id”
+    booleanName: 'boolean-name',                           // e.g., “disabled”
+
+    // Text
+    textStart: 'text-start',                               // begin text
+    textReference: 'text-reference',                       // html entity
+    textPlaintext: 'text-plaintext',                       // normal text
+    textEnd: 'text-end',                                   // end text
+
+    // Attribute Values
+    attributeValueStart: 'attribute-value-start',          // begin value
+    attributeValueReference: 'attribute-value-reference',  // html entity
+    attributeValuePlaintext: 'attribute-value-plaintext',  // normal text
+    attributeValueEnd: 'attribute-value-end',              // end value
+
+    // Bindings
+    boundAttributeName: 'bound-attribute-name',            // binding name
+    boundBooleanName: 'bound-boolean-name',                // binding name
+    boundDefinedName: 'bound-defined-name',                // binding name
+    boundPropertyName: 'bound-property-name',              // binding name
+    boundTextValue: 'bound-text-value',                    // binding location
+    boundContentValue: 'bound-content-value',              // binding location
+    boundAttributeValue: 'bound-attribute-value',          // binding location
+    boundBooleanValue: 'bound-boolean-value',              // binding location
+    boundDefinedValue: 'bound-defined-value',              // binding location
+    boundPropertyValue: 'bound-property-value',            // binding location
+  };
 
   /**
    * Additional error context.
@@ -834,115 +936,55 @@ export class XParser {
   }
 
   /**
-   * Instantiation options.
-   * @typedef {object} XParserOptions
-   * @property {window} [window]
-   */
-
-  /**
-   * Creates an XParser instance. Mock the “window” for validation-only usage.
-   * @param {XParserOptions} [options]
-   */
-  constructor(options) {
-    if (this.constructor !== XParser) {
-      throw new Error('XParser class extension is not supported.');
-    }
-    this.#window = options?.window ?? globalThis;
-    this.#fragment = this.#window.document.createDocumentFragment();
-    this.#htmlEntityContainer = this.#window.document.createElement('template');
-  }
-
-  /**
-   * The onBoolean callback.
-   * @callback onBoolean
-   * @param {string} attributeName
-   * @param {number[]} path
-   */
-
-  /**
-   * The onDefined callback.
-   * @callback onDefined
-   * @param {string} attributeName
-   * @param {number[]} path
-   */
-
-  /**
-   * The onAttribute callback.
-   * @callback onAttribute
-   * @param {string} attributeName
-   * @param {number[]} path
-   */
-
-  /**
-   * The onProperty callback.
-   * @callback onProperty
-   * @param {string} propertyName
-   * @param {number[]} path
-   */
-
-  /**
-   * The onContent callback.
-   * @callback onContent
-   * @param {number[]} path
-   */
-
-  /**
-   * The onText callback.
-   * @callback onText
-   * @param {number[]} path
+   * Main parsing callback.
+   * @callback onToken
+   * @param {string} type
+   * @param {number} index
+   * @param {number} start
+   * @param {number} end
+   * @param {string} substring
    */
 
   /**
    * The core parse function takes in the “strings” from a tagged template
-   * function and returns a document fragment. The “on*” callbacks are an
-   * optimization to allow a subscriber to store future lookups without
-   * needing to re-walk the resulting document fragment.
-   * @param {TemplateStringsArray} strings
-   * @param {onBoolean} onBoolean
-   * @param {onDefined} onDefined
-   * @param {onAttribute} onAttribute
-   * @param {onProperty} onProperty
-   * @param {onContent} onContent
-   * @param {onText} onText
-   * @returns {DocumentFragment}
+   * function and returns an array of tokens representing the parsed result.
+   * @param {*} strings
+   * @param {onToken} onToken
    */
-  parse(strings, onBoolean, onDefined, onAttribute, onProperty, onContent, onText) {
-    const fragment = this.#fragment.cloneNode(false);
-    const path = [];
-    const childNodesIndex = { value: -1 }; // Wrapper to allow better factoring.
-    const element = { value: fragment }; // Wrapper to allow better factoring.
-
+  static parse(strings, onToken) {
     const stringsLength = strings.length;
+    const tagNames = [null];
+    let tagName = null;
     let stringsIndex = 0;
     let string = null;
     let stringLength = null;
     let stringIndex = null;
     let nextStringIndex = null;
-    let value = this.#initial;
+    let value = XParser.#initial; // Values are stateful regular expressions.
 
     try {
       while (stringsIndex < stringsLength) {
-        string = strings[stringsIndex];
+        XParser.#validateRawString(strings.raw[stringsIndex]);
 
-        this.#validateRawString(strings.raw[stringsIndex]);
+        string = strings[stringsIndex];
         if (stringsIndex > 0) {
           switch (value) {
-            case this.#initial:
-            case this.#boundContent:
-            case this.#unboundContent:
-            case this.#openTagEnd:
-            case this.#closeTag:
-              if (element.value[this.#localName] === 'textarea') {
+            case XParser.#initial:
+            case XParser.#boundContent:
+            case XParser.#text:
+            case XParser.#startTagClose:
+            case XParser.#endTag:
+              if (tagName === 'textarea') {
                 // The textarea tag only accepts text, we restrict interpolation
                 //  there. See note on “replaceable character data” in the
                 //  following reference document:
                 //  https://w3c.github.io/html-reference/syntax.html#text-syntax
-                const sloppyStartInterpolation = value !== this.#openTagEnd;
-                this.#addBoundText(onText, string, path, sloppyStartInterpolation);
+                const sloppyStartInterpolation = value !== XParser.#startTagClose;
+                XParser.#sendBoundTextTokens(onToken, stringsIndex - 1, string, stringIndex, sloppyStartInterpolation);
               } else {
-                this.#addBoundContent(onContent, path, element, childNodesIndex);
+                XParser.#sendBoundContentTokens(onToken, stringsIndex - 1, string, stringIndex);
               }
-              value = this.#boundContent;
+              value = XParser.#boundContent;
               nextStringIndex = value.lastIndex;
               break;
           }
@@ -954,9 +996,9 @@ export class XParser {
           // The string will be empty if we have a template like this `${…}${…}`.
           //  See related logic at the end of the inner loop;
           if (string.length > 0) {
-            const nextValue = this.#validTransition(string, stringIndex, value);
+            const nextValue = XParser.#validTransition(string, stringIndex, value);
             if (!nextValue) {
-              this.#throwTransitionError(strings, stringsIndex, string, stringIndex, value);
+              XParser.#throwTransitionError(strings, stringsIndex, string, stringIndex, value);
             }
             value = nextValue;
             nextStringIndex = value.lastIndex;
@@ -964,75 +1006,69 @@ export class XParser {
 
           // When we transition into certain values, we need to take action.
           switch (value) {
-            case this.#unboundContent:
-              this.#addUnboundContent(string, stringIndex, element, childNodesIndex, nextStringIndex);
+            case XParser.#text:
+              XParser.#sendTextTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#unboundComment:
-              this.#addUnboundComment(string, stringIndex, element, childNodesIndex, nextStringIndex);
+            case XParser.#comment:
+              XParser.#sendCommentTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#openTagStart:
-              this.#addElement(string, stringIndex, path, element, childNodesIndex, nextStringIndex);
+            case XParser.#startTagOpen:
+              tagName = XParser.#sendStartTagOpenTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
+              tagNames.push(tagName);
               break;
-            case this.#unboundBoolean:
-              this.#addUnboundBoolean(string, stringIndex, element, nextStringIndex);
+            case XParser.#startTagSpace:
+              XParser.#sendStartTagSpaceTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#unboundAttribute:
-              this.#addUnboundAttribute(string, stringIndex, element, nextStringIndex);
+            case XParser.#danglingQuote:
+              XParser.#sendDanglingQuoteTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#boundBoolean:
-              this.#addBoundBoolean(onBoolean, string, stringIndex, path, element, nextStringIndex);
+            case XParser.#boolean:
+              XParser.#sendBooleanTokens(onToken, tagName, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#boundDefined:
-              this.#addBoundDefined(onDefined, string, stringIndex, path, element, nextStringIndex);
+            case XParser.#attribute:
+              XParser.#sendAttributeTokens(onToken, tagName, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#boundAttribute:
-              this.#addBoundAttribute(onAttribute, string, stringIndex, path, element, nextStringIndex);
+            case XParser.#boundBoolean:
+              XParser.#sendBoundBooleanTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#boundProperty:
-              this.#addBoundProperty(onProperty, string, stringIndex, path, nextStringIndex);
+            case XParser.#boundDefined:
+              XParser.#sendBoundDefinedTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
               break;
-            case this.#openTagEnd: {
-              const tagName = element.value[this.#localName];
-              if (this.#voidHtmlElements.has(tagName)) {
-                value = this.#finalizeVoidElement(path, element, childNodesIndex, nextStringIndex);
-                nextStringIndex = value.lastIndex;
-              } else if (
-                tagName === 'textarea' &&
-                this.#openTagEnd.lastIndex !== string.length
-              ) {
-                value = this.#finalizeTextarea(string, path, element, childNodesIndex, nextStringIndex);
-                nextStringIndex = value.lastIndex;
-              } else if (tagName === 'pre' && string[value.lastIndex] === '\n') {
-                // An initial newline character is optional for <pre> tags.
-                //  https://html.spec.whatwg.org/multipage/syntax.html#element-restrictions
-                value.lastIndex++;
-                nextStringIndex = value.lastIndex;
-                // Assume we’re traversing into the new element and reset index.
-                childNodesIndex.value = -1;
-              } else if (
-                tagName === 'template' &&
-                // @ts-ignore — TypeScript doesn’t get that this is a “template”.
-                element.value.hasAttribute('shadowrootmode')
-              ) {
-                const errorMessagesKey = this.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
-                const errorMessage = this.#errorMessages.get(errorMessagesKey);
-                throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+            case XParser.#boundAttribute:
+              XParser.#sendBoundAttributeTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
+              break;
+            case XParser.#boundProperty:
+              XParser.#sendBoundPropertyTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
+              break;
+            case XParser.#startTagClose:
+              if (XParser.#voidHtmlElements.has(tagName)) {
+                XParser.#sendVoidElementTokens(onToken, stringsIndex, stringIndex, nextStringIndex);
+                tagNames.pop();
+                tagName = tagNames[tagNames.length - 1];
+              } else if (tagName === 'textarea' && XParser.#startTagClose.lastIndex !== string.length) {
+                // If successful, move cursor through textarea element end tag.
+                nextStringIndex = XParser.#sendTextareaTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
+                value = XParser.#endTag;
+                value.lastIndex = nextStringIndex;
+                tagNames.pop();
+                tagName = tagNames[tagNames.length - 1];
               } else {
-                // Assume we’re traversing into the new element and reset index.
-                childNodesIndex.value = -1;
+                XParser.#sendStartTagCloseTokens(onToken, stringsIndex, stringIndex, nextStringIndex);
               }
               break;
-            }
-            case this.#closeTag:
-              this.#finalizeElement(strings, stringsIndex, string, stringIndex, path, element, childNodesIndex, nextStringIndex);
+            case XParser.#endTag: {
+              XParser.#sendEndTagTokens(onToken, tagName, strings, stringsIndex, string, stringIndex, nextStringIndex);
+              tagNames.pop();
+              tagName = tagNames[tagNames.length - 1];
               break;
+            }
           }
           stringIndex = nextStringIndex; // Update out pointer from our pattern match.
         }
         stringsIndex++;
       }
-      this.#validateExit(fragment, element);
-      return fragment;
+
+      XParser.#validateExit(tagName);
     } catch (error) {
       error[XParser.#errorContextKey] = { stringsIndex, string, stringIndex };
       throw error;
