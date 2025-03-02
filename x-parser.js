@@ -919,9 +919,9 @@ export class XParser {
   /**
    * Additional error context.
    * @typedef {object} ErrorContext
-   * @property {number} stringsIndex
-   * @property {string} string
-   * @property {number} stringIndex
+   * @property {number} index
+   * @property {number} start
+   * @property {number} end
    */
 
   /**
@@ -983,7 +983,6 @@ export class XParser {
                 XParser.#sendBoundContentTokens(onToken, stringsIndex - 1, string, stringIndex);
               }
               value = XParser.#boundContent;
-              nextStringIndex = value.lastIndex;
               break;
           }
         }
@@ -1062,13 +1061,18 @@ export class XParser {
             }
           }
           stringIndex = nextStringIndex; // Update out pointer from our pattern match.
+          nextStringIndex = null;
         }
         stringsIndex++;
       }
 
       XParser.#validateExit(tagName);
     } catch (error) {
-      error[XParser.#errorContextKey] = { stringsIndex, string, stringIndex };
+      // Roughly match the conventions for “onToken”.
+      const index = stringsIndex;
+      const start = stringIndex;
+      const end = nextStringIndex;
+      error[XParser.#errorContextKey] = { index, start, end };
       throw error;
     }
   }

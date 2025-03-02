@@ -1421,6 +1421,25 @@ describe('validate', () => {
       error = err;
     }
     assert(!!error, 'no error was thrown');
-    assert(!!XParser.getErrorContext(error), 'no context was provided');
+    const context = XParser.getErrorContext(error);
+    assert(!!context, 'no context was provided');
+    assert(context.index === 0);
+    assert(context.start === 0);
+    assert(context.end === 5);
+  });
+
+  it('initial error contains context for debugging', () => {
+    let error;
+    try {
+      html`this will fail immediately because of the following escape \u2026`;
+    } catch (err) {
+      error = err;
+    }
+    assert(!!error, 'no error was thrown');
+    const context = XParser.getErrorContext(error);
+    assert(!!context, 'no context was provided');
+    assert(Number.isInteger(context.index));
+    assert(context.start === null);
+    assert(context.end === null);
   });
 });
