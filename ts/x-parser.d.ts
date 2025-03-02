@@ -114,9 +114,9 @@ export class XParser {
     /**
      * Additional error context.
      * @typedef {object} ErrorContext
-     * @property {number} stringsIndex
-     * @property {string} string
-     * @property {number} stringIndex
+     * @property {number} index
+     * @property {number} start
+     * @property {number} end
      */
     /**
      * Get additional context for parsing errors.
@@ -124,9 +124,9 @@ export class XParser {
      * @returns {ErrorContext|void}
      */
     static getErrorContext(error: Error): {
-        stringsIndex: number;
-        string: string;
-        stringIndex: number;
+        index: number;
+        start: number;
+        end: number;
     } | void;
     /**
      * Main parsing callback.
