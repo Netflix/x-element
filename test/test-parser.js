@@ -298,22 +298,22 @@ describe('character references', () => {
   });
 });
 
-describe('JS-y escapes', () => {
-  it('properly escaped JS escape characters work', () => {
+describe('JS-y escapes / encodings', () => {
+  it('properly encoded JS escape characters work', () => {
     // Just checks that no errors are thrown.
-    htmlol`
-      The \\n \\\\n character is a newline.
-      The \\r \\\\r is a return.
-      The \\', \\\\', \\", \\\\", and \\\`, \\\\\` characters are quotes and back ticks.
-      This \\, \\\\ character is a literal backslash.
-      The \\t, \\\\t character is a tab.
-      The \\b, \\\\b character is a backspace.
-      The \\f, \\\\f character is a form feed.
-      The \\v, \\\\v character is a vertical tab.
-      The \\u2026, \\\\u2026 character is an ellipsis.
-      The \\x8230, \\\\x8230 character is also an ellipsis.
-      The \\0, \\\\0 character is the nul character.
-      The \${interpolation} character is okay to escape.
+    html`
+      The &bsol;n is a newline.
+      The &bsol;r is a return.
+      The ', ", and &grave; characters are quotes and back ticks.
+      This &bsol; is a literal backslash.
+      The &bsol;t character is a tab.
+      The &bsol;b is a backspace.
+      The &bsol;f is a form feed.
+      The &bsol;v character is a vertical tab.
+      The &bsol;u2026 character is an ellipsis (&hellip;).
+      The &bsol;x8230 character is also an ellipsis (&hellip;).
+      The &bsol;0 character is the nul character.
+      The &dollar;{interpolation} character is used to work around interpolations.
     `;
   });
 });
@@ -427,15 +427,17 @@ describe('attributes and properties', () => {
       { type: 'attribute-value-start', index: 0, start: 14, end: 14, substring: '' },
       { type: 'attribute-value-plaintext', index: 0, start: 14, end: 34, substring: 'this.textContent = \'' },
       { type: 'attribute-value-reference', index: 0, start: 34, end: 42, substring: '&hellip;' },
-      { type: 'attribute-value-plaintext', index: 0, start: 42, end: 52, substring: 'hi\\u2026\';' },
-      { type: 'attribute-value-end', index: 0, start: 52, end: 52, substring: '' },
-      { type: 'start-tag-quote', index: 0, start: 52, end: 53, substring: '"' },
-      { type: 'start-tag-close', index: 0, start: 53, end: 54, substring: '>' },
-      { type: 'end-tag-open', index: 0, start: 54, end: 56, substring: '</' },
-      { type: 'end-tag-name', index: 0, start: 56, end: 59, substring: 'div' },
-      { type: 'end-tag-close', index: 0, start: 59, end: 60, substring: '>' },
+      { type: 'attribute-value-plaintext', index: 0, start: 42, end: 44, substring: 'hi' },
+      { type: 'attribute-value-reference', index: 0, start: 44, end: 50, substring: '&bsol;' },
+      { type: 'attribute-value-plaintext', index: 0, start: 50, end: 57, substring: 'u2026\';' },
+      { type: 'attribute-value-end', index: 0, start: 57, end: 57, substring: '' },
+      { type: 'start-tag-quote', index: 0, start: 57, end: 58, substring: '"' },
+      { type: 'start-tag-close', index: 0, start: 58, end: 59, substring: '>' },
+      { type: 'end-tag-open', index: 0, start: 59, end: 61, substring: '</' },
+      { type: 'end-tag-name', index: 0, start: 61, end: 64, substring: 'div' },
+      { type: 'end-tag-close', index: 0, start: 64, end: 65, substring: '>' },
     ];
-    const tokens = html`<div onclick="this.textContent = '&hellip;hi\\u2026';"></div>`;
+    const tokens = html`<div onclick="this.textContent = '&hellip;hi&bsol;u2026';"></div>`;
     assert(deepEqual(tokens, expectedTokens), stringifyTokens(tokens));
   });
 
@@ -1146,75 +1148,99 @@ describe('errors', () => {
   });
 
   it('throws for trying to write unicode in a js-y decimal format', () => {
-    const callback1 = () => html`<div>please no\x8230</div>`;
-    const callback2 = () => html`<div>please no\\\x8230</div>`;
+    const callback1 = () => htmlol`<div>please no\x8230</div>`;
+    const callback2 = () => htmlol`<div>please no\\\x8230</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write unicode in a js-y hexadecimal format', () => {
-    const callback1 = () => html`<div>please no\u2026</div>`;
-    const callback2 = () => html`<div>please no\\\u2026</div>`;
+    const callback1 = () => htmlol`<div>please no\u2026</div>`;
+    const callback2 = () => htmlol`<div>please no\\\u2026</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write newlines in a js-y format', () => {
-    const callback1 = () => html`<div>please no\n</div>`;
-    const callback2 = () => html`<div>please no\\\n</div>`;
+    const callback1 = () => htmlol`<div>please no\n</div>`;
+    const callback2 = () => htmlol`<div>please no\\\n</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write tabs in a js-y format', () => {
-    const callback1 = () => html`<div>please no\t</div>`;
-    const callback2 = () => html`<div>please no\\\t</div>`;
+    const callback1 = () => htmlol`<div>please no\t</div>`;
+    const callback2 = () => htmlol`<div>please no\\\t</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write returns in a js-y format', () => {
-    const callback1 = () => html`<div>please no\r</div>`;
-    const callback2 = () => html`<div>please no\\\r</div>`;
+    const callback1 = () => htmlol`<div>please no\r</div>`;
+    const callback2 = () => htmlol`<div>please no\\\r</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write null characters in a js-y format', () => {
-    const callback1 = () => html`<div>please no\0</div>`;
-    const callback2 = () => html`<div>please no\\\0</div>`;
+    const callback1 = () => htmlol`<div>please no\0</div>`;
+    const callback2 = () => htmlol`<div>please no\\\0</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write form feed characters in a js-y format', () => {
-    const callback1 = () => html`<div>please no\f</div>`;
-    const callback2 = () => html`<div>please no\\\f</div>`;
+    const callback1 = () => htmlol`<div>please no\f</div>`;
+    const callback2 = () => htmlol`<div>please no\\\f</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write backspace characters in a js-y format', () => {
-    const callback1 = () => html`<div>please no\b</div>`;
-    const callback2 = () => html`<div>please no\\\b</div>`;
+    const callback1 = () => htmlol`<div>please no\b</div>`;
+    const callback2 = () => htmlol`<div>please no\\\b</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
   });
 
   it('throws for trying to write vertical tab characters in a js-y format', () => {
-    const callback1 = () => html`<div>please no\v</div>`;
-    const callback2 = () => html`<div>please no\\\v</div>`;
+    const callback1 = () => htmlol`<div>please no\v</div>`;
+    const callback2 = () => htmlol`<div>please no\\\v</div>`;
     const expectedMessage = '[#150]';
     assertThrows(callback1, expectedMessage, { startsWith: true });
     assertThrows(callback2, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for trying to write backslash', () => {
+    const callback1 = () => htmlol`<div>\\</div>`;
+    const expectedMessage = '[#150]';
+    assertThrows(callback1, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for trying to write literal backslash via an escape', () => {
+    const callback1 = () => htmlol`<div>\\</div>`;
+    const expectedMessage = '[#150]';
+    assertThrows(callback1, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for trying to write literal back tick via an escape', () => {
+    const callback1 = () => htmlol`<div>\`</div>`;
+    const expectedMessage = '[#150]';
+    assertThrows(callback1, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for trying to write literal dollar sign via an escape', () => {
+    const callback1 = () => htmlol`<div>\$</div>`;
+    const expectedMessage = '[#150]';
+    assertThrows(callback1, expectedMessage, { startsWith: true });
   });
 
   it('throws for ambiguous ampersands', () => {

@@ -169,26 +169,6 @@ export class XParser {
   static #throughTextarea = /.*?<\/textarea>/ys;
 
   //////////////////////////////////////////////////////////////////////////////
-  // JS-y Escapes //////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////
-
-  // Character escapes like “\n”, “\u” or ”\x” are a JS-ism. We want developers
-  //  to use HTML here, not JS. You can of course interpolate whatever you want.
-  //  https://w3c.github.io/html-reference/syntax.html#character-encoding
-  //  https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Character_escape
-  // Note that syntax highlighters expect the text after the “html” tag to be
-  //  real HTML. Another reason to reject JS-y unicode is that it won’t be
-  //  interpreted correctly by tooling that expects _html_.
-  // The only escapes we expect to see are for the “$”, “\”, and “`” characters,
-  //  which you _must_ use if you need those literal characters.
-  // The simplest way to check this is to ensure that back slashes always come
-  //  in pairs of two or a single back slash preceding a back tick.
-  // Examples:
-  //  - ok: html`&#8230;`, html`&#x2026;`, html`&mldr;`, html`&hellip;`, html`\\n`
-  //  - not ok: html`\nhi\nthere`, html`\x8230`, html`\u2026`, html`\s\t\o\p\ \i\t\.`
-  static #rawJsEscape = /.*(?<!\\)(?:\\{2})*\\(?![$\\`])/ys;
-
-  //////////////////////////////////////////////////////////////////////////////
   // Character References //////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
@@ -281,7 +261,7 @@ export class XParser {
 
     ['#140', 'CDATA sections are forbidden. Use html entities (character encodings) instead.'],
 
-    ['#150', 'Improper javascript escape (\\x, \\u, \\t, \\n, etc.) in raw template string. Only escapes to create a literal dollar (“$”), slash (“\\”), or back tick (“`”) is allowed. Only valid HTML entities (character references) are supported in html as code points. Use literal characters (e.g., newlines) to enter newlines in your templates.'],
+    ['#150', 'Improper javascript escape (\\\\, \\$, \\`, \\x, \\u, \\t, \\n, etc.) in raw template string. Only valid HTML entities (character references) are supported in html as code points. Use “&bsol;” for “\\”, “&dollar;” for “\\$”, and “&grave;” for “\\`”. Use literal characters (e.g., newlines) to enter newlines in your templates.'],
     ['#151', 'Malformed hexadecimal character reference (html entity) or ambiguous ampersand.'],
     ['#152', 'Malformed html comment. Comments cannot start with “>” or “->” characters, they cannot include a set of “--” characters, and they cannot end with a “-” character.'],
     ['#153', 'Forbidden html element used — this parser is opinionated about which elements are allowed in order to reduce complexity and improve performance.'],
@@ -551,15 +531,24 @@ export class XParser {
     throw new Error(message);
   }
 
-  // This validates a value from our “strings.raw” array passed into our tagged
-  //  template function. It checks to make sure superfluous, JS-y escapes are
-  //  not being used as html (since there are perfectly-valid alternatives).
+  // Character escapes like “\n”, “\u” or ”\x” are a JS-ism. We want developers
+  //  to use HTML here, not JS. You can of course interpolate whatever you want.
+  //  https://w3c.github.io/html-reference/syntax.html#character-encoding
+  //  https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Character_escape
+  // Note that syntax highlighters expect the text after the “html” tag to be
+  //  real HTML. Another reason to reject JS-y unicode is that it won’t be
+  //  interpreted correctly by tooling that expects _html_.
+  // Escapes for the “$”, “\”, and “`” characters are required within a template
+  //  literal — users will need to use “&dollar;”, “&bsol;”, and “&grave;”.
+  // Examples:
+  //  - ok: html`&#8230;`, html`&#x2026;`, html`&mldr;`, html`&hellip;`
+  //  - not ok: html`\nhi\nthere`, html`\x8230`, html`\u2026`, html`\s\t\o\p\ \i\t\.`
   static #validateRawString(rawString) {
-    XParser.#rawJsEscape.lastIndex = 0;
-    if (XParser.#rawJsEscape.test(rawString)) {
+    const backslashIndex = rawString.indexOf('\\');
+    if (backslashIndex !== -1) {
       const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('javascript-escape');
       const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
-      const substringMessage = `See (raw) substring \`${rawString.slice(0, XParser.#rawJsEscape.lastIndex)}\`.`;
+      const substringMessage = `See (raw) substring \`${rawString.slice(0, backslashIndex + 1)}\`.`;
       const message = `[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`;
       throw new Error(message);
     }
