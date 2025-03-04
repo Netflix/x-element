@@ -354,16 +354,29 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').prop === 'bar');
   });
 
-  it('renders “on*” properties as event handlers', () => {
+  it('renders “on*” attributes as event handlers', () => {
     const container = document.createElement('div');
     document.body.append(container);
-    render(container, html`<div .onclick="${function() { this.textContent = '…hi\u2026'; }}"></div>`);
+    render(container, html`<div onclick="this.textContent = '&hellip;hi&hellip;';"></div>`);
     container.firstElementChild.click();
     // Because attributes have _replaceable_ content, the “&hellip;” should be
     //  immediately replaced and injected as the actual character “…” within the
-    //  to-be-evaluated JS script. Because the “\\u2026” is escaped, it passes
-    //  validation. Finally, because this is valid HTML text, it ought to
-    //  highlight correctly in an IDE (you have to just confirm that visually).
+    //  to-be-evaluated JS script. The default template engine doesn’t allow 
+    //  any character escapes, so there is no way to pass “\u2026” as we can
+    //  below in the interpolated property test.
+    assert(container.firstElementChild.textContent = '…hi…');
+    container.remove();
+  });
+
+  it('renders “on*” properties as event handlers', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, html`<div .onclick="${'function() { this.textContent = \'…hi\u2026\'; }'}"></div>`);
+    container.firstElementChild.click();
+    // Because attributes have _replaceable_ content, the “&hellip;” should be
+    //  immediately replaced and injected as the actual character “…” within the
+    //  to-be-evaluated JS script. Because the “\u2026” is interpolated, it’s
+    //  not validated at all (it’s not even seen by the parser).
     assert(container.firstElementChild.textContent = '…hi…');
     container.remove();
   });

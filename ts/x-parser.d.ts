@@ -22,7 +22,6 @@ export class XParser {
     static "__#1@#boundProperty": RegExp;
     static "__#1@#danglingQuote": RegExp;
     static "__#1@#throughTextarea": RegExp;
-    static "__#1@#rawJsEscape": RegExp;
     static "__#1@#entity": RegExp;
     static "__#1@#htmlEntityStart": RegExp;
     static "__#1@#cdataStart": RegExp;
