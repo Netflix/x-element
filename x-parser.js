@@ -78,16 +78,16 @@ export class XParser {
   //  related pattern to match. Initial is just the state we start in and we
   //  only find bound content at string terminals (i.e., interpolations). The
   //  patterns below are intentionally unmatchable.
-  static #initial =      /\b\B/y;
-  static #boundContent = /\b\B/y;
+  static #initial                 = /\b\B/y;
+  static #boundContent            = /\b\B/y;
 
   // Our text rules follow the “normal character data” spec.
   //  https://w3c.github.io/html-reference/syntax.html#normal-character-data
-  static #text = /[^<]+/y;
+  static #text                    = /[^<]+/y;
 
   // Our comment rules follow the “comments” spec.
   //  https://w3c.github.io/html-reference/syntax.html#comments
-  static #comment = /<!--.*?-->/ys;
+  static #comment                 = /<!--.*?-->/ys;
 
   // Our tag name rules are more restrictive than the “tag name” spec.
   //  https://html.spec.whatwg.org/multipage/syntax.html#syntax-tag-name
@@ -99,9 +99,9 @@ export class XParser {
   // Examples:
   //  - ok: <h6>, <my-element-1>
   //  - not ok: <-div>, <1-my-element>
-  static #startTagOpen = /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
-  static #endTag =     /<\/(?![0-9-])[a-z0-9-]+(?<!-)>/y;
-  static #startTagClose = /(?<![\s\n])>/y;
+  static #startTagOpen            =   /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  static #endTag                  = /<\/(?![0-9-])[a-z0-9-]+(?<!-)>/y;
+  static #startTagClose           =    /(?<![\s\n])>/y;
 
   // TODO: Check on performance for this pattern. We want to do a positive
   //  lookahead so that we report the correct failure on fail.
@@ -113,7 +113,7 @@ export class XParser {
   // Examples:
   //  - ok: <div foo bar>, <div\n  foo\n  bar>
   //  - not ok: <div foo  bar>, <div\n\n  foo\n\n  bar>, <div\tfoo\tbar>
-  static #startTagSpace = / (?! )|\n *(?!\n)(?=[-_.?a-zA-Z0-9>])/y;
+  static #startTagSpace           = / (?! )|\n *(?!\n)(?=[-_.?a-zA-Z0-9>])/y;
 
   // Our attribute rules are more restrictive than the “attribute” spec.
   //  https://html.spec.whatwg.org/multipage/syntax.html#attributes-2
@@ -129,11 +129,11 @@ export class XParser {
   // Full attribute examples:
   //  - ok: foo, foo="bar", ?foo="${'bar'}", ??foo="${'bar'}", foo="${'bar'}"
   //  - not ok: foo='bar', ?foo, foo=${'bar'}
-  static #boolean =          /(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
-  static #attribute =        /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
-  static #boundBoolean =   /\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
-  static #boundDefined = /\?\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
-  static #boundAttribute =   /(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  static #boolean                 =     /(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  static #attribute               =     /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
+  static #boundBoolean            =   /\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  static #boundDefined            = /\?\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
+  static #boundAttribute          =     /(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
 
   // There is no concept of a property binding in the HTML specification, but
   //  our DSL allows for a preceding “.” for bound properties.
@@ -148,14 +148,14 @@ export class XParser {
   // Full property examples:
   //  - ok: .foo="${'bar'}"
   //  - not ok: .foo='${'bar'}', .foo="bar"
-  static #boundProperty = /\.(?![A-Z0-9_])[a-zA-Z0-9_]+(?<!_)="$/y;
+  static #boundProperty           = /\.(?![A-Z0-9_])[a-zA-Z0-9_]+(?<!_)="$/y;
 
   // We require that values bound to attributes and properties be enclosed
   //  in double-quotes (see above patterns). Because interpolations delimit our
   //  “strings”, we need to check that the _next_ string begins with a
   //  double-quote. Note that it must precede a space, a newline, or the closing
   //  angle bracket of the opening tag.
-  static #danglingQuote = /"(?=[ \n>])/y;
+  static #danglingQuote           = /"(?=[ \n>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Special Tag Patterns //////////////////////////////////////////////////////
@@ -166,7 +166,7 @@ export class XParser {
   //  and closing tags as the content. Note that we allow the “.” to match
   //  across newlines.
   //  https://w3c.github.io/html-reference/syntax.html#replaceable-character-data
-  static #throughTextarea = /.*?<\/textarea>/ys;
+  static #throughTextarea         = /.*?<\/textarea>/ys;
 
   //////////////////////////////////////////////////////////////////////////////
   // Character References //////////////////////////////////////////////////////
@@ -182,8 +182,8 @@ export class XParser {
   //  characters as replacement text. We match such entities broadly and then
   //  rely on setHTMLUnsafe to decode.
   // https://w3c.github.io/html-reference/syntax.html#character-encoding
-  static #entity =          /&.*?;/ys;
-  static #htmlEntityStart = /[^&]*&[^&\s\n<]/y;
+  static #entity                  = /&.*?;/ys;
+  static #htmlEntityStart         = /[^&]*&[^&\s\n<]/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // CDATA /////////////////////////////////////////////////////////////////////
@@ -196,7 +196,7 @@ export class XParser {
   //  - <div><![CDATA[x < y]]></div>
   //  - <div>x &lt; y</div>
   //  … we make an opinion that authors should just use the latter.
-  static #cdataStart = /<!\[CDATA\[/y;
+  static #cdataStart              = /<!\[CDATA\[/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Common Mistakes ///////////////////////////////////////////////////////////
@@ -204,25 +204,25 @@ export class XParser {
 
   // See if weird spaces were added or if incorrect characters were used in
   //  open or close tags.
-  static #startTagOpenMalformed = /<[\s\n]*[a-zA-Z0-9_-]+/y;
-  static #startTagSpaceMalformed = /[\s\n]+/y;
-  static #startTagCloseMalformed = /[\s\n]*\/?>/y;
-  static #endTagMalformed =       /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
+  static #startTagOpenMalformed   = /<[\s\n]*[a-zA-Z0-9_-]+/y;
+  static #startTagSpaceMalformed  =  /[\s\n]+/y;
+  static #startTagCloseMalformed  =  /[\s\n]*\/?>/y;
+  static #endTagMalformed         = /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
   //  either normal or bound attributes.
-  static #booleanMalformed =          /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
-  static #attributeMalformed =        /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
-  static #boundBooleanMalformed =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
-  static #boundDefinedMalformed = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
-  static #boundAttributeMalformed =   /[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #booleanMalformed        =     /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
+  static #attributeMalformed      =     /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
+  static #boundBooleanMalformed   =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundDefinedMalformed   = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundAttributeMalformed =     /[a-zA-Z0-9-_]+=(?:"|')?$/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
   //  a bound property.
-  static #boundPropertyMalformed = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #boundPropertyMalformed  = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
 
   // See if the quote pair was malformed or missing.
-  static #danglingQuoteMalformed = /'?(?=[\s\n>])/y;
+  static #danglingQuoteMalformed  = /'?(?=[\s\n>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Errors ////////////////////////////////////////////////////////////////////
@@ -273,53 +273,53 @@ export class XParser {
 
   // Block #100-#119 — Invalid transition errors.
   static #valueToErrorMessagesKey = new Map([
-    [XParser.#initial,                       '#100'],
-    [XParser.#text,                          '#101'],
-    [XParser.#comment,                       '#102'],
-    [XParser.#boundContent,                  '#103'],
-    [XParser.#startTagOpen,                  '#104'],
-    [XParser.#startTagSpace,                 '#105'],
-    [XParser.#startTagClose,                 '#106'],
-    [XParser.#boolean,                       '#107'],
-    [XParser.#attribute,                     '#108'],
-    [XParser.#boundBoolean,                  '#109'],
-    [XParser.#boundDefined,                  '#110'],
-    [XParser.#boundAttribute,                '#111'],
-    [XParser.#boundProperty,                 '#112'],
-    [XParser.#danglingQuote,                 '#113'],
-    [XParser.#endTag,                        '#114'],
+    [XParser.#initial,                        '#100'],
+    [XParser.#text,                           '#101'],
+    [XParser.#comment,                        '#102'],
+    [XParser.#boundContent,                   '#103'],
+    [XParser.#startTagOpen,                   '#104'],
+    [XParser.#startTagSpace,                  '#105'],
+    [XParser.#startTagClose,                  '#106'],
+    [XParser.#boolean,                        '#107'],
+    [XParser.#attribute,                      '#108'],
+    [XParser.#boundBoolean,                   '#109'],
+    [XParser.#boundDefined,                   '#110'],
+    [XParser.#boundAttribute,                 '#111'],
+    [XParser.#boundProperty,                  '#112'],
+    [XParser.#danglingQuote,                  '#113'],
+    [XParser.#endTag,                         '#114'],
   ]);
 
   // Block #120-#139 — Common mistakes.
   static #valueMalformedToErrorMessagesKey = new Map([
-    [XParser.#startTagOpenMalformed,         '#120'],
-    [XParser.#startTagSpaceMalformed,        '#121'],
-    [XParser.#startTagCloseMalformed,        '#122'],
-    [XParser.#endTagMalformed,               '#123'],
-    [XParser.#booleanMalformed,              '#124'],
-    [XParser.#attributeMalformed,            '#125'],
-    [XParser.#boundBooleanMalformed,         '#126'],
-    [XParser.#boundDefinedMalformed,         '#127'],
-    [XParser.#boundAttributeMalformed,       '#128'],
-    [XParser.#boundPropertyMalformed,        '#129'],
-    [XParser.#danglingQuoteMalformed,        '#130'],
+    [XParser.#startTagOpenMalformed,          '#120'],
+    [XParser.#startTagSpaceMalformed,         '#121'],
+    [XParser.#startTagCloseMalformed,         '#122'],
+    [XParser.#endTagMalformed,                '#123'],
+    [XParser.#booleanMalformed,               '#124'],
+    [XParser.#attributeMalformed,             '#125'],
+    [XParser.#boundBooleanMalformed,          '#126'],
+    [XParser.#boundDefinedMalformed,          '#127'],
+    [XParser.#boundAttributeMalformed,        '#128'],
+    [XParser.#boundPropertyMalformed,         '#129'],
+    [XParser.#danglingQuoteMalformed,         '#130'],
   ]);
 
   // Block #140-#149 — Forbidden transitions.
   static #valueForbiddenToErrorMessagesKey = new Map([
-    [XParser.#cdataStart,                    '#140'],
+    [XParser.#cdataStart,                     '#140'],
   ]);
 
   // Block #150+ — Special, named issues.
   static #namedErrorsToErrorMessagesKey = new Map([
-    ['javascript-escape',                    '#150'],
-    ['malformed-html-entity',                '#151'],
-    ['malformed-comment',                    '#152'],
-    ['forbidden-html-element',               '#153'],
-    ['missing-closing-tag',                  '#154'],
-    ['mismatched-closing-tag',               '#155'],
-    ['complex-textarea-interpolation',       '#156'],
-    ['declarative-shadow-root',              '#157'],
+    ['javascript-escape',                     '#150'],
+    ['malformed-html-entity',                 '#151'],
+    ['malformed-comment',                     '#152'],
+    ['forbidden-html-element',                '#153'],
+    ['missing-closing-tag',                   '#154'],
+    ['mismatched-closing-tag',                '#155'],
+    ['complex-textarea-interpolation',        '#156'],
+    ['declarative-shadow-root',               '#157'],
   ]);
 
   //////////////////////////////////////////////////////////////////////////////
