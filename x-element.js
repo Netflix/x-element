@@ -172,6 +172,12 @@ export default class XElement extends HTMLElement {
     XElement.#connectHost(this);
   }
 
+  // TODO: #254: Uncomment once we leverage “moveBefore”.
+  // /**
+  //  * Extends HTMLElement.prototype.connectedMoveCallback.
+  //  */
+  // connectedMoveCallback() {}
+
   /**
    * Extends HTMLElement.prototype.attributeChangedCallback.
    * @param {string} attribute
