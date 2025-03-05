@@ -314,113 +314,6 @@ class TemplateEngine {
     return targets;
   }
 
-  // Validates array item or map entry and returns an “id” and a “rawResult”.
-  static #parseListValue(value, index, category, ids) {
-    if (category === 'array') {
-      // Values should look like "<raw result>".
-      const id = String(index);
-      const rawResult = value;
-      ids.add(id);
-      if (!TemplateEngine.#isRawResult(rawResult)) {
-        throw new Error(`Unexpected non-template value found in array item at ${index} "${rawResult}".`);
-      }
-      return [id, rawResult];
-    } else {
-      // Values should look like "[<key>, <raw result>]".
-      if (value.length !== 2) {
-        throw new Error(`Unexpected entry length found in map entry at ${index} with length "${value.length}".`);
-      }
-      const [id, rawResult] = value;
-      if (typeof id !== 'string') {
-        throw new Error(`Unexpected non-string key found in map entry at ${index} "${id}".`);
-      }
-      if (ids.has(id)) {
-        throw new Error(`Unexpected duplicate key found in map entry at ${index} "${id}".`);
-      }
-      ids.add(id);
-      if (!TemplateEngine.#isRawResult(rawResult)) {
-        throw new Error(`Unexpected non-template value found in map entry at ${index} "${rawResult}".`);
-      }
-      return [id, rawResult];
-    }
-  }
-
-  // TODO: #254: Use new “moveBefore” when available with cross-browser support.
-  //  This enables us to preserve things like animations and prevent node
-  //  disconnects. See https://chromestatus.com/feature/5135990159835136
-  // Loops over given value array to either create-or-update a list of nodes.
-  static #list(node, startNode, values, category) {
-    const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
-    if (!arrayState.map) {
-      // There is no mapping in our state — we have a clean slate to work with.
-      TemplateEngine.#clearObject(arrayState);
-      arrayState.map = new Map();
-      const ids = new Set(); // Populated in “parseListValue”.
-      let index = 0;
-      for (const value of values) {
-        const [id, rawResult] = TemplateEngine.#parseListValue(value, index, category, ids);
-        const cursors = TemplateEngine.#createCursors(node);
-        const preparedResult = TemplateEngine.#inject(rawResult, cursors.node, true);
-        arrayState.map.set(id, { id, preparedResult, ...cursors });
-        index++;
-      }
-    } else {
-      // TODO: Can we refactor this all into a _single_ loop? Right now, we do
-      //  the following:
-      //  1. Loop once to add new things.
-      //  2. Loop a second time to remove old things.
-      //  3. Loop a third time to reorder (if we have a mapping).
-
-      // A mapping has already been created — we need to update the items.
-      const ids = new Set(); // Populated in “parseListValue”.
-      let index = 0;
-      for (const value of values) {
-        const [id, rawResult] = TemplateEngine.#parseListValue(value, index, category, ids);
-        let item = arrayState.map.get(id);
-        if (item) {
-          if (!TemplateEngine.#canReuseDom(item.preparedResult, rawResult)) {
-            // Add new comment cursors before removing old comment cursors.
-            const cursors = TemplateEngine.#createCursors(item.startNode);
-            TemplateEngine.#removeThrough(item.startNode, item.node);
-            item.preparedResult = TemplateEngine.#inject(rawResult, cursors.node, true);
-            item.startNode = cursors.startNode;
-            item.node = cursors.node;
-          } else {
-            TemplateEngine.#update(item.preparedResult, rawResult);
-          }
-        } else {
-          const cursors = TemplateEngine.#createCursors(node);
-          const preparedResult = TemplateEngine.#inject(rawResult, cursors.node, true);
-          item = { id, preparedResult, ...cursors };
-          arrayState.map.set(id, item);
-        }
-        index++;
-      }
-      for (const [id, item] of arrayState.map.entries()) {
-        if (!ids.has(id)) {
-          TemplateEngine.#removeThrough(item.startNode, item.node);
-          arrayState.map.delete(id);
-        }
-      }
-      let lastItem;
-      for (const id of ids) {
-        const item = arrayState.map.get(id);
-        // TODO: We should be able to make the following code more performant.
-        if (category === 'map') {
-          const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
-          if (referenceNode !== item.startNode) {
-            const nodesToMove = [item.startNode];
-            while (nodesToMove[nodesToMove.length - 1] !== item.node) {
-              nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
-            }
-            TemplateEngine.#insertAllBefore(referenceNode.parentNode, referenceNode, nodesToMove);
-          }
-        }
-        lastItem = item;
-      }
-    }
-  }
-
   static #commitAttribute(node, name, value, lastValue) {
     const update = TemplateEngine.#symbolToUpdate.get(value);
     if (update) {
@@ -477,40 +370,225 @@ class TemplateEngine {
   //   node[name] = value;
   // }
 
-  static #commitContent(node, startNode, value, lastValue) {
-    const category = TemplateEngine.#getCategory(value);
-    const lastCategory = TemplateEngine.#getCategory(lastValue);
-    if (category !== lastCategory && lastValue !== TemplateEngine.#UNSET) {
-      // Reset content under certain conditions. E.g., `map` >> `null`.
-      const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
-      const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
+  static #commitContentResultValue(node, startNode, value) {
+    const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
+    const rawResult = value;
+    if (!TemplateEngine.#canReuseDom(state.preparedResult, rawResult)) {
       TemplateEngine.#removeBetween(startNode, node);
       TemplateEngine.#clearObject(state);
-      TemplateEngine.#clearObject(arrayState);
-    }
-    if (category === 'result') {
-      const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
-      const rawResult = value;
-      if (!TemplateEngine.#canReuseDom(state.preparedResult, rawResult)) {
-        TemplateEngine.#removeBetween(startNode, node);
-        TemplateEngine.#clearObject(state);
-        const preparedResult = TemplateEngine.#inject(rawResult, node, true);
-        state.preparedResult = preparedResult;
-      } else {
-        TemplateEngine.#update(state.preparedResult, rawResult);
-      }
-    } else if (category === 'array' || category === 'map') {
-      TemplateEngine.#list(node, startNode, value, category);
-    } else if (category === 'fragment') {
-      if (value.childElementCount === 0) {
-        throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
-      }
-      const previousSibling = node.previousSibling;
-      if (previousSibling !== startNode) {
-        TemplateEngine.#removeBetween(startNode, node);
-      }
-      node.parentNode.insertBefore(value, node);
+      const preparedResult = TemplateEngine.#inject(rawResult, node, true);
+      state.preparedResult = preparedResult;
     } else {
+      TemplateEngine.#update(state.preparedResult, rawResult);
+    }
+  }
+
+  // Validates array value and returns a “rawResult”.
+  static #parseArrayValue(value, index) {
+    // Values should look like "<raw result>".
+    const rawResult = value;
+    if (!TemplateEngine.#isRawResult(rawResult)) {
+      throw new Error(`Unexpected non-template value found in array item at ${index} "${rawResult}".`);
+    }
+    return rawResult;
+  }
+
+  // Validates array entry and returns an “id” and a “rawResult”.
+  static #parseArrayEntry(entry, index, ids) {
+    // Entries should look like "[<key>, <raw result>]".
+    if (entry.length !== 2) {
+      throw new Error(`Unexpected entry length found in map entry at ${index} with length "${entry.length}".`);
+    }
+    const [id, rawResult] = entry;
+    if (typeof id !== 'string') {
+      throw new Error(`Unexpected non-string key found in map entry at ${index} "${id}".`);
+    }
+    if (ids.has(id)) {
+      throw new Error(`Unexpected duplicate key found in map entry at ${index} "${id}".`);
+    }
+    ids.add(id);
+    if (!TemplateEngine.#isRawResult(rawResult)) {
+      throw new Error(`Unexpected non-template value found in map entry at ${index} "${rawResult}".`);
+    }
+    return [id, rawResult];
+  }
+
+  // Helper to create / insert “cursors” in managed array of nodes.
+  static #createArrayItem(node, id, rawResult) {
+    const cursors = TemplateEngine.#createCursors(node);
+    const preparedResult = TemplateEngine.#inject(rawResult, cursors.node, true);
+    return { id, preparedResult, ...cursors };
+  }
+
+  // Helper to destroy, create, and replace “cursors” in managed array of nodes.
+  static #recreateArrayItem(item, rawResult) {
+    // Add new comment cursors before removing old comment cursors.
+    const cursors = TemplateEngine.#createCursors(item.startNode);
+    TemplateEngine.#removeThrough(item.startNode, item.node);
+    item.preparedResult = TemplateEngine.#inject(rawResult, cursors.node, true);
+    item.startNode = cursors.startNode;
+    item.node = cursors.node;
+  }
+
+  // Loops over given array of “values” to manage an array of nodes.
+  static #commitContentArrayValues(node, startNode, values) {
+    const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
+    if (!arrayState.map) {
+      // There is no mapping in our state — create an empty one as our base.
+      TemplateEngine.#clearObject(arrayState);
+      arrayState.map = new Map();
+    }
+
+    if (values.length > 0 && arrayState.map.size > 0) {
+      // Update existing values.
+      for (let index = 0; index < Math.min(arrayState.map.size, values.length); index++) {
+        const id = String(index);
+        const value = values[index];
+        const rawResult = TemplateEngine.#parseArrayValue(value, index);
+        const item = arrayState.map.get(id);
+        if (!TemplateEngine.#canReuseDom(item.preparedResult, rawResult)) {
+          TemplateEngine.#recreateArrayItem(item, rawResult);
+        } else {
+          TemplateEngine.#update(item.preparedResult, rawResult);
+        }
+      }
+    }
+
+    if (values.length > arrayState.map.size) {
+      // Add new values.
+      for (let index = arrayState.map.size; index < values.length; index++) {
+        const id = String(index);
+        const value = values[index];
+        const rawResult = TemplateEngine.#parseArrayValue(value, index);
+        const item = TemplateEngine.#createArrayItem(node, id, rawResult);
+        arrayState.map.set(id, item);
+      }
+    }
+
+    if (arrayState.map.size > values.length) {
+      // Delete removed values.
+      const index = values.length;
+      const id = String(index);
+      const item = arrayState.map.get(id);
+      TemplateEngine.#removeThrough(item.startNode, node);
+      arrayState.map.delete(id);
+    }
+  }
+
+  // Loops over given array of “entries” to manage an array of nodes.
+  static #commitContentArrayEntries(node, startNode, entries) {
+    const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
+    if (!arrayState.map) {
+      // There is no mapping in our state — create an empty one as our base.
+      TemplateEngine.#clearObject(arrayState);
+      arrayState.map = new Map();
+    }
+
+    // A mapping has already been created — we need to update the items.
+    const ids = new Set(); // Populated in “parseListValue”.
+    let index = 0;
+    for (const entry of entries) {
+      const [id, rawResult] = TemplateEngine.#parseArrayEntry(entry, index, ids);
+      let item = arrayState.map.get(id);
+      if (item) {
+        if (!TemplateEngine.#canReuseDom(item.preparedResult, rawResult)) {
+          TemplateEngine.#recreateArrayItem(item, rawResult);
+        } else {
+          TemplateEngine.#update(item.preparedResult, rawResult);
+        }
+      } else {
+        item = TemplateEngine.#createArrayItem(node, id, rawResult);
+        arrayState.map.set(id, item);
+      }
+      index++;
+    }
+    for (const [id, item] of arrayState.map.entries()) {
+      if (!ids.has(id)) {
+        TemplateEngine.#removeThrough(item.startNode, item.node);
+        arrayState.map.delete(id);
+      }
+    }
+    let lastItem;
+    for (const id of ids) {
+      const item = arrayState.map.get(id);
+      // TODO: We should be able to make the following code more performant.
+      const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
+      if (referenceNode !== item.startNode) {
+        const nodesToMove = [item.startNode];
+        while (nodesToMove[nodesToMove.length - 1] !== item.node) {
+          nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
+        }
+        TemplateEngine.#insertAllBefore(referenceNode.parentNode, referenceNode, nodesToMove);
+      }
+      lastItem = item;
+    }
+  }
+
+  // TODO: #254: Future state where the “moveBefore” API is better-supported.
+  // // Loops over given array of “entries” to manage an array of nodes.
+  // static #commitContentArrayEntries(node, startNode, entries) {
+  //   const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
+  //   if (!arrayState.map) {
+  //     // There is no mapping in our state — create an empty one as our base.
+  //     TemplateEngine.#clearObject(arrayState);
+  //     arrayState.map = new Map();
+  //   }
+  //
+  //   const idsToRemove = new Set(arrayState.map.keys());
+  //   const ids = new Set(); // Populated in “parseArrayEntry”.
+  //   let reference = startNode.nextSibling;
+  //   for (let index = 0; index < entries.length; index++) {
+  //     const entry = entries[index];
+  //     const [id, rawResult] = TemplateEngine.#parseArrayEntry(entry, index, ids);
+  //     let item = arrayState.map.get(id);
+  //     if (item) {
+  //       // Update existing item.
+  //       idsToRemove.delete(id);
+  //       if (!TemplateEngine.#canReuseDom(item.preparedResult, rawResult)) {
+  //         const referenceWasStartNode = reference === item.startNode;
+  //         TemplateEngine.#recreateArrayItem(item, rawResult);
+  //         reference = referenceWasStartNode ? item.startNode : reference;
+  //       } else {
+  //         TemplateEngine.#update(item.preparedResult, rawResult);
+  //       }
+  //     } else {
+  //       // Create new item.
+  //       item = TemplateEngine.#createArrayItem(node, id, rawResult);
+  //       arrayState.map.set(id, item);
+  //     }
+  //     // Move to the correct location
+  //     if (item.startNode !== reference) {
+  //       const nodesToMove = [item.startNode];
+  //       while (nodesToMove[nodesToMove.length - 1] !== item.node) {
+  //         nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
+  //       }
+  //       TemplateEngine.#moveAllBefore(reference.parentNode, reference, nodesToMove);
+  //     }
+  //
+  //     // Move our position forward.
+  //     reference = item.node.nextSibling;
+  //   }
+  //
+  //   // Remove any ids which are not longer in the entries.
+  //   for (const id of idsToRemove) {
+  //     const item = arrayState.map.get(id);
+  //     TemplateEngine.#removeThrough(item.startNode, item.node);
+  //     arrayState.map.delete(id);
+  //   }
+  // }
+
+  static #commitContentFragmentValue(node, startNode, value) {
+    if (value.childElementCount === 0) {
+      throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
+    }
+    const previousSibling = node.previousSibling;
+    if (previousSibling !== startNode) {
+      TemplateEngine.#removeBetween(startNode, node);
+    }
+    node.parentNode.insertBefore(value, node);
+  }
+
+  static #commitContentTextValue(node, startNode, value) {
       // TODO: Is there a way to more-performantly skip this init step? E.g., if
       //  the prior value here was not “unset” and we didn’t just reset? We
       //  could cache the target node in these cases or something?
@@ -526,6 +604,25 @@ class TemplateEngine {
       } else {
         previousSibling.textContent = value;
       }
+  }
+
+  static #commitContent(node, startNode, value, lastValue) {
+    const category = TemplateEngine.#getCategory(value);
+    const lastCategory = TemplateEngine.#getCategory(lastValue);
+    if (category !== lastCategory && lastValue !== TemplateEngine.#UNSET) {
+      // Reset content under certain conditions. E.g., `map` >> `null`.
+      const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
+      const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
+      TemplateEngine.#removeBetween(startNode, node);
+      TemplateEngine.#clearObject(state);
+      TemplateEngine.#clearObject(arrayState);
+    }
+    switch (category) {
+      case 'result':    TemplateEngine.#commitContentResultValue(node, startNode, value);    break;
+      case 'array':     TemplateEngine.#commitContentArrayValues(node, startNode, value);    break;
+      case 'map':       TemplateEngine.#commitContentArrayEntries(node, startNode, value);   break;
+      case 'fragment':  TemplateEngine.#commitContentFragmentValue(node, startNode, value);  break;
+      default:          TemplateEngine.#commitContentTextValue(node, startNode, value);      break;
     }
   }
 
@@ -677,6 +774,17 @@ class TemplateEngine {
     referenceNode.parentNode.insertBefore(node, referenceNode);
     return { startNode, node };
   }
+
+  // TODO: #254: Future state when we leverage “moveBefore”.
+  // static #moveAllBefore(parentNode, referenceNode, nodes) {
+  //   // Iterate backwards over the live node collection since we’re mutating it.
+  //   // Note that passing “null” as the reference node moves nodes to the end.
+  //   for (let iii = nodes.length - 1; iii >= 0; iii--) {
+  //     const node = nodes[iii];
+  //     parentNode.moveBefore(node, referenceNode);
+  //     referenceNode = node;
+  //   }
+  // }
 
   static #insertAllBefore(parentNode, referenceNode, nodes) {
     // Iterate backwards over the live node collection since we’re mutating it.

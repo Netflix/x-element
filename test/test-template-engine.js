@@ -784,11 +784,14 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').children[0] !== foo);
   });
 
+  // TODO: #254: Uncomment “moves” lines when we leverage “moveBefore”.
   it('native map does not cause disconnectedCallback on prefix removal', () => {
     let connects = 0;
+    // let moves = 0;
     let disconnects = 0;
     class TestPrefixRemoval extends HTMLElement {
       connectedCallback() { connects++; }
+      // connectedMoveCallback() { moves++; }
       disconnectedCallback() { disconnects++; }
     }
     customElements.define('test-prefix-removal', TestPrefixRemoval);
@@ -807,28 +810,35 @@ describe('html rendering', () => {
 
     document.body.append(container);
     assert(connects === 0);
+    // assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar' }] }));
     assert(connects === 2);
+    // assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'bar' }] }));
     assert(connects === 2);
+    // assert(moves === 1);
     assert(disconnects === 1);
 
     render(container, getTemplate({ items: [] }));
     assert(connects === 2);
+    // assert(moves === 1);
     assert(disconnects === 2);
 
     container.remove();
   });
 
+  // TODO: #254: Uncomment “moves” lines when we leverage “moveBefore”.
   it('native map does not cause disconnectedCallback on suffix removal', () => {
     let connects = 0;
+    // let moves = 0;
     let disconnects = 0;
     class TestSuffixRemoval extends HTMLElement {
       connectedCallback() { connects++; }
+      // connectedMoveCallback() { moves++; }
       disconnectedCallback() { disconnects++; }
     }
     customElements.define('test-suffix-removal', TestSuffixRemoval);
@@ -847,18 +857,22 @@ describe('html rendering', () => {
 
     document.body.append(container);
     assert(connects === 0);
+    // assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar' }] }));
     assert(connects === 2);
+    // assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'foo' }] }));
     assert(connects === 2);
+    // assert(moves === 0);
     assert(disconnects === 1);
 
     render(container, getTemplate({ items: [] }));
     assert(connects === 2);
+    // assert(moves === 0);
     assert(disconnects === 2);
 
     container.remove();
@@ -867,9 +881,11 @@ describe('html rendering', () => {
   // TODO: #254: See https://chromestatus.com/feature/5135990159835136.
   it.todo('native map does not cause disconnectedCallback on list shuffle', () => {
     let connects = 0;
+    let moves = 0;
     let disconnects = 0;
     class TestListShuffle extends HTMLElement {
       connectedCallback() { connects++; }
+      connectedMoveCallback() { moves++; }
       disconnectedCallback() { disconnects++; }
     }
     customElements.define('test-list-shuffle', TestListShuffle);
@@ -888,18 +904,22 @@ describe('html rendering', () => {
 
     document.body.append(container);
     assert(connects === 0);
+    assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar' }] }));
     assert(connects === 2);
+    assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'bar' }, { id: 'foo' }] }));
     assert(connects === 2);
+    assert(moves === 1);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [] }));
     assert(connects === 2);
+    assert(moves === 1);
     assert(disconnects === 2);
 
     container.remove();
