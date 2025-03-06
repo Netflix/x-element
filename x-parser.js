@@ -99,12 +99,10 @@ export class XParser {
   // Examples:
   //  - ok: <h6>, <my-element-1>
   //  - not ok: <-div>, <1-my-element>
-  static #startTagOpen            =   /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
+  static #startTagOpen            =   /<(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s>])/y;
   static #endTag                  = /<\/(?![0-9-])[a-z0-9-]+(?<!-)>/y;
-  static #startTagClose           =    /(?<![\s\n])>/y;
+  static #startTagClose           =    /(?<!\s)>/y;
 
-  // TODO: Check on performance for this pattern. We want to do a positive
-  //  lookahead so that we report the correct failure on fail.
   // Our space-delimiter rules more restrictive than the “space” spec.
   //  https://w3c.github.io/html-reference/terminology.html#space
   // Spaces must either be singular — or, a single newline followed by spaces
@@ -113,7 +111,7 @@ export class XParser {
   // Examples:
   //  - ok: <div foo bar>, <div\n  foo\n  bar>
   //  - not ok: <div foo  bar>, <div\n\n  foo\n\n  bar>, <div\tfoo\tbar>
-  static #startTagSpace           = / (?! )|\n *(?!\n)(?=[-_.?a-zA-Z0-9>])/y;
+  static #startTagSpace           = / |\n */y;
 
   // Our attribute rules are more restrictive than the “attribute” spec.
   //  https://html.spec.whatwg.org/multipage/syntax.html#attributes-2
@@ -129,8 +127,8 @@ export class XParser {
   // Full attribute examples:
   //  - ok: foo, foo="bar", ?foo="${'bar'}", ??foo="${'bar'}", foo="${'bar'}"
   //  - not ok: foo='bar', ?foo, foo=${'bar'}
-  static #boolean                 =     /(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s\n>])/y;
-  static #attribute               =     /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]*"(?=[\s\n>])/y;
+  static #boolean                 =     /(?![0-9-])[a-z0-9-]+(?<!-)(?=[\s>])/y;
+  static #attribute               =     /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]*"(?=[\s>])/y;
   static #boundBoolean            =   /\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
   static #boundDefined            = /\?\?(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
   static #boundAttribute          =     /(?![0-9-])[a-z0-9-]+(?<!-)="$/y;
@@ -155,7 +153,7 @@ export class XParser {
   //  “strings”, we need to check that the _next_ string begins with a
   //  double-quote. Note that it must precede a space, a newline, or the closing
   //  angle bracket of the opening tag.
-  static #danglingQuote           = /"(?=[ \n>])/y;
+  static #danglingQuote           = /"(?=[\s>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Special Tag Patterns //////////////////////////////////////////////////////
@@ -183,7 +181,7 @@ export class XParser {
   //  rely on setHTMLUnsafe to decode.
   // https://w3c.github.io/html-reference/syntax.html#character-encoding
   static #entity                  = /&.*?;/ys;
-  static #htmlEntityStart         = /[^&]*&[^&\s\n<]/y;
+  static #htmlEntityStart         = /[^&]*&[^&\s<]/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // CDATA /////////////////////////////////////////////////////////////////////
@@ -204,15 +202,15 @@ export class XParser {
 
   // See if weird spaces were added or if incorrect characters were used in
   //  open or close tags.
-  static #startTagOpenMalformed   = /<[\s\n]*[a-zA-Z0-9_-]+/y;
-  static #startTagSpaceMalformed  =  /[\s\n]+/y;
-  static #startTagCloseMalformed  =  /[\s\n]*\/?>/y;
-  static #endTagMalformed         = /<[\s\n]*\/[\s\n]*[a-zA-Z0-9_-]+[^>]*>/y;
+  static #startTagOpenMalformed   = /<\s*[a-zA-Z0-9_-]+/y;
+  static #startTagSpaceMalformed  =  /\s+/y;
+  static #startTagCloseMalformed  =  /\s*\/?>/y;
+  static #endTagMalformed         = /<\s*\/\s*[a-zA-Z0-9_-]+[^>]*>/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
   //  either normal or bound attributes.
-  static #booleanMalformed        =     /[a-zA-Z0-9-_]+(?=[\s\n>])/y;
-  static #attributeMalformed      =     /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s\n>])/y;
+  static #booleanMalformed        =     /[a-zA-Z0-9-_]+(?=[\s>])/y;
+  static #attributeMalformed      =     /[a-zA-Z0-9-_]+=(?:"[^"]*"|'[^']*')?(?=[\s>])/y;
   static #boundBooleanMalformed   =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
   static #boundDefinedMalformed   = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
   static #boundAttributeMalformed =     /[a-zA-Z0-9-_]+=(?:"|')?$/y;
@@ -222,7 +220,7 @@ export class XParser {
   static #boundPropertyMalformed  = /\.[a-zA-Z0-9-_]+=(?:"|')?$/y;
 
   // See if the quote pair was malformed or missing.
-  static #danglingQuoteMalformed  = /'?(?=[\s\n>])/y;
+  static #danglingQuoteMalformed  = /'?(?=[\s>])/y;
 
   //////////////////////////////////////////////////////////////////////////////
   // Errors ////////////////////////////////////////////////////////////////////
@@ -239,29 +237,22 @@ export class XParser {
       case '#101': return 'Could not parse template markup (after text content).';
       case '#102': return 'Could not parse template markup (after a comment).';
       case '#103': return 'Could not parse template markup (after interpolated content).';
-      case '#104': return 'Could not parse template markup (after a start tag name).';
-      case '#105': return 'Could not parse template markup (after a spacing within start tag).';
-      case '#106': return 'Could not parse template markup (after a start tag).';
-      case '#107': return 'Could not parse template markup (after a boolean attribute in a start tag).';
-      case '#108': return 'Could not parse template markup (after an attribute in a start tag).';
-      case '#109': return 'Could not parse template markup (after a boolean attribute interpolation in a start tag).';
-      case '#110': return 'Could not parse template markup (after a defined attribute interpolation in a start tag).';
-      case '#111': return 'Could not parse template markup (after an attribute interpolation in a start tag).';
-      case '#112': return 'Could not parse template markup (after a property interpolation in a start tag).';
-      case '#113': return 'Could not parse template markup (after the closing quote of an interpolated attribute or property in a start tag).';
-      case '#114': return 'Could not parse template markup (after an end tag).';
+      case '#104': return 'Could not parse template markup (after a spacing within start tag).';
+      case '#105': return 'Could not parse template markup (after a start tag).';
+      case '#106': return 'Could not parse template markup (after a boolean attribute interpolation in a start tag).';
+      case '#107': return 'Could not parse template markup (after a defined attribute interpolation in a start tag).';
+      case '#108': return 'Could not parse template markup (after an attribute interpolation in a start tag).';
+      case '#109': return 'Could not parse template markup (after a property interpolation in a start tag).';
+      case '#110': return 'Could not parse template markup (after an end tag).';
 
       case '#120': return 'Invalid tag name - refer to https://developer.mozilla.org/en-US/docs/Web/API/CustomElementRegistry/define#valid_custom_element_names).';
       case '#121': return 'Invalid tag whitespace (extraneous whitespace in start tag).';
       case '#122': return 'Invalid start tag (extraneous whitespace at close of start tag).';
       case '#123': return 'Invalid end tag.';
       case '#124': return 'Invalid tag attribute (must use kebab-case names and double-quoted values).';
-      case '#125': return 'Invalid tag attribute (must use kebab-case names and double-quoted values).';
-      case '#126': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
-      case '#127': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
-      case '#128': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
-      case '#129': return 'Invalid tag property interpolation (must use kebab-case names and double-quoted values).';
-      case '#130': return 'Invalid closing quote on tag attribute or property.';
+      case '#125': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
+      case '#126': return 'Invalid tag property interpolation (must use kebab-case names and double-quoted values).';
+      case '#127': return 'Invalid closing quote on tag attribute or property.';
 
       case '#140': return 'CDATA sections are not supported. Use character references instead: https://developer.mozilla.org/en-US/docs/Glossary/Character_reference.';
 
@@ -269,31 +260,34 @@ export class XParser {
       case '#151': return 'Ambiguous ampersand character or invalid hexadecimal character reference.';
       case '#152': return 'Invalid comment. Comments cannot start with “>” or “->” characters, they cannot include a set of “--” characters, and they cannot end with a “-” character.';
       case '#153': return 'Unsupported native tag - supported native tags are listed here: https://github.com/Netflix/x-element/blob/main/doc/TEMPLATES.md#supported-native-tags.';
-      case '#154':
-      case '#155': return 'Invalid closing tag (all non-void start tags much have matching end tags).';
-      case '#156': return 'Unsupported <textarea> interpolation. Interpolation must be exact (<textarea>${…}</textarea>).';
-      case '#157': return 'Unsupported declarative shadow root on <template>. The “shadowrootmode” attribute is not supported.';
+      case '#154': return 'Invalid end tag (all non-void start tags much have matching end tags).';
+      case '#155': return 'Unsupported <textarea> interpolation. Interpolation must be exact (<textarea>${…}</textarea>).';
+      case '#156': return 'Unsupported declarative shadow root on <template>. The “shadowrootmode” attribute is not supported.';
+      case '#157': return 'Missing closing quote on bound attribute or property.';
     }
   }
 
   // Block #100-#119 — Invalid transition errors.
   static #getErrorMessageKeyFromValue(value) {
+    // Note that the following states _never_ have their own generic errors. The
+    //  main reason is because they all encode a lookahead which is a subset of
+    //  a related “*Malformed” pattern.
+    // - XParser.#startTagOpen  (caught by XParser.#startTagSpaceMalformed)
+    // - XParser.#boolean       (caught by XParser.#startTagSpaceMalformed)
+    // - XParser.#attribute     (caught by XParser.#startTagSpaceMalformed)
+    // - XParser.#danglingQuote (caught by XParser.#startTagSpaceMalformed)
     switch (value) {
       case XParser.#initial:                  return '#100';
       case XParser.#text:                     return '#101';
       case XParser.#comment:                  return '#102';
       case XParser.#boundContent:             return '#103';
-      case XParser.#startTagOpen:             return '#104';
-      case XParser.#startTagSpace:            return '#105';
-      case XParser.#startTagClose:            return '#106';
-      case XParser.#boolean:                  return '#107';
-      case XParser.#attribute:                return '#108';
-      case XParser.#boundBoolean:             return '#109';
-      case XParser.#boundDefined:             return '#110';
-      case XParser.#boundAttribute:           return '#111';
-      case XParser.#boundProperty:            return '#112';
-      case XParser.#danglingQuote:            return '#113';
-      case XParser.#endTag:                   return '#114';
+      case XParser.#startTagSpace:            return '#104';
+      case XParser.#startTagClose:            return '#105';
+      case XParser.#boundBoolean:             return '#106';
+      case XParser.#boundDefined:             return '#107';
+      case XParser.#boundAttribute:           return '#108';
+      case XParser.#boundProperty:            return '#109';
+      case XParser.#endTag:                   return '#110';
     }
   }
 
@@ -305,12 +299,12 @@ export class XParser {
       case XParser.#startTagCloseMalformed:   return '#122';
       case XParser.#endTagMalformed:          return '#123';
       case XParser.#booleanMalformed:         return '#124';
-      case XParser.#attributeMalformed:       return '#125';
-      case XParser.#boundBooleanMalformed:    return '#126';
-      case XParser.#boundDefinedMalformed:    return '#127';
-      case XParser.#boundAttributeMalformed:  return '#128';
-      case XParser.#boundPropertyMalformed:   return '#129';
-      case XParser.#danglingQuoteMalformed:   return '#130';
+      case XParser.#attributeMalformed:       return '#124';
+      case XParser.#boundBooleanMalformed:    return '#125';
+      case XParser.#boundDefinedMalformed:    return '#125';
+      case XParser.#boundAttributeMalformed:  return '#125';
+      case XParser.#boundPropertyMalformed:   return '#126';
+      case XParser.#danglingQuoteMalformed:   return '#127';
     }
   }
 
@@ -328,10 +322,11 @@ export class XParser {
       case 'malformed-html-entity':           return '#151';
       case 'malformed-comment':               return '#152';
       case 'forbidden-html-element':          return '#153';
-      case 'missing-closing-tag':             return '#154';
-      case 'mismatched-closing-tag':          return '#155';
-      case 'complex-textarea-interpolation':  return '#156';
-      case 'declarative-shadow-root':         return '#157';
+      case 'missing-end-tag':                 return '#154';
+      case 'mismatched-end-tag':              return '#154';
+      case 'complex-textarea-interpolation':  return '#155';
+      case 'declarative-shadow-root':         return '#156';
+      case 'missing-closing-quote':           return '#157';
     }
   }
 
@@ -382,6 +377,7 @@ export class XParser {
       case XParser.#danglingQuote: return XParser.#try(string, stringIndex,
         XParser.#startTagSpaceMalformed);
       case XParser.#startTagSpace: return XParser.#try(string, stringIndex,
+        XParser.#startTagSpaceMalformed,
         XParser.#booleanMalformed,
         XParser.#attributeMalformed,
         XParser.#boundBooleanMalformed,
@@ -569,9 +565,20 @@ export class XParser {
 
   // Before a successful exit, the parser ensures that all non-void opening tags
   //  have been matched successfully to prevent any unexpected behavior.
-  static #validateExit(tagName) {
+  static #validateExit(value, tagName) {
+    switch (value) {
+      case XParser.#boundBoolean:
+      case XParser.#boundDefined:
+      case XParser.#boundAttribute:
+      case XParser.#boundProperty: {
+        const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('missing-closing-quote');
+        const errorMessage = XParser.#getErrorMessage(errorMessageKey);
+        const substringMessage = `Missing closing double-quote.`;
+        throw new Error(`[${errorMessageKey}] ${errorMessage}\n${substringMessage}`);
+      }
+    }
     if (tagName) {
-      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('missing-closing-tag');
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('missing-end-tag');
       const errorMessage = XParser.#getErrorMessage(errorMessageKey);
       const substringMessage = `Missing a closing </${tagName}>.`;
       throw new Error(`[${errorMessageKey}] ${errorMessage}\n${substringMessage}`);
@@ -853,7 +860,7 @@ export class XParser {
     const endTagName = string.slice(endTagNameStart, endTagNameEnd);
     if (endTagName !== tagName) {
       const { parsed } = XParser.#getErrorInfo(strings, stringsIndex, string, stringIndex);
-      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('mismatched-closing-tag');
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('mismatched-end-tag');
       const errorMessage = XParser.#getErrorMessage(errorMessageKey);
       const substringMessage = `The closing tag </${endTagName}> does not match <${tagName}>.`;
       const parsedThroughMessage = `Your HTML was parsed through: \`${parsed}\`.`;
@@ -1068,7 +1075,7 @@ export class XParser {
         stringsIndex++;
       }
 
-      XParser.#validateExit(tagName);
+      XParser.#validateExit(value, tagName);
     } catch (error) {
       // Roughly match the conventions for “onToken”.
       const index = stringsIndex;

@@ -699,93 +699,69 @@ describe('odds and ends', () => {
 });
 
 describe('errors', () => {
-  it('throws when initial markup cannot be parsed', () => {
-    const callback = () => htmlol`<`;
-    const expectedMessage = '[#100]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
-  it('throws when markup after text cannot be parsed', () => {
-    const callback = () => htmlol`text<`;
-    const expectedMessage = '[#101]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
-  it('throws when markup after comment cannot be parsed', () => {
-    const callback = () => htmlol`<!--comment--><`;
-    const expectedMessage = '[#102]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
-  it('throws when markup after content interpolation cannot be parsed', () => {
-    const callback = () => htmlol`${VALUE}<`;
-    const expectedMessage = '[#103]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
-  it('throws when markup after start tag cannot be parsed', () => {
-    const callback = () => htmlol`<div><`;
-    const expectedMessage = '[#106]';
-    assertThrows(callback, expectedMessage, { startsWith: true });
-  });
-
   it('throws when markup after end tag cannot be parsed', () => {
     const callback = () => htmlol`<div></div><`;
-    const expectedMessage = '[#114]';
+    const expectedMessage = '[#110]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws when attempting non-trivial interpolation of a textarea tag (preceding space)', () => {
     const callback = () => html`<textarea id="target"> ${VALUE}</textarea>`;
-    const expectedMessage = '[#156]';
+    const expectedMessage = '[#155]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws when attempting non-trivial interpolation of a textarea tag (succeeding space)', () => {
     const callback = () => html`<textarea id="target">${VALUE} </textarea>`;
-    const expectedMessage = '[#156]';
+    const expectedMessage = '[#155]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws when attempting non-trivial interpolation of a textarea tag', () => {
     const callback = () => html`<textarea id="target">please ${VALUE} no</textarea>`;
-    const expectedMessage = '[#156]';
+    const expectedMessage = '[#155]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws when attempting non-trivial interpolation of a textarea tag via nesting', () => {
     const callback = () => html`<textarea id="target"><b>please ${VALUE} no</b></textarea>`;
-    const expectedMessage = '[#156]';
+    const expectedMessage = '[#155]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws when attempting non-trivial interpolation of a textarea tag via nesting', () => {
     const callback = () => html`<textarea><b>please ${VALUE} no</b></textarea>`;
-    const expectedMessage = '[#156]';
+    const expectedMessage = '[#155]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when interpolation of a textarea is at the end of the template', () => {
+    const callback = () => html`<textarea>${VALUE}`;
+    const expectedMessage = '[#155]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws for unquoted attributes', () => {
     const callback = () => html`<div id="target" not-ok=${VALUE}>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#128]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws for single-quoted attributes', () => {
     const callback = () => html`<div id="target" not-ok='${VALUE}'>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#128]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws for unquoted properties', () => {
     const callback = () => html`<div id="target" .notOk=${VALUE}>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#129]';
+    const expectedMessage = '[#126]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws for single-quoted properties', () => {
     const callback = () => html`<div id="target" .notOk='${VALUE}'>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#129]';
+    const expectedMessage = '[#126]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -896,7 +872,7 @@ describe('errors', () => {
 
   it('throws if an open tag has a slash before the ">" character', () => {
     const callback = () => html`<input foo/>`;
-    const expectedMessage = '[#105]';
+    const expectedMessage = '[#104]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -999,163 +975,187 @@ describe('errors', () => {
 
   it('throws if an unbound attribute starts with a hyphen', () => {
     const callback = () => html`<div -what="no"></div>`;
-    const expectedMessage = '[#125]';
+    const expectedMessage = '[#124]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if an unbound attribute starts with a number', () => {
     const callback = () => html`<div 5what="no"></div>`;
-    const expectedMessage = '[#125]';
+    const expectedMessage = '[#124]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if an unbound attribute has an uppercase letter', () => {
     const callback = () => html`<div wHat="no"></div>`;
-    const expectedMessage = '[#125]';
+    const expectedMessage = '[#124]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if an unbound attribute ends with a hyphen', () => {
     const callback = () => html`<div what-="no"></div>`;
-    const expectedMessage = '[#125]';
+    const expectedMessage = '[#124]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound boolean attribute starts with a hyphen', () => {
     const callback = () => html`<div ?-what="${VALUE}"></div>`;
-    const expectedMessage = '[#126]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound boolean attribute starts with a number', () => {
     const callback = () => html`<div ?3what="${VALUE}"></div>`;
-    const expectedMessage = '[#126]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound boolean attribute has an uppercase letter', () => {
     const callback = () => html`<div ?wHat="${VALUE}"></div>`;
-    const expectedMessage = '[#126]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound boolean attribute ends with a hyphen', () => {
     const callback = () => html`<div ?what-="${VALUE}"></div>`;
-    const expectedMessage = '[#126]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound boolean attribute has a malformed dangling quote', () => {
     const callback = () => html`<div ?what="${VALUE} "></div>`;
-    const expectedMessage = '[#130]';
+    const expectedMessage = '[#127]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound boolean attribute ends with a hyphen', () => {
     const callback = () => html`<div ?what-="${VALUE}"></div>`;
-    const expectedMessage = '[#126]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound boolean attribute has a malformed dangling quote', () => {
     const callback = () => html`<div ?what="${VALUE} "></div>`;
-    const expectedMessage = '[#130]';
+    const expectedMessage = '[#127]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws if a bound boolean attribute is at the end of the template', () => {
+    const callback = () => htmlol`<div ?bool="${VALUE}`;
+    const expectedMessage = '[#157]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound defined attribute starts with a hyphen', () => {
     const callback = () => html`<div ??-what="${VALUE}"></div>`;
-    const expectedMessage = '[#127]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound defined attribute starts with a number', () => {
     const callback = () => html`<div ??3what="${VALUE}"></div>`;
-    const expectedMessage = '[#127]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound defined attribute has an uppercase letter', () => {
     const callback = () => html`<div ??wHat="${VALUE}"></div>`;
-    const expectedMessage = '[#127]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound defined attribute ends with a hyphen', () => {
     const callback = () => html`<div ??what-="${VALUE}"></div>`;
-    const expectedMessage = '[#127]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound defined attribute has a malformed dangling quote', () => {
     const callback = () => html`<div ??what="${VALUE} "></div>`;
-    const expectedMessage = '[#130]';
+    const expectedMessage = '[#127]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws if a bound defined attribute is at the end of the template', () => {
+    const callback = () => htmlol`<div ??what="${VALUE}`;
+    const expectedMessage = '[#157]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound attribute starts with a hyphen', () => {
     const callback = () => html`<div -what="${VALUE}"></div>`;
-    const expectedMessage = '[#128]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound attribute starts with a number', () => {
     const callback = () => html`<div 3what="${VALUE}"></div>`;
-    const expectedMessage = '[#128]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound attribute has an uppercase letter', () => {
     const callback = () => html`<div wHat="${VALUE}"></div>`;
-    const expectedMessage = '[#128]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound attribute ends with a hyphen', () => {
     const callback = () => html`<div what-="${VALUE}"></div>`;
-    const expectedMessage = '[#128]';
+    const expectedMessage = '[#125]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound attribute has a malformed dangling quote', () => {
     const callback = () => html`<div what="${VALUE} "></div>`;
-    const expectedMessage = '[#130]';
+    const expectedMessage = '[#127]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws if a bound attribute is at the end of the template', () => {
+    const callback = () => htmlol`<div what="${VALUE}`;
+    const expectedMessage = '[#157]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws for misuse of a bound property prefix with a literal value', () => {
     const callback = () => html`<div .literal="property"></div>`;
-    const expectedMessage = '[#105]';
+    const expectedMessage = '[#104]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound property starts with an underscore', () => {
     const callback = () => html`<div ._what="${VALUE}"></div>`;
-    const expectedMessage = '[#129]';
+    const expectedMessage = '[#126]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound property starts with a number', () => {
     const callback = () => html`<div .3what="${VALUE}"></div>`;
-    const expectedMessage = '[#129]';
+    const expectedMessage = '[#126]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound property starts with a capital letter', () => {
     const callback = () => html`<div .Yak="${VALUE}"></div>`;
-    const expectedMessage = '[#129]';
+    const expectedMessage = '[#126]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound property ends with an underscore', () => {
     const callback = () => html`<div .what_="${VALUE}"></div>`;
-    const expectedMessage = '[#129]';
+    const expectedMessage = '[#126]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
   it('throws if a bound property has a malformed dangling quote', () => {
     const callback = () => html`<div .what="${VALUE} "></div>`;
-    const expectedMessage = '[#130]';
+    const expectedMessage = '[#127]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws if a bound property is at the end of the template', () => {
+    const callback = () => htmlol`<div .what="${VALUE}`;
+    const expectedMessage = '[#157]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -1173,7 +1173,7 @@ describe('errors', () => {
 
   it('throws if you mismatch a close a tag', () => {
     const callback = () => html`<div></span>`;
-    const expectedMessage = '[#155]';
+    const expectedMessage = '[#154]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
@@ -1419,6 +1419,181 @@ describe('errors', () => {
 
   it('throws for declarative shadow roots', () => {
     const callback = () => html`<template shadowrootmode="open"></template>`;
+    const expectedMessage = '[#156]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+});
+
+// Sanity check to make sure we’re able to hit all our errors.
+describe('errors coverage', () => {
+
+  it('throws when initial markup cannot be parsed', () => {
+    const callback = () => htmlol`<`;
+    const expectedMessage = '[#100]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after text cannot be parsed', () => {
+    const callback = () => htmlol`text<`;
+    const expectedMessage = '[#101]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after comment cannot be parsed', () => {
+    const callback = () => htmlol`<!--comment--><`;
+    const expectedMessage = '[#102]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after content interpolation cannot be parsed', () => {
+    const callback = () => htmlol`${VALUE}<`;
+    const expectedMessage = '[#103]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after start tag space cannot be parsed', () => {
+    const callback = () => htmlol`<input !>`;
+    const expectedMessage = '[#104]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after start tag cannot be parsed', () => {
+    const callback = () => htmlol`<div><`;
+    const expectedMessage = '[#105]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after bound boolean cannot be parsed', () => {
+    const callback = () => htmlol`<div ?boolean="${VALUE}!`;
+    const expectedMessage = '[#106]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after bound defined cannot be parsed', () => {
+    const callback = () => htmlol`<div ??defined="${VALUE}!`;
+    const expectedMessage = '[#107]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after bound attribute cannot be parsed', () => {
+    const callback = () => htmlol`<div attribute="${VALUE}!`;
+    const expectedMessage = '[#108]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after bound property cannot be parsed', () => {
+    const callback = () => htmlol`<div .property="${VALUE}!`;
+    const expectedMessage = '[#109]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after end tag cannot be parsed', () => {
+    const callback = () => htmlol`<div></div><`;
+    const expectedMessage = '[#110]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  it('throws when start tag is invalid', () => {
+    const callback = () => htmlol`<dIv>`;
+    const expectedMessage = '[#120]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when start tag space is invalid', () => {
+    // There is a literal tab character here.
+    const callback = () => htmlol`<div	>`;
+    const expectedMessage = '[#121]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when start tag close is invalid', () => {
+    const callback = () => htmlol`<div foo />`;
+    const expectedMessage = '[#122]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when end tag is invalid', () => {
+    const callback = () => htmlol`<div></ div>`;
+    const expectedMessage = '[#123]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when attribute name is invalid', () => {
+    const callback = () => htmlol`<div Boolean>`;
+    const expectedMessage = '[#124]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when bound attribute name is invalid', () => {
+    const callback = () => htmlol`<div ?Boolean="${VALUE}">`;
+    const expectedMessage = '[#125]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when bound property name is invalid', () => {
+    const callback = () => htmlol`<div .Property="${VALUE}">`;
+    const expectedMessage = '[#126]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when bound closing quote is invalid', () => {
+    const callback = () => htmlol`<div attribute="${VALUE}'>`;
+    const expectedMessage = '[#127]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when cdata exists', () => {
+    const callback = () => htmlol`<![CDATA[<]]>`;
+    const expectedMessage = '[#140]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when escapes are used', () => {
+    const callback = () => htmlol`\n`;
+    const expectedMessage = '[#150]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when ambiguous ampersands are used', () => {
+    const callback = () => htmlol`&a`;
+    const expectedMessage = '[#151]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when comments are invalid', () => {
+    const callback = () => htmlol`<!-- -- -->`;
+    const expectedMessage = '[#152]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for unsupported (or unknown) native tags', () => {
+    const callback = () => htmlol`<style>`;
+    const expectedMessage = '[#153]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for wrong or missing end tag', () => {
+    const callback = () => htmlol`<div>`;
+    const expectedMessage = '[#154]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for textarea abuse', () => {
+    const callback = () => htmlol`<textarea> -- ${VALUE} -- </textarea>`;
+    const expectedMessage = '[#155]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for declarative shadow root / shadowrootmode', () => {
+    const callback = () => htmlol`<template shadowrootmode>`;
+    const expectedMessage = '[#156]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws for missing closing quote at end of template', () => {
+    const callback = () => htmlol`<template foo="${VALUE}`;
     const expectedMessage = '[#157]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
@@ -1427,14 +1602,14 @@ describe('errors', () => {
 describe('html error formatting', () => {
   it('single line template', () => {
     const callback = () => html`<div id="target" not-ok=${VALUE}>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#128] Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).\nSee substring `not-ok=`.\nYour HTML was parsed through: `<div id="target" `.';
+    const expectedMessage = '[#125] Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).\nSee substring `not-ok=`.\nYour HTML was parsed through: `<div id="target" `.';
     assertThrows(callback, expectedMessage);
   });
 
   it('template with two lines', () => {
     const callback = () => html`
       <div id="target" not-ok='${VALUE}'>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#128] Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).\nSee substring `not-ok=\'`.\nYour HTML was parsed through: `\n      <div id="target" `.';
+    const expectedMessage = '[#125] Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).\nSee substring `not-ok=\'`.\nYour HTML was parsed through: `\n      <div id="target" `.';
     assertThrows(callback, expectedMessage);
   });
 
@@ -1443,7 +1618,7 @@ describe('html error formatting', () => {
       
       
       <div id="target" .notOk=${VALUE}>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#129] Invalid tag property interpolation (must use kebab-case names and double-quoted values).\nSee substring `.notOk=`.\nYour HTML was parsed through: `\n      \n      \n      <div id="target" `.';
+    const expectedMessage = '[#126] Invalid tag property interpolation (must use kebab-case names and double-quoted values).\nSee substring `.notOk=`.\nYour HTML was parsed through: `\n      \n      \n      <div id="target" `.';
     assertThrows(callback, expectedMessage);
   });
 });
