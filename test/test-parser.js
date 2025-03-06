@@ -1544,11 +1544,15 @@ describe('errors coverage', () => {
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
 
+  //////////////////////////////////////////////////////////////////////////////
+
   it('throws when cdata exists', () => {
     const callback = () => htmlol`<![CDATA[<]]>`;
     const expectedMessage = '[#140]';
     assertThrows(callback, expectedMessage, { startsWith: true });
   });
+
+  //////////////////////////////////////////////////////////////////////////////
 
   it('throws when escapes are used', () => {
     const callback = () => htmlol`\n`;

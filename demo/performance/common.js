@@ -58,6 +58,7 @@ export default class CommonTest {
       title: 'test',
       content1: 'AAA',
       content2: 'BBB',
+      items: [{ text: 'one' }, { text: 'two' }, { text: 'three' }],
     },
     {
       attr: '456',
@@ -76,6 +77,7 @@ export default class CommonTest {
       title: 'test',
       content1: 'ZZZ',
       content2: 'BBB',
+      items: [{ text: 'one' }, { text: 'two' }, { text: 'three' }, { text: 'four' }, { text: 'five' }, { text: 'six' }],
     },
   ];
 
@@ -235,7 +237,7 @@ export class HtmlLiteralInterface {
   // We can get around the optimization by using eval though!
   static getResultEval(html, properties) {
     // eslint-disable-next-line no-unused-vars
-    const { attr, one, two, three, four, five, six, seven, eight, nine, ten, id, hidden, title, content1, content2 } = properties;
+    const { attr, one, two, three, four, five, six, seven, eight, nine, ten, id, hidden, title, content1, content2, items } = properties;
     // eslint-disable-next-line no-eval
     return eval(`html\`<div data-id="p1" attr="\${attr}">
       <div data-id="p2" data-foo one="\${one}" two="\${two}" three="\${three}" four="\${four}" five="\${five}" .six="\${six}" .seven="\${seven}" .eight="\${eight}" .nine="\${nine}" .ten="\${ten}">
@@ -243,6 +245,11 @@ export class HtmlLiteralInterface {
           <div data-id="\${id}" boolean ?hidden="\${hidden}" .title="\${title}">
             \${content1} -- \${content2}
           </div>
+          <ul data-id="list">
+            \${(items ?? []).map(item => {
+              return html\`<li>\${item.text}</li>\`;
+            })}
+          </ul>
         </div>
       </div>
       <div class="extra">
