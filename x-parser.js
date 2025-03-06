@@ -228,99 +228,112 @@ export class XParser {
   // Errors ////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
+  // The following “mappings” (switch statements) are written this way so code
+  //  coverage tooling will enforce that all these errors are reachable.
+
   // Simple mapping of all the errors which can be thrown by the parser. The
   //  parsing errors are allotted numbers #100-#199.
-  static #errorMessages = new Map([
-    ['#100', 'Markup at the start of your template could not be parsed.'],
-    ['#101', 'Markup after content text found in your template could not be parsed.'],
-    ['#102', 'Markup after a comment found in your template could not be parsed.'],
-    ['#103', 'Markup after a content interpolation in your template could not be parsed.'],
-    ['#104', 'Markup after the tag name in an opening tag in your template could not be parsed.'],
-    ['#105', 'Markup after a spacing in an opening tag in your template could not be parsed.'],
-    ['#106', 'Markup after an opening tag in your template could not be parsed.'],
-    ['#107', 'Markup after a boolean attribute in an opening tag in your template could not be parsed.'],
-    ['#108', 'Markup after an attribute in an opening tag in your template could not be parsed.'],
-    ['#109', 'Markup after a boolean attribute interpolation in an opening tag in your template could not be parsed.'],
-    ['#110', 'Markup after a defined attribute interpolation in an opening tag in your template could not be parsed.'],
-    ['#111', 'Markup after an attribute interpolation in an opening tag in your template could not be parsed.'],
-    ['#112', 'Markup after a property interpolation in an opening tag in your template could not be parsed.'],
-    ['#113', 'Markup after the closing quote of an interpolated attribute or property in an opening tag in your template could not be parsed.'],
-    ['#114', 'Markup after a closing tag in your template could not be parsed.'],
+  static #getErrorMessage(key) {
+    switch (key) {
+      case '#100': return 'Could not parse template markup (at template start).';
+      case '#101': return 'Could not parse template markup (after text content).';
+      case '#102': return 'Could not parse template markup (after a comment).';
+      case '#103': return 'Could not parse template markup (after interpolated content).';
+      case '#104': return 'Could not parse template markup (after a start tag name).';
+      case '#105': return 'Could not parse template markup (after a spacing within start tag).';
+      case '#106': return 'Could not parse template markup (after a start tag).';
+      case '#107': return 'Could not parse template markup (after a boolean attribute in a start tag).';
+      case '#108': return 'Could not parse template markup (after an attribute in a start tag).';
+      case '#109': return 'Could not parse template markup (after a boolean attribute interpolation in a start tag).';
+      case '#110': return 'Could not parse template markup (after a defined attribute interpolation in a start tag).';
+      case '#111': return 'Could not parse template markup (after an attribute interpolation in a start tag).';
+      case '#112': return 'Could not parse template markup (after a property interpolation in a start tag).';
+      case '#113': return 'Could not parse template markup (after the closing quote of an interpolated attribute or property in a start tag).';
+      case '#114': return 'Could not parse template markup (after an end tag).';
 
-    ['#120', 'Malformed open start tag — tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number.'],
-    ['#121', 'Malformed open tag space — spaces in open tags must be literal whitespace characters or newlines. Inter-declaration spaces must be singular. Spaces after newlines may be used for indentation. Only one newline is allowed.'],
-    ['#122', 'Malformed end to an opening tag — opening tags must close without any extraneous spaces or newlines.'],
-    ['#123', 'Malformed close tag — close tags must not contain any extraneous spaces or newlines and tag names must be alphanumeric, lowercase, cannot start or end with hyphens, and cannot start with a number.'],
-    ['#124', 'Malformed boolean attribute text — attribute names must be alphanumeric, must be lowercase, must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes.'],
-    ['#125', 'Malformed attribute text — attribute names must be alphanumeric, must be lowercase, must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes.'],
-    ['#126', 'Malformed boolean attribute interpolation — attribute names must be alphanumeric, must be lowercase, must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes.'],
-    ['#127', 'Malformed defined attribute interpolation — attribute names must be alphanumeric, must be lowercase, must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes.'],
-    ['#128', 'Malformed attribute interpolation — attribute names must be alphanumeric, must be lowercase, must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes.'],
-    ['#129', 'Malformed property interpolation — property names must be alphanumeric, must be lowercase, must not start or end with underscores, and cannot start with a number — and, property values must be enclosed in double-quotes.'],
-    ['#130', 'Malformed closing quote to a bound attribute or property. Enclosing quotes must be simple, double-quotes.'],
+      case '#120': return 'Invalid tag name - refer to https://developer.mozilla.org/en-US/docs/Web/API/CustomElementRegistry/define#valid_custom_element_names).';
+      case '#121': return 'Invalid tag whitespace (extraneous whitespace in start tag).';
+      case '#122': return 'Invalid start tag (extraneous whitespace at close of start tag).';
+      case '#123': return 'Invalid end tag.';
+      case '#124': return 'Invalid tag attribute (must use kebab-case names and double-quoted values).';
+      case '#125': return 'Invalid tag attribute (must use kebab-case names and double-quoted values).';
+      case '#126': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
+      case '#127': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
+      case '#128': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
+      case '#129': return 'Invalid tag property interpolation (must use kebab-case names and double-quoted values).';
+      case '#130': return 'Invalid closing quote on tag attribute or property.';
 
-    ['#140', 'CDATA sections are forbidden. Use html entities (character encodings) instead.'],
+      case '#140': return 'CDATA sections are not supported. Use character references instead: https://developer.mozilla.org/en-US/docs/Glossary/Character_reference.';
 
-    ['#150', 'Improper javascript escape (\\\\, \\$, \\`, \\x, \\u, \\t, \\n, etc.) in raw template string. Only valid HTML entities (character references) are supported in html as code points. Use “&bsol;” for “\\”, “&dollar;” for “\\$”, and “&grave;” for “\\`”. Use literal characters (e.g., newlines) to enter newlines in your templates.'],
-    ['#151', 'Malformed hexadecimal character reference (html entity) or ambiguous ampersand.'],
-    ['#152', 'Malformed html comment. Comments cannot start with “>” or “->” characters, they cannot include a set of “--” characters, and they cannot end with a “-” character.'],
-    ['#153', 'Forbidden html element used — this parser is opinionated about which elements are allowed in order to reduce complexity and improve performance.'],
-    ['#154', 'Unmatched closing tag at the end of your template. To avoid unintended markup, non-void tags must explicitly be closed.'],
-    ['#155', 'Mismatched closing tag used. To avoid unintended markup, non-void tags must explicitly be closed and all closing tag names must be a case-sensitive match.'],
-    ['#156', 'Forbidden, nontrivial interpolation of <textarea> tag used. Only basic interpolation is allowed — e.g., <textarea>${…}</textarea>.'],
-    ['#157', 'Forbidden declarative shadow root used (e.g., `<template shadowrootmode="open">`).'],
-  ]);
+      case '#150': return 'Bad escape in tagged template string. Use “&bsol;” for “\\”, “&dollar;” for “\\$”, and “&grave;” for “\\`”. All character references are supported: https://developer.mozilla.org/en-US/docs/Glossary/Character_reference.';
+      case '#151': return 'Ambiguous ampersand character or invalid hexadecimal character reference.';
+      case '#152': return 'Invalid comment. Comments cannot start with “>” or “->” characters, they cannot include a set of “--” characters, and they cannot end with a “-” character.';
+      case '#153': return 'Unsupported native tag - supported native tags are listed here: https://github.com/Netflix/x-element/blob/main/doc/TEMPLATES.md#supported-native-tags.';
+      case '#154':
+      case '#155': return 'Invalid closing tag (all non-void start tags much have matching end tags).';
+      case '#156': return 'Unsupported <textarea> interpolation. Interpolation must be exact (<textarea>${…}</textarea>).';
+      case '#157': return 'Unsupported declarative shadow root on <template>. The “shadowrootmode” attribute is not supported.';
+    }
+  }
 
   // Block #100-#119 — Invalid transition errors.
-  static #valueToErrorMessagesKey = new Map([
-    [XParser.#initial,                        '#100'],
-    [XParser.#text,                           '#101'],
-    [XParser.#comment,                        '#102'],
-    [XParser.#boundContent,                   '#103'],
-    [XParser.#startTagOpen,                   '#104'],
-    [XParser.#startTagSpace,                  '#105'],
-    [XParser.#startTagClose,                  '#106'],
-    [XParser.#boolean,                        '#107'],
-    [XParser.#attribute,                      '#108'],
-    [XParser.#boundBoolean,                   '#109'],
-    [XParser.#boundDefined,                   '#110'],
-    [XParser.#boundAttribute,                 '#111'],
-    [XParser.#boundProperty,                  '#112'],
-    [XParser.#danglingQuote,                  '#113'],
-    [XParser.#endTag,                         '#114'],
-  ]);
+  static #getErrorMessageKeyFromValue(value) {
+    switch (value) {
+      case XParser.#initial:                  return '#100';
+      case XParser.#text:                     return '#101';
+      case XParser.#comment:                  return '#102';
+      case XParser.#boundContent:             return '#103';
+      case XParser.#startTagOpen:             return '#104';
+      case XParser.#startTagSpace:            return '#105';
+      case XParser.#startTagClose:            return '#106';
+      case XParser.#boolean:                  return '#107';
+      case XParser.#attribute:                return '#108';
+      case XParser.#boundBoolean:             return '#109';
+      case XParser.#boundDefined:             return '#110';
+      case XParser.#boundAttribute:           return '#111';
+      case XParser.#boundProperty:            return '#112';
+      case XParser.#danglingQuote:            return '#113';
+      case XParser.#endTag:                   return '#114';
+    }
+  }
 
   // Block #120-#139 — Common mistakes.
-  static #valueMalformedToErrorMessagesKey = new Map([
-    [XParser.#startTagOpenMalformed,          '#120'],
-    [XParser.#startTagSpaceMalformed,         '#121'],
-    [XParser.#startTagCloseMalformed,         '#122'],
-    [XParser.#endTagMalformed,                '#123'],
-    [XParser.#booleanMalformed,               '#124'],
-    [XParser.#attributeMalformed,             '#125'],
-    [XParser.#boundBooleanMalformed,          '#126'],
-    [XParser.#boundDefinedMalformed,          '#127'],
-    [XParser.#boundAttributeMalformed,        '#128'],
-    [XParser.#boundPropertyMalformed,         '#129'],
-    [XParser.#danglingQuoteMalformed,         '#130'],
-  ]);
+  static #getErrorMessageKeyFromValueMalformed(valueMalformed) {
+    switch (valueMalformed) {
+      case XParser.#startTagOpenMalformed:    return '#120';
+      case XParser.#startTagSpaceMalformed:   return '#121';
+      case XParser.#startTagCloseMalformed:   return '#122';
+      case XParser.#endTagMalformed:          return '#123';
+      case XParser.#booleanMalformed:         return '#124';
+      case XParser.#attributeMalformed:       return '#125';
+      case XParser.#boundBooleanMalformed:    return '#126';
+      case XParser.#boundDefinedMalformed:    return '#127';
+      case XParser.#boundAttributeMalformed:  return '#128';
+      case XParser.#boundPropertyMalformed:   return '#129';
+      case XParser.#danglingQuoteMalformed:   return '#130';
+    }
+  }
 
   // Block #140-#149 — Forbidden transitions.
-  static #valueForbiddenToErrorMessagesKey = new Map([
-    [XParser.#cdataStart,                     '#140'],
-  ]);
+  static #getErrorMessageKeyFromValueForbidden(valueForbidden) {
+    switch (valueForbidden) {
+      case XParser.#cdataStart:               return '#140';
+    }
+  }
 
   // Block #150+ — Special, named issues.
-  static #namedErrorsToErrorMessagesKey = new Map([
-    ['javascript-escape',                     '#150'],
-    ['malformed-html-entity',                 '#151'],
-    ['malformed-comment',                     '#152'],
-    ['forbidden-html-element',                '#153'],
-    ['missing-closing-tag',                   '#154'],
-    ['mismatched-closing-tag',                '#155'],
-    ['complex-textarea-interpolation',        '#156'],
-    ['declarative-shadow-root',               '#157'],
-  ]);
+  static #getErrorMessageKeyFromErrorName(errorName) {
+    switch (errorName) {
+      case 'javascript-escape':               return '#150';
+      case 'malformed-html-entity':           return '#151';
+      case 'malformed-comment':               return '#152';
+      case 'forbidden-html-element':          return '#153';
+      case 'missing-closing-tag':             return '#154';
+      case 'mismatched-closing-tag':          return '#155';
+      case 'complex-textarea-interpolation':  return '#156';
+      case 'declarative-shadow-root':         return '#157';
+    }
+  }
 
   //////////////////////////////////////////////////////////////////////////////
   // Internal parsing logic ////////////////////////////////////////////////////
@@ -519,15 +532,15 @@ export class XParser {
     const { parsed, notParsed } = XParser.#getErrorInfo(strings, stringsIndex, string, stringIndex);
     const valueForbidden = XParser.#forbiddenTransition(string, stringIndex, value);
     const valueMalformed = XParser.#invalidTransition(string, stringIndex, value);
-    const errorMessagesKey = valueForbidden
-      ? XParser.#valueForbiddenToErrorMessagesKey.get(valueForbidden)
+    const errorMessageKey = valueForbidden
+      ? XParser.#getErrorMessageKeyFromValueForbidden(valueForbidden)
       : valueMalformed
-        ? XParser.#valueMalformedToErrorMessagesKey.get(valueMalformed)
-        : XParser.#valueToErrorMessagesKey.get(value);
-    const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+        ? XParser.#getErrorMessageKeyFromValueMalformed(valueMalformed)
+        : XParser.#getErrorMessageKeyFromValue(value);
+    const errorMessage = XParser.#getErrorMessage(errorMessageKey);
     const substringMessage = `See substring \`${notParsed}\`.`;
     const parsedThroughMessage = `Your HTML was parsed through: \`${parsed}\`.`;
-    const message = `[${errorMessagesKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`;
+    const message = `[${errorMessageKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`;
     throw new Error(message);
   }
 
@@ -546,10 +559,10 @@ export class XParser {
   static #validateRawString(rawString) {
     const backslashIndex = rawString.indexOf('\\');
     if (backslashIndex !== -1) {
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('javascript-escape');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('javascript-escape');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
       const substringMessage = `See (raw) substring \`${rawString.slice(0, backslashIndex + 1)}\`.`;
-      const message = `[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`;
+      const message = `[${errorMessageKey}] ${errorMessage}\n${substringMessage}`;
       throw new Error(message);
     }
   }
@@ -558,10 +571,10 @@ export class XParser {
   //  have been matched successfully to prevent any unexpected behavior.
   static #validateExit(tagName) {
     if (tagName) {
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('missing-closing-tag');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('missing-closing-tag');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
       const substringMessage = `Missing a closing </${tagName}>.`;
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
+      throw new Error(`[${errorMessageKey}] ${errorMessage}\n${substringMessage}`);
     }
   }
 
@@ -590,10 +603,10 @@ export class XParser {
       }
       XParser.#entity.lastIndex = referenceStart;
       if (!XParser.#entity.test(content)) {
-        const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('malformed-html-entity');
-        const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+        const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('malformed-html-entity');
+        const errorMessage = XParser.#getErrorMessage(errorMessageKey);
         const substringMessage = `See substring \`${content}\`.`;
-        throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
+        throw new Error(`[${errorMessageKey}] ${errorMessage}\n${substringMessage}`);
       }
       referenceEnd = XParser.#entity.lastIndex;
       plaintextStart = referenceEnd;
@@ -623,10 +636,10 @@ export class XParser {
       tagName.indexOf('-') === -1 &&
       !XParser.#allowedHtmlElements.has(tagName)
     ) {
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('forbidden-html-element');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('forbidden-html-element');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
       const substringMessage = `The <${tagName}> html element is forbidden.`;
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
+      throw new Error(`[${errorMessageKey}] ${errorMessage}\n${substringMessage}`);
     }
   }
 
@@ -634,9 +647,9 @@ export class XParser {
   //  which have “declarative shadow roots” via a “shadowrootmode” attribute.
   static #validateNoDeclarativeShadowRoots(tagName, attributeName) {
     if (tagName === 'template' && attributeName === 'shadowrootmode') {
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('declarative-shadow-root');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('declarative-shadow-root');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
+      throw new Error(`[${errorMessageKey}] ${errorMessage}`);
     }
   }
 
@@ -650,9 +663,9 @@ export class XParser {
     // Because we tightly control the end-tag format, we can predict what the
     //  next string’s prefix should be.
     if (sloppyStartInterpolation || !string.startsWith(`</textarea>`)) {
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('complex-textarea-interpolation');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
+      throw new Error(`[${errorMessageKey}] ${errorMessage}`);
     }
     onToken(XParser.tokenTypes.boundTextValue, stringsIndex, stringIndex, stringIndex, '');
   }
@@ -680,10 +693,10 @@ export class XParser {
     onToken(XParser.tokenTypes.commentOpen, stringsIndex, stringIndex, commentStart, '<!--');
     const data = string.slice(commentStart, commentEnd);
     if (data.startsWith('>') || data.startsWith('->') || data.includes('--') || data.endsWith('-')) {
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('malformed-comment');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('malformed-comment');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
       const substringMessage = `See substring \`${string.slice(stringIndex, nextStringIndex)}\`.`;
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}`);
+      throw new Error(`[${errorMessageKey}] ${errorMessage}\n${substringMessage}`);
     }
     onToken(XParser.tokenTypes.comment, stringsIndex, commentStart, commentEnd, data);
     onToken(XParser.tokenTypes.commentClose, stringsIndex, commentEnd, nextStringIndex, '-->');
@@ -822,9 +835,9 @@ export class XParser {
       onToken(XParser.tokenTypes.endTagClose, stringsIndex, tagNameEnd, nextNextStringIndex, '>');
       return nextNextStringIndex;
     } else {
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('complex-textarea-interpolation');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}`);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('complex-textarea-interpolation');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
+      throw new Error(`[${errorMessageKey}] ${errorMessage}`);
     }
   }
 
@@ -840,11 +853,11 @@ export class XParser {
     const endTagName = string.slice(endTagNameStart, endTagNameEnd);
     if (endTagName !== tagName) {
       const { parsed } = XParser.#getErrorInfo(strings, stringsIndex, string, stringIndex);
-      const errorMessagesKey = XParser.#namedErrorsToErrorMessagesKey.get('mismatched-closing-tag');
-      const errorMessage = XParser.#errorMessages.get(errorMessagesKey);
+      const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('mismatched-closing-tag');
+      const errorMessage = XParser.#getErrorMessage(errorMessageKey);
       const substringMessage = `The closing tag </${endTagName}> does not match <${tagName}>.`;
       const parsedThroughMessage = `Your HTML was parsed through: \`${parsed}\`.`;
-      throw new Error(`[${errorMessagesKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`);
+      throw new Error(`[${errorMessageKey}] ${errorMessage}\n${substringMessage}\n${parsedThroughMessage}`);
     }
     onToken(XParser.tokenTypes.endTagOpen, stringsIndex, stringIndex, endTagNameStart, '</');
     onToken(XParser.tokenTypes.endTagName, stringsIndex, endTagNameStart, endTagNameEnd, endTagName);
