@@ -5,14 +5,9 @@ import puppeteer from 'puppeteer';
     // Open our browser.
     const browser = await puppeteer.launch({
       timeout: 10000,
-      // opt-in to the new Chrome headless implementation
-      // ref: https://developer.chrome.com/articles/new-headless/
-      headless: 'new',
-      args: [
-        // Disables interactive prompt: Do you want to the application Chromium.app to accept incoming network connections?
-        // ref: https://github.com/puppeteer/puppeteer/issues/4752#issuecomment-586599843
-        '--disable-features=DialMediaRouteProvider',
-      ],
+      // These args fix “Error: Failed to launch the browser process!” when
+      //  run in GitHub. We are only running our own code here, so this is ok.
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     const page = await browser.newPage();
 
