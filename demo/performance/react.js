@@ -11,7 +11,7 @@ class Test extends CommonTest {
 
   // TODO: This is sorta cheating since we aren’t asking it to _parse_ anything…
   static getResult(properties) {
-    const { attr, one, two, three, four, five, six, seven, eight, nine, ten, id, hidden, title, content1, content2 } = properties;
+    const { attr, one, two, three, four, five, six, seven, eight, nine, ten, id, hidden, title, content1, content2, items } = properties;
     return createElement('div', { 'data-id': 'p1', attr }, [
       createElement('div', { 'data-id': 'p2', 'data-foo': '', one, two, three, four, five, six, seven, eight, nine, ten }, [
         createElement('div', { 'data-id': 'p3', 'data-bar': 'bar' }, [
@@ -20,6 +20,9 @@ class Test extends CommonTest {
             ' -- ',
             content2,
           ]),
+          createElement('ul', { 'data-id': 'list' }, (items ?? []).map(item => {
+            return createElement('li', null, [item.text]);
+          })),
         ]),
         createElement('p', null, [
           'Just something a little ',
