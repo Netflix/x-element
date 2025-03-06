@@ -699,6 +699,42 @@ describe('odds and ends', () => {
 });
 
 describe('errors', () => {
+  it('throws when initial markup cannot be parsed', () => {
+    const callback = () => htmlol`<`;
+    const expectedMessage = '[#100]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after text cannot be parsed', () => {
+    const callback = () => htmlol`text<`;
+    const expectedMessage = '[#101]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after comment cannot be parsed', () => {
+    const callback = () => htmlol`<!--comment--><`;
+    const expectedMessage = '[#102]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after content interpolation cannot be parsed', () => {
+    const callback = () => htmlol`${VALUE}<`;
+    const expectedMessage = '[#103]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after start tag cannot be parsed', () => {
+    const callback = () => htmlol`<div><`;
+    const expectedMessage = '[#106]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
+  it('throws when markup after end tag cannot be parsed', () => {
+    const callback = () => htmlol`<div></div><`;
+    const expectedMessage = '[#114]';
+    assertThrows(callback, expectedMessage, { startsWith: true });
+  });
+
   it('throws when attempting non-trivial interpolation of a textarea tag (preceding space)', () => {
     const callback = () => html`<textarea id="target"> ${VALUE}</textarea>`;
     const expectedMessage = '[#156]';
@@ -1391,14 +1427,14 @@ describe('errors', () => {
 describe('html error formatting', () => {
   it('single line template', () => {
     const callback = () => html`<div id="target" not-ok=${VALUE}>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#128] Malformed attribute interpolation — attribute names must be alphanumeric, must be lowercase, must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes.\nSee substring `not-ok=`.\nYour HTML was parsed through: `<div id="target" `.';
+    const expectedMessage = '[#128] Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).\nSee substring `not-ok=`.\nYour HTML was parsed through: `<div id="target" `.';
     assertThrows(callback, expectedMessage);
   });
 
   it('template with two lines', () => {
     const callback = () => html`
       <div id="target" not-ok='${VALUE}'>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#128] Malformed attribute interpolation — attribute names must be alphanumeric, must be lowercase, must not start or end with hyphens, and cannot start with a number — and, attribute values must be enclosed in double-quotes.\nSee substring `not-ok=\'`.\nYour HTML was parsed through: `\n      <div id="target" `.';
+    const expectedMessage = '[#128] Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).\nSee substring `not-ok=\'`.\nYour HTML was parsed through: `\n      <div id="target" `.';
     assertThrows(callback, expectedMessage);
   });
 
@@ -1407,7 +1443,7 @@ describe('html error formatting', () => {
       
       
       <div id="target" .notOk=${VALUE}>Gotta double-quote those.</div>`;
-    const expectedMessage = '[#129] Malformed property interpolation — property names must be alphanumeric, must be lowercase, must not start or end with underscores, and cannot start with a number — and, property values must be enclosed in double-quotes.\nSee substring `.notOk=`.\nYour HTML was parsed through: `\n      \n      \n      <div id="target" `.';
+    const expectedMessage = '[#129] Invalid tag property interpolation (must use kebab-case names and double-quoted values).\nSee substring `.notOk=`.\nYour HTML was parsed through: `\n      \n      \n      <div id="target" `.';
     assertThrows(callback, expectedMessage);
   });
 });
