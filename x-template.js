@@ -126,8 +126,8 @@ class TemplateEngine {
       throw new Error(`Unexpected repeat callback "${callback}" provided, expected a function.`);
     }
     return identify
-      ? items.map(item => [identify(item), callback(item)])
-      : items.map(item => callback(item)); // Just a basic array.
+      ? items.map((...args) => [identify(...args), callback(...args)])
+      : items.map((...args) => callback(...args)); // Just a basic array.
   }
 
   // Deprecated. Will remove in future release.

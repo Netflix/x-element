@@ -1241,6 +1241,38 @@ describe('html updaters', () => {
     assert(container.querySelector('#c').textContent === 'fuzz');
     container.remove();
   });
+
+  it('repeat callbacks are provided args from underlying “.map” call', () => {
+    // The identify callback is written in a bizarre way to test that all the
+    //  expected function arguments are actually passed in. If they weren’t you
+    //  would get duplicated key errors or undefined key errors.
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${repeat(items, (_, index, array) => array?.[index]?.id, (_, index, array) => {
+            return html`<div id="${array?.[index]?.id}" class="item">${array?.[index]?.id}</div>`;
+          })}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar'}, { id: 'baz' }] }));
+    const foo = container.querySelector('#foo');
+    const bar = container.querySelector('#bar');
+    const baz = container.querySelector('#baz');
+    assert(container.querySelector('#target').childElementCount === 3);
+    assert(!!foo);
+    assert(!!bar);
+    assert(!!baz);
+    assert(container.querySelector('#target').children[0] === foo);
+    assert(container.querySelector('#target').children[1] === bar);
+    assert(container.querySelector('#target').children[2] === baz);
+    assert(foo.textContent === 'foo');
+    assert(bar.textContent === 'bar');
+    assert(baz.textContent === 'baz');
+    container.remove();
+  });
 });
 
 describe('updater errors', () => {
