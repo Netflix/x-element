@@ -4,12 +4,12 @@
     <meta charset="utf-8">
     <meta http-equiv="content-security-policy" content="default-src 'self';">
     <link rel="stylesheet" href="index.css">
-    <script type="module" src="index.js"></script>
+    <script type="module" blocking="render" src="hello-element.js"></script>
   </head>
   <body>
     <div id="content">
       <h1 id="title"><a id="title-link" href="../x-element.js">x-element</a></h1>
-      <h2 id="tagline">A dead simple starting point for custom elements.</h2>
+      <h2 id="tagline">A dead simple basis for custom elements.</h2>
       <p id="label">Examples</p>
       <ul id="list">
         <li><a href="./chess">chess piece</a></li>
@@ -20,6 +20,6 @@
         <li><a href="./performance">performance</a></li>
       </ul>
     </div>
-    <hello-world id="x"></hello-world>
+    <hello-element id="x"></hello-element>
   </body>
 </html>

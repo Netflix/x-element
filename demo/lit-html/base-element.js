@@ -22,7 +22,6 @@ import { unsafeSVG } from 'lit-html/directives/unsafe-svg.js';
 import { until } from 'lit-html/directives/until.js';
 import { when } from 'lit-html/directives/when.js';
 
-
 export default class BaseElement extends XElement {
   // Use lit-html's template engine rather than the built-in x-element engine.
   static get templateEngine() {

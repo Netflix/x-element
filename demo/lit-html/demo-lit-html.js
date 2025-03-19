@@ -1,14 +1,8 @@
 import BaseElement from './base-element.js';
+import styleSheet from './demo-lit-html.css' with { type: 'css' };
 
 export default class DemoLitHtml extends BaseElement {
   static get styles() {
-    const styleSheet = new CSSStyleSheet();
-    styleSheet.replaceSync(`
-      #container[emoji]::before {
-        content: " " attr(emoji);
-        font-size: 2rem;
-      }
-    `);
     return [styleSheet];
   }
 
