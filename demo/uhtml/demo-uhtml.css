@@ -1,0 +1,4 @@
+#container[emoji]::before {
+  content: " " attr(emoji);
+  font-size: 2rem;
+}

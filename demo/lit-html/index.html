@@ -2,7 +2,10 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="content-security-policy" content="default-src 'self'; script-src 'self' 'sha256-vpd4e6Q2EYlXOAcBOCPYNRqOSK1caV1iPamby7fBE30=' https://esm.sh/lit-html@3.2.1/;">
+    <meta http-equiv="content-security-policy" content="
+      default-src 'self';
+      script-src 'self' 'sha256-vpd4e6Q2EYlXOAcBOCPYNRqOSK1caV1iPamby7fBE30='
+        https://esm.sh/lit-html@3.2.1/;">
     <script type="importmap">
       {
         "imports": {
@@ -10,7 +13,7 @@
         }
       }
     </script>
-    <script type="module" src="./demo-lit-html.js"></script>
+    <script type="module" blocking="render" src="./demo-lit-html.js"></script>
   </head>
   <body>
     <ol>

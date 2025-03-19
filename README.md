@@ -8,7 +8,7 @@
 
 ```
 
-A dead simple starting point for custom elements. It provides the following functionality:
+A dead simple basis for custom elements. It provides the following functionality:
 
 - Efficient DOM generation and data binding using your preferred [templating engine](./doc/TEMPLATES.md)
 - Automatic `.property` to `[attribute]` reflection (opt-in)

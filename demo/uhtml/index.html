@@ -2,11 +2,18 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <!-- TODO: The uhtml library has a bunch of dependencies which makes the CSP
-          unwieldy. Rather than enumerate them all, a blanket rule is encoded
-          below to allow any access to https://esm.sh/. You wouldn’t want to do
-          that on a production site, this is just for the demo. -->
-    <meta http-equiv="content-security-policy" content="default-src 'self'; script-src 'self' 'sha256-tqJYP2BfE6OLuQk1TacH2iYQga16y7fS413atm5uM9o=' https://esm.sh/;">
+    <meta http-equiv="content-security-policy" content="
+      default-src 'self';
+      script-src 'self' 'sha256-tqJYP2BfE6OLuQk1TacH2iYQga16y7fS413atm5uM9o='
+        https://esm.sh/uhtml@4.5.11
+        https://esm.sh/uhtml@4.5.11/
+        https://esm.sh/udomdiff@^1.1.0
+        https://esm.sh/udomdiff@1.1.2/
+        https://esm.sh/domconstants@^1.1.6/
+        https://esm.sh/domconstants@1.1.6/
+        https://esm.sh/custom-function@^1.0.6/
+        https://esm.sh/custom-function@1.0.6/
+        https://esm.sh/@webreflection/;">
     <script type="importmap">
       {
         "imports": {
@@ -14,7 +21,7 @@
         }
       }
     </script>
-    <script type="module" src="./demo-uhtml.js"></script>
+    <script type="module" blocking="render" src="./demo-uhtml.js"></script>
   </head>
   <body>
     <ol>
