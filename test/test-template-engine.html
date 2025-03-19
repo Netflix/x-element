@@ -2,8 +2,15 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <!-- We test that “on*” event handlers work and must loosen our CSP to
+         check that particular test via the “script-src-attr” directive. -->
+    <meta http-equiv="content-security-policy" content="default-src 'self'; script-src 'self' 'sha256-RVXBMfHRdgc8777jps6ngyVOY4g0I7LMQ7IUzGv2lbA='; script-src-attr 'unsafe-inline';">
     <script type="importmap">
-      { "imports": { "@netflix/x-test/": "../node_modules/@netflix/x-test/" } }
+      {
+        "imports": {
+          "@netflix/x-test/": "../node_modules/@netflix/x-test/"
+        }
+      }
     </script>
   </head>
   <body>

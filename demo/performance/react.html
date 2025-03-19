@@ -1,7 +1,12 @@
 <!doctype html>
 <html>
   <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
+    <!-- TODO: The react library has a bunch of dependencies which makes the CSP
+          unwieldy. Rather than enumerate them all, a blanket rule is encoded
+          below to allow any access to https://esm.sh/. You wouldn’t want to do
+          that on a production site, this is just for the demo. -->
+    <meta http-equiv="content-security-policy" content="default-src 'self'; script-src 'self' 'sha256-HVRkfAW4ErWhOQ71jSlHDwiHtimNBYSzVw0wcuf6XwA=' https://esm.sh/;">
     <script type="importmap">
       {
         "imports": {

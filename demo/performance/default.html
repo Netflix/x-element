@@ -1,7 +1,10 @@
 <!doctype html>
 <html>
   <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
+    <!-- We use “unsafe-eval” below because we need to trick the browser into
+         not caching tagged template string objects to test interpretation. -->
+    <meta http-equiv="content-security-policy" content="default-src 'self'; script-src 'self' 'unsafe-eval';">
     <link rel="stylesheet" href="./index.css">
   </head>
   <body>
