@@ -17,6 +17,8 @@ A dead simple basis for custom elements. It provides the following functionality
 - Simple delegated event handling
 - Useful error messages
 
+See [SPEC.md](./doc/SPEC.md) for all the deets.
+
 ## Installation:
 
 Save a local copy to your project:
@@ -82,6 +84,3 @@ npm install && npm start
 
 Then...
 * http://localhost:8080
-
-See [SPEC.md](./doc/SPEC.md) for all the deets.
-
