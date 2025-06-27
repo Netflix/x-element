@@ -470,8 +470,12 @@ class TemplateEngine {
       const index = values.length;
       const id = String(index);
       const item = arrayState.map.get(id);
-      TemplateEngine.#removeThrough(item.startNode, node);
-      arrayState.map.delete(id);
+      TemplateEngine.#removeBetween(item.startNode, node);
+      item.startNode.remove();
+      for (let iii = arrayState.map.size - 1; iii >= values.length; iii--) {
+        // We iterate backwards since we are deleting keys from the map itself.
+        arrayState.map.delete(String(iii));
+      }
     }
   }
 

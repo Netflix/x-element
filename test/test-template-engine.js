@@ -459,10 +459,40 @@ describe('html rendering', () => {
       `;
     };
     const container = document.createElement('div');
-    render(container, getTemplate({ items: [1, 2, 3] }));
-    assert(container.querySelector('#target').childElementCount === 3);
-    render(container, getTemplate({ items: [1, 2, 3, 4, 5] }));
-    assert(container.querySelector('#target').childElementCount === 5);
+
+    // Render 0 > 1 > 2
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: [1] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+    render(container, getTemplate({ items: [1, 2] }));
+    assert(container.querySelector('#target').childElementCount === 2);
+
+    // Render 2 > 1 > 0
+    render(container, getTemplate({ items: [1, 2] }));
+    assert(container.querySelector('#target').childElementCount === 2);
+    render(container, getTemplate({ items: [1] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+
+    // Render 0 > 1 > 0 > 1
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: [1] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: [1] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+
+    // Render 0 > 2 > 0 > 2
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: [1, 2] }));
+    assert(container.querySelector('#target').childElementCount === 2);
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
     render(container, getTemplate({ items: [1, 2] }));
     assert(container.querySelector('#target').childElementCount === 2);
   });
@@ -782,6 +812,53 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').childElementCount === 1);
     assert(!!container.querySelector('#foo'));
     assert(container.querySelector('#target').children[0] !== foo);
+  });
+
+  it('native map with changing length', () => {
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${items.map(item => [item, html`<div class="item"></div>`])}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+
+    // Render 0 > 1 > 2
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: ['1'] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+    render(container, getTemplate({ items: ['1', '2'] }));
+    assert(container.querySelector('#target').childElementCount === 2);
+
+    // Render 2 > 1 > 0
+    render(container, getTemplate({ items: ['1', '2'] }));
+    assert(container.querySelector('#target').childElementCount === 2);
+    render(container, getTemplate({ items: ['1'] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+
+    // Render 0 > 1 > 0 > 1
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: ['1'] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: ['1'] }));
+    assert(container.querySelector('#target').childElementCount === 1);
+
+    // Render 0 > 2 > 0 > 2
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: ['1', '2'] }));
+    assert(container.querySelector('#target').childElementCount === 2);
+    render(container, getTemplate({ items: [] }));
+    assert(container.querySelector('#target').childElementCount === 0);
+    render(container, getTemplate({ items: ['1', '2'] }));
+    assert(container.querySelector('#target').childElementCount === 2);
   });
 
   // TODO: #254: Uncomment “moves” lines when we leverage “moveBefore”.
