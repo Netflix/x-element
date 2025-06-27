@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed — no disconnect / connect lifecycle events will occur. Previously,
   because we didn’t specifically guard this case, the low-level APIs would cause
   this to occur, which is unexpected from an integration standpoint (#253).
+- When re-rendering arrays of changing length, where the length is getting
+  smaller or is zero — the internal bookkeeping was getting messed up. This
+  caused runtime errors in these cases (#303).
 
 ## [1.1.2] - 2024-12-16
 
