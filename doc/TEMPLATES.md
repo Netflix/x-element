@@ -263,9 +263,7 @@ const deck = [
   { id: 'clubs-ace', text: '\u2663A' },
 ];
 const items = deck;
-const identify = item => item.id;
-const template = item => html`<span>${item.text}</span>`;
-const bar = items.map(item => [identify(item), template(item)]);
+const bar = items.map(item => [item.id, html`<span>${item.text}</span>`]);
 html`<div>${bar}</div>`;
 // <div><span>♥1</span>…<span>♣A</span></div>
 ```
