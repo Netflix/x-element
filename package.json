@@ -39,11 +39,11 @@
   "devDependencies": {
     "@netflix/eslint-config": "3.0.0",
     "@netflix/x-test": "1.0.3",
-    "eslint-plugin-jsdoc": "50.6.3",
-    "eslint": "9.21.0",
-    "puppeteer": "24.3.0",
+    "eslint-plugin-jsdoc": "51.2.3",
+    "eslint": "9.30.0",
+    "puppeteer": "24.11.0",
     "tap-parser": "18.0.0",
-    "typescript": "5.8.2"
+    "typescript": "5.8.3"
   },
   "engines": {
     "node": ">=22.14",
