@@ -2,8 +2,7 @@
   "files": [
     "./x-element.js",
     "./x-parser.js",
-    "./x-template.js",
-    "./etc/ready.js"
+    "./x-template.js"
   ],
   "compilerOptions": {
     "target": "ESNext",

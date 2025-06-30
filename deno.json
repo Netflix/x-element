@@ -5,24 +5,19 @@
     "./x-element.js": "./x-element.js",
     "./x-parser.js": "./x-parser.js",
     "./x-template.js": "./x-template.js",
-    "./etc/ready.js": "./etc/ready.js",
     "./ts/x-element.d.ts": "./ts/x-element.d.ts",
     "./ts/x-parser.d.ts": "./ts/x-parser.d.ts",
-    "./ts/x-template.d.ts": "./ts/x-template.d.ts",
-    "./ts/etc/ready.d.ts": "./ts/etc/ready.d.ts"
+    "./ts/x-template.d.ts": "./ts/x-template.d.ts"
   },
   "include": [
     "./x-element.js",
     "./x-parser.js",
     "./x-template.js",
-    "./etc/ready.js",
     "./ts/x-element.d.ts",
     "./ts/x-element.d.ts.map",
     "./ts/x-parser.d.ts",
     "./ts/x-parser.d.ts.map",
     "./ts/x-template.d.ts",
-    "./ts/x-template.d.ts.map",
-    "./ts/etc/ready.d.ts",
-    "./ts/etc/ready.d.ts.map"
+    "./ts/x-template.d.ts.map"
   ]
 }
