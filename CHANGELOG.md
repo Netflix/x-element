@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restrict element tags to an allow-list of what we’re willing to parse in the
   default template engine. This causes us to reject elements like `<title>`,
   `<body>`, `<link>`, `<script>`, `<canvas>`, `<meta>`, etc. (#239).
+- The `etc/ready.js` file has been removed in favor of native APIs. The spec for
+  the `blocking="render"` attribute / value pair has been merged in and can be
+  used to accomplish this behavior — https://github.com/whatwg/html/pull/1936.
+  If integrators need this functionality in the interim, it can easily be copied
+  into source for temporary use (#302).
 
 ### Fixed
 
