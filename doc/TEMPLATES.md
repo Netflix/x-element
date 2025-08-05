@@ -258,15 +258,12 @@ animate DOM nodes across such transitions.
 ```js
 // Note that you can shuffle the deck without destroying / creating DOM.
 const deck = [
-  { id: 'hearts-one', text: '\u26651' },
+  { id: 'hearts-one', symbol: '\u26651' },
   // …
-  { id: 'clubs-ace', text: '\u2663A' },
+  { id: 'clubs-ace', symbol: '\u2663A' },
 ];
-const items = deck;
-const identify = item => item.id;
-const template = item => html`<span>${item.text}</span>`;
-const bar = items.map(item => [identify(item), template(item)]);
-html`<div>${bar}</div>`;
+const cards = deck.map(card => [card.id, html`<span>${card.symbol}</span>`]);
+html`<div>${cards}</div>`;
 // <div><span>♥1</span>…<span>♣A</span></div>
 ```
 
