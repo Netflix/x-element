@@ -220,8 +220,8 @@ html`<div>${bar}</div>`;
 When the content being bound is itself a template result, you get composition.
 
 ```js
-const bar = html`<span>something</span>`;
-html`<div>${bar}</div>`;
+const tmpl = html`<span>something</span>`;
+html`<div>${tmpl}</div>`;
 // <div><span>something</span></div>
 ```
 
@@ -230,18 +230,19 @@ html`<div>${bar}</div>`;
 When the content being bound is an array of template results, you get a list.
 
 ```js
-const bar = [
-  html`<span>one</span>`,
-  html`<span>two</span>`,
+const list = [
+  html`<li>one</li>`,
+  html`<li>two</li>`,
+  html`<li>three</li>`,
 ];
-html`<div>${bar}</div>`;
-// <div><span>one</span><span>two</span></div>
+html`<ol>${list}</ol>`;
+// <ol><li>one</li><li>two</li><li>three</li></ol>
 
-// … but, you typically don’t have a static array, you map it idiomatically.
-const terms = ['one', 'two'];
-const bar = terms.map(term => html`<span>${term}</span>`);
-html`<div>${bar}</div>`;
-// <div><span>one</span><span>two</span></div>
+// … or you can use map to generate the list:
+const terms = ['one', 'two', 'three'];
+const list = terms.map(term => html`<li>${term}</li>`);
+html`<ol>${list}</ol>`;
+// <ol><li>one</li><li>two</li><li>three</li></ol>
 ```
 
 #### Map content binding
@@ -258,16 +259,13 @@ animate DOM nodes across such transitions.
 ```js
 // Note that you can shuffle the deck without destroying / creating DOM.
 const deck = [
-  { id: 'hearts-one', text: '\u26651' },
+  { id: 'hearts-one', symbol: '\u26651' },
   // …
-  { id: 'clubs-ace', text: '\u2663A' },
+  { id: 'clubs-ace', symbol: '\u2663A' },
 ];
-const items = deck;
-const identify = item => item.id;
-const template = item => html`<span>${item.text}</span>`;
-const bar = items.map(item => [identify(item), template(item)]);
-html`<div>${bar}</div>`;
-// <div><span>♥1</span>…<span>♣A</span></div>
+const cards = deck.map(card => [card.id, html`<my-card id="${card.id}">${card.symbol}</my-card>`]);
+html`<my-deck>${cards}</my-deck>`;
+// <my-deck><my-card id="hearts-one">♥1</my-card>…<my-card id="clubs-ace">♣A</my-card></my-deck>
 ```
 
 #### DocumentFragment content binding
