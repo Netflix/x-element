@@ -598,6 +598,12 @@ describe('html rendering', () => {
     render(container, getTemplate({ fragment: template.content.cloneNode(true) }));
     assert(container.childElementCount === 1);
     assert(container.children[0].localName === 'textarea');
+    template.setHTMLUnsafe('');
+    assert(template.content.childNodes.length === 0); // Ensure it’s empty.
+    render(container, getTemplate({ fragment: template.content.cloneNode(true) }));
+    assert(container.childNodes.length === 2); // Only internal cursors exist.
+    assert(container.childNodes[0].nodeType === Node.COMMENT_NODE);
+    assert(container.childNodes[1].nodeType === Node.COMMENT_NODE);
   });
 
   it('renders the same template result multiple times for', () => {
@@ -1109,14 +1115,6 @@ describe('container issues', () => {
 });
 
 describe('value issues', () => {
-  describe('document fragment', () => {
-    it('throws for empty fragment', () => {
-      const callback = () => render(document.createElement('div'), html`<div id="target">${new DocumentFragment()}</div>`);
-      const expectedMessage = 'Unexpected child element count of zero for given DocumentFragment.';
-      assertThrows(callback, expectedMessage);
-    });
-  });
-
   describe('native array', () => {
     it('throws for list with non-template value for array item', () => {
       const callback = () => render(document.createElement('div'), html`
