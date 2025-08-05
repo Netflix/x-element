@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - There are now three files in this repo — “x-element.js” which is all about
   element interfaces, “x-template.js” which is all about DOM management, and
   “x-parser.js” which is all about interpolated html markup interpretation.
+- An error is no longer thrown when binding an empty document fragment as
+  content in a template (#310).
 
 ### Removed
 

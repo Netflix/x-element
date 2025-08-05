@@ -273,20 +273,15 @@ html`<my-deck>${cards}</my-deck>`;
 When the content being bound is a `DocumentFragment` (e.g., from a `<template>`
 element’s `.content` property), the child nodes of that fragment will be added
 via an `.append(fragment)` on the parent container. This _moves_ those nodes
-from the fragment to the container (i.e., _not_ a copy). To prevent developers
-from unintentionally re-binding an already-exhausted fragment, the template
-engine _will throw_ when an empty document fragment is provided.
+from the fragment to the container (i.e., _not_ a copy).
 
 ```js
 const template = document.createElement('template');
-template.setHTMLUnsafe(`<script>console.log('hello world');</script>`);
+template.setHTMLUnsafe(`<svg><circle cx="1" cy="1" r="1" /></svg>`);
 const fragment = template.content.cloneNode(true);
 
 html`<div>${fragment}</div>`;
-// <div><script>console.log('hello world');</script></div>
-
-html`<div>${fragment}</div>`;
-// Error: Unexpected child element count of zero for given DocumentFragment.
+// <div><svg><circle cx="1" cy="1" r="1"></circle></svg></div>
 ```
 
 ## Supported native tags

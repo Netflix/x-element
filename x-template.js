@@ -582,9 +582,6 @@ class TemplateEngine {
   // }
 
   static #commitContentFragmentValue(node, startNode, value) {
-    if (value.childElementCount === 0) {
-      throw new Error(`Unexpected child element count of zero for given DocumentFragment.`);
-    }
     const previousSibling = node.previousSibling;
     if (previousSibling !== startNode) {
       TemplateEngine.#removeBetween(startNode, node);
