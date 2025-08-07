@@ -1,5 +1,23 @@
 class RootTest {
   static #tests = [];
+  
+  static #buildUrl(href, testName) {
+    const url = new URL(href, location.href);
+    url.searchParams.set('test', testName);
+
+    // Propagate performance config params if they exist in the current URL
+    const currentUrl = new URL(location.href);
+    if (currentUrl.searchParams.has('frames')) {
+      url.searchParams.set('frames', currentUrl.searchParams.get('frames'));
+    }
+    if (currentUrl.searchParams.has('delay')) {
+      url.searchParams.set('delay', currentUrl.searchParams.get('delay'));
+    }
+    if (currentUrl.searchParams.has('timing')) {
+      url.searchParams.set('timing', currentUrl.searchParams.get('timing'));
+    }
+    return url.toString();
+  }
 
   static async #load(frame, href) {
     const { promise, resolve, reject } = Promise.withResolvers();
@@ -59,6 +77,46 @@ class RootTest {
     container.replaceChildren(fragment);
   }
 
+  static #roundToSigFigs(num, sigFigs = 3) {
+    if (num === 0) {
+      return 0;
+    }
+    const magnitude = Math.floor(Math.log10(Math.abs(num)));
+    const factor = Math.pow(10, sigFigs - 1 - magnitude);
+    return Math.round(num * factor) / factor;
+  }
+
+  static finalize() {
+    RootTest.#outputResults();
+  }
+  
+  static #outputResults() {
+    const results = {};
+    const groupNames = [...new Set(RootTest.#tests.map(test => test.name))];
+    for (const groupName of groupNames) {
+      const tests = RootTest.#tests.filter(test => test.name === groupName);
+      results[groupName] = tests.map(test => {
+        if (test.skip) {
+          return {
+            id: test.id,
+            skipped: true,
+            reason: test.reason,
+          };
+        } else {
+          return {
+            id: test.id,
+            median_microseconds: RootTest.#roundToSigFigs(test.percentiles[50] * 1000),
+            percentiles: Object.fromEntries(
+              Object.entries(test.percentiles).map(([p, value]) => [p, RootTest.#roundToSigFigs(value * 1000)])
+            ),
+          };
+        }
+      });
+    }
+    console.log(JSON.stringify(results)); // eslint-disable-line no-console
+    console.log('# Done'); // eslint-disable-line no-console
+  }
+
   static #printOutput(name) {
     const output = document.getElementById(name).querySelector('.output');
     output.replaceChildren();
@@ -102,6 +160,32 @@ class RootTest {
     }
   }
 
+  static async testGroup(name, testConfigs) {
+    // Check if this group should be skipped via query parameter
+    const url = new URL(location.href);
+    const skipGroups = url.searchParams.getAll('skip');
+    const validGroups = ['inject', 'initial', 'update'];
+
+    // Validate skip parameters
+    for (const skipGroup of skipGroups) {
+      if (!validGroups.includes(skipGroup)) {
+        throw new Error(`Invalid skip group: ${skipGroup}. Must be one of: ${validGroups.join(', ')}`);
+      }
+    }
+    if (skipGroups.includes(name)) {
+      return;
+    }
+
+    // Run each test in the group
+    for (const config of testConfigs) {
+      if (config.skip) {
+        RootTest.skip(RootTest.#buildUrl(config.href, name), config.skip);
+      } else {
+        await RootTest.test(RootTest.#buildUrl(config.href, name));
+      }
+    }
+  }
+
   static async test(href) {
     const frame = document.getElementById('frame');
     const port1 = await this.#load(frame, href);
@@ -129,17 +213,35 @@ class RootTest {
   }
 }
 
-await RootTest.test('./default.html?test=inject');
-await RootTest.test('./lit-html.html?test=inject');
-await RootTest.test('./uhtml.html?test=inject');
-await RootTest.skip('./react.html?test=inject', 'React does interpretation during compilation.');
+// Check if profiling mode is enabled
+const url = new URL(location.href);
+const profile = url.searchParams.has('profile') && url.searchParams.get('profile') === 'true';
 
-await RootTest.test('./default.html?test=initial');
-await RootTest.test('./lit-html.html?test=initial');
-await RootTest.test('./uhtml.html?test=initial');
-await RootTest.test('./react.html?test=initial');
+if (profile) {
+  // In profile mode, only run default tests
+  await RootTest.testGroup('inject', [{ href: './default.html' }]);
+  await RootTest.testGroup('initial', [{ href: './default.html' }]);
+  await RootTest.testGroup('update', [{ href: './default.html' }]);
+} else {
+  // Normal mode - run all tests
+  await RootTest.testGroup('inject', [
+    { href: './default.html' },
+    { href: './lit-html.html' },
+    { href: './uhtml.html' },
+    { href: './react.html', skip: 'React does interpretation during compilation.' },
+  ]);
+  await RootTest.testGroup('initial', [
+    { href: './default.html' },
+    { href: './lit-html.html' },
+    { href: './uhtml.html' },
+    { href: './react.html' },
+  ]);
+  await RootTest.testGroup('update', [
+    { href: './default.html' },
+    { href: './lit-html.html' },
+    { href: './uhtml.html' },
+    { href: './react.html' },
+  ]);
+}
 
-await RootTest.test('./default.html?test=update');
-await RootTest.test('./lit-html.html?test=update');
-await RootTest.test('./uhtml.html?test=update');
-await RootTest.test('./react.html?test=update');
+RootTest.finalize();

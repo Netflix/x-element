@@ -96,7 +96,7 @@ export default class CommonTest {
         resolve(event.ports[0]);
       }
     }, { once: true });
-    
+
     const port2 = await promise;
     port2.start();
     port2.postMessage({ type: 'pong' });
@@ -133,8 +133,28 @@ export default class CommonTest {
    ** Internal Interface *******************************************************
    ****************************************************************************/
 
-  static #targetAnimationFrames = 500; // At ~16ms per frame, this is ~8 seconds per test, per engine.
-  static #waitAWhileDelay = 5_000;
+  static #targetAnimationFrames = (() => {
+    const url = new URL(location.href);
+    if (url.searchParams.has('frames')) {
+      const param = url.searchParams.get('frames');
+      if (!/^[1-9]\d*$/.test(param)) {
+        throw new Error(`frames must be a positive integer >= 1, got: ${param}`);
+      }
+      return Number.parseInt(param, 10);
+    }
+    return 500; // At ~16ms per frame, this is ~8 seconds per test, per engine.
+  })();
+  static #waitAWhileDelay = (() => {
+    const url = new URL(location.href);
+    if (url.searchParams.has('delay')) {
+      const param = url.searchParams.get('delay');
+      if (!/^[1-9]\d*$/.test(param)) {
+        throw new Error(`delay must be a positive integer >= 1, got: ${param}`);
+      }
+      return Number.parseInt(param, 10);
+    }
+    return 1_000;
+  })();
   static #tests = [];
 
   // TODO: The math for the lowIndex / highIndex might be off ever-so-slightly.
@@ -156,7 +176,18 @@ export default class CommonTest {
   }
 
   static async #waitAFrame() {
-    await new Promise(resolve => requestAnimationFrame(resolve));
+    const url = new URL(location.href);
+    const timing = url.searchParams.has('timing') ? url.searchParams.get('timing') : 'raf';
+    switch (timing) {
+      case 'raf':
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        break;
+      case 'fixed':
+        await new Promise(resolve => setTimeout(resolve, 16)); // ~60fps
+        break;
+      default:
+        throw new Error(`Invalid timing mode: ${timing}. Use 'raf' or 'fixed'.`);
+    }
   }
 
   static async #waitAWhile() {

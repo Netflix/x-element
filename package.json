@@ -23,6 +23,7 @@
     "lint-fix": "eslint --fix .",
     "test": "node test.js | tap-parser -l",
     "type": "tsc",
+    "performance": "node ./performance.js",
     "bump": "./bump.sh"
   },
   "files": [
