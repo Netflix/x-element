@@ -84,3 +84,9 @@ The `/demo` directory contains examples showing different template engines and u
 - Chess piece component
 - Performance comparisons with React, lit-html, uhtml
 - Integration examples for different templating approaches
+
+## Browser and Node Targets
+
+The `x-parser.js` file should be valid in the latest LTS for Node and the latest
+versions of Chrome, Firefox, and Safari. The `x-template.js` and `x-element.js`
+files should be valid in the latest versions of Chrome, Firefox, and Safari.
