@@ -21,7 +21,7 @@ export default [
   },
   {
     ...NetflixCommon,
-    files: ['server.js', 'test.js'],
+    files: ['performance.js', 'server.js', 'test.js'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {

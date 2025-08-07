@@ -23,6 +23,14 @@ class Server {
   static requestListener(request, response) {
     if (request.method === 'GET') {
       const url = new URL(request.url, Server.origin);
+
+      // Handle favicon.ico requests with 204 No Content
+      if (url.pathname === '/favicon.ico') {
+        response.writeHead(204, { ...userHeaders });
+        response.end();
+        return;
+      }
+
       const filePath = path.resolve(`${root}/${url.pathname}`);
       const fileExt = path.extname(filePath);
       const mimeType = mimeLookup.get(fileExt);

@@ -2,3 +2,7 @@ node_modules
 
 # Claude Code local settings
 .claude/*.local.json
+
+# Performance test results
+performance/performance.json
+performance/performance-profile.json

@@ -9,7 +9,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run lint-fix` - Auto-fix ESLint issues
 - `npm test` - Run tests with tap-parser formatting
 - `npm run type` - Run TypeScript type checking
+- `npm run performance` - Run automated performance tests via puppeteer (requires server to be running)
 - `./bump.sh` - Bump version and create release
+
+## Performance Testing
+
+The `npm run performance` command runs automated performance tests using puppeteer. It requires the development server to be running (`npm start`) and supports these options:
+
+- `--frames=<number>` - Number of animation frames to run (default: 100)
+- `--delay=<number>` - Delay between test phases in ms (default: 1000) 
+- `--timing=<mode>` - Timing mode: 'raf' or 'fixed' (default: 'fixed')
+- `--skip=<group>` - Skip test group: 'inject', 'initial', or 'update'
+
+Examples:
+```bash
+npm run performance
+npm run performance -- --frames=50 --timing=raf
+npm run performance -- --skip=inject --skip=initial
+```
+
+Results are saved to:
+- `performance/performance.json` - Standard performance results
+- `performance/performance-profile.json` - Detailed profiling data (if profiling is enabled)
+
+**Important Performance Testing Notes:**
+- Use the `--profile=true` flag to focus on this library’s performance (chrome profiling results are also output).
+- Performance results can be volatile and unstable with default settings
+- For reliable measurements when optimizing, use more frames: `--frames=200` or higher
+- Run tests multiple times and compare medians to account for noise
+- System load, browser state, and other factors affect timing measurements
+- Focus on consistent trends across multiple runs rather than single measurements
 
 ## Core Architecture
 
