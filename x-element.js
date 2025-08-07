@@ -906,7 +906,7 @@ export default class XElement extends HTMLElement {
       .join(' < ');
   }
 
-  static async #invalidateProperty(host, property) {
+  static #invalidateProperty(host, property) {
     const { initialized, invalidProperties, computeMap } = XElement.#hosts.get(host);
     if (initialized) {
       for (const output of property.output) {
@@ -918,9 +918,8 @@ export default class XElement extends HTMLElement {
         computeMap.get(property).valid = false;
       }
       if (queueUpdate) {
-        // Queue a microtask. Allows multiple, synchronous changes.
-        await Promise.resolve();
-        XElement.#updateHost(host);
+        // Batch on microtask to allow multiple, synchronous changes.
+        queueMicrotask(() => XElement.#updateHost(host));
       }
     }
   }

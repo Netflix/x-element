@@ -179,7 +179,7 @@ export default class XElement extends HTMLElement {
     static "__#3@#getListener"(host: any, listener: any): any;
     static "__#3@#updateHost"(host: any): void;
     static "__#3@#toPathString"(host: any): string;
-    static "__#3@#invalidateProperty"(host: any, property: any): Promise<void>;
+    static "__#3@#invalidateProperty"(host: any, property: any): void;
     static "__#3@#getPropertyValue"(host: any, property: any): any;
     static "__#3@#validatePropertyValue"(host: any, property: any, value: any): void;
     static "__#3@#setPropertyValue"(host: any, property: any, value: any): void;
