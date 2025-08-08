@@ -6,44 +6,60 @@ import path from 'path';
 
 const DEFAULT_OPTIONS = {
   frames: 100,
-  timing: 'fixed',
   skip: [],
   profile: false,
-  suffix: '',
+  prefix: '',
   headless: false,
   screenshot: false,
   viewport: '616x800',
+  fixInject: null,
+  fixInitial: null,
+  fixUpdate: null,
+  throttling: 8,
 };
 
 const HELP = `
 Usage: node performance.js [options]
 
 Options:
-  --frames=<number>    Number of animation frames to run (default: 100)
-                       Note: Use 200+ frames for reliable optimization measurements.
-                       Lower values (5-20) are useful for quick sanity checks.
-  --timing=<mode>      Timing mode: 'raf' or 'fixed' (default: 'fixed')
-  --skip=<group>       Skip test group: 'inject', 'initial', or 'update' (can be used multiple times)
-  --profile=true       Enable performance profiling with Chrome DevTools
-  --suffix=<string>    File suffix for output files (default: none)
-                       Examples: --suffix=before, --suffix=optimized
-  --headless=true      Run in headless mode (default: false, shows browser)
-  --screenshot=true    Save screenshot after tests complete (default: false)
-  --viewport=WxH       Set browser viewport size (default: 616x800)
-                       Examples: --viewport=1920x1080, --viewport=800x600
-  --help               Show this help message
+  --frames=<number>     Number of animation frames to run (default: 100)
+                        Note: Use 200+ frames for reliable optimization measurements.
+                        Lower values (5-20) are useful for quick sanity checks.
+  --skip=<item>         Skip test group ('inject', 'initial', 'update')
+                        Skip library ('default', 'lit-html', 'uhtml', 'react')
+                        Can be used multiple times.
+                        Examples: --skip=react, --skip=inject
+  --profile=true        Enable performance profiling with Chrome DevTools
+  --prefix=<string>     File prefix for output files (default: none)
+                        Examples: --prefix=baseline, --prefix=optimized
+  --headless=true       Run in headless mode (default: false, shows browser)
+  --screenshot=true     Save screenshot after tests complete (default: false)
+  --viewport=WxH        Set browser viewport size (default: 616x800)
+                        Examples: --viewport=1920x1080, --viewport=800x600
+  --fix-inject=min-max  Fix inject visualization range in microseconds
+                        Example: --fix-inject=55-65
+  --fix-initial=min-max Fix initial visualization range in microseconds
+                        Example: --fix-initial=5-7
+  --fix-update=min-max  Fix update visualization range in microseconds
+                        Example: --fix-update=0.6-0.8
+  --throttling=<number> CPU throttling rate (default: 8, high throttling)
+                        Example: --throttling=1 (no throttling)
+  --help                Show this help message
 
 Examples:
-  node performance.js --frames=5           # Quick sanity check
-  node performance.js --frames=200         # Reliable optimization testing
-  node performance.js --frames=50 --timing=raf
+  node performance.js --frames=5                    # Quick sanity check
+  node performance.js --frames=200                  # Reliable optimization testing
   node performance.js --skip=inject --skip=initial
+  node performance.js --skip=react --skip=lit-html  # Skip specific libraries
   node performance.js --profile=true
-  node performance.js --suffix=before      # Saves to performance-before.json
-  node performance.js --suffix=optimized   # Saves to performance-optimized.json
-  node performance.js --headless=true      # Run without visible browser
-  node performance.js --screenshot=true    # Save screenshot for record keeping
-  node performance.js --viewport=1920x1080 # High resolution viewport and screenshot
+  node performance.js --prefix=baseline             # Saves to baseline-performance.json
+  node performance.js --prefix=optimized            # Saves to optimized-performance.json
+  node performance.js --headless=true               # Run without visible browser
+  node performance.js --screenshot=true             # Save screenshot for record keeping
+  node performance.js --viewport=1920x1080          # High resolution viewport and screenshot
+  node performance.js --fix-inject=55-65            # Fixed visualization range for inject
+  node performance.js --fix-initial=5-7             # Fixed visualization range for initial
+  node performance.js --fix-update=0.6-0.8          # Fixed visualization range for update
 
 Note: Server must be running on localhost:8080 (use 'npm start')
 `;
@@ -62,12 +78,10 @@ function parseArgs() {
     }
     if (arg.startsWith('--frames=')) {
       options.frames = parseInt(arg.split('=')[1]);
-    } else if (arg.startsWith('--timing=')) {
-      options.timing = arg.split('=')[1];
     } else if (arg.startsWith('--skip=')) {
       options.skip.push(arg.split('=')[1]);
-    } else if (arg.startsWith('--suffix=')) {
-      options.suffix = arg.split('=')[1];
+    } else if (arg.startsWith('--prefix=')) {
+      options.prefix = arg.split('=')[1];
     } else if (arg.startsWith('--profile=')) {
       const value = arg.split('=')[1];
       if (value === 'true') {
@@ -105,6 +119,34 @@ function parseArgs() {
         process.exit(1);
       }
       options.viewport = viewport;
+    } else if (arg.startsWith('--fix-inject=')) {
+      const range = arg.split('=')[1];
+      if (!/^\d+(\.\d+)?-\d+(\.\d+)?$/.test(range)) {
+        console.error(`Invalid fix-inject format: ${range}. Must be min-max (e.g., 55-65).`); // eslint-disable-line no-console
+        process.exit(1);
+      }
+      options.fixInject = range;
+    } else if (arg.startsWith('--fix-initial=')) {
+      const range = arg.split('=')[1];
+      if (!/^\d+(\.\d+)?-\d+(\.\d+)?$/.test(range)) {
+        console.error(`Invalid fix-initial format: ${range}. Must be min-max (e.g., 5-7).`); // eslint-disable-line no-console
+        process.exit(1);
+      }
+      options.fixInitial = range;
+    } else if (arg.startsWith('--fix-update=')) {
+      const range = arg.split('=')[1];
+      if (!/^\d+(\.\d+)?-\d+(\.\d+)?$/.test(range)) {
+        console.error(`Invalid fix-update format: ${range}. Must be min-max (e.g., 0.6-0.8).`); // eslint-disable-line no-console
+        process.exit(1);
+      }
+      options.fixUpdate = range;
+    } else if (arg.startsWith('--throttling=')) {
+      const rate = parseFloat(arg.split('=')[1]);
+      if (isNaN(rate) || rate < 1) {
+        console.error(`Invalid throttling: ${arg.split('=')[1]}. Must be a number >= 1.`); // eslint-disable-line no-console
+        process.exit(1);
+      }
+      options.throttling = rate;
     }
   }
   return options;
@@ -116,16 +158,25 @@ function parseArgs() {
  */
 async function runPerformanceTests(options) {
   // Clean up any existing result files to ensure fresh results
-  const performanceDir = 'performance';
-  const suffix = options.suffix ? `-${options.suffix}` : '';
-  const resultsFile = path.join(performanceDir, `performance${suffix}.json`);
-  const profileFile = path.join(performanceDir, `performance-profile${suffix}.json`);
-  if (fs.existsSync(resultsFile)) {
-    fs.unlinkSync(resultsFile);
+  const resultsDir = path.join('performance', 'results');
+  const prefix = options.prefix ? `${options.prefix}-` : '';
+  const resultsFile = path.join(resultsDir, `${prefix}performance.json`);
+  const oldProfileFile = path.join(resultsDir, `${prefix}performance-profile.json`);
+  const cpuProfileFile = path.join(resultsDir, `${prefix}performance-profile.cpuprofile`);
+  const profileSummaryFile = path.join(resultsDir, `${prefix}performance-profile-summary.txt`);
+  
+  // Ensure results directory exists
+  if (!fs.existsSync(resultsDir)) {
+    fs.mkdirSync(resultsDir, { recursive: true });
   }
-  if (fs.existsSync(profileFile)) {
-    fs.unlinkSync(profileFile);
-  }
+  
+  // Clean up any existing files that will be regenerated
+  const filesToCleanup = [resultsFile, oldProfileFile, cpuProfileFile, profileSummaryFile];
+  filesToCleanup.forEach(file => {
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+  });
 
   const browser = await puppeteer.launch({ 
     headless: options.headless,
@@ -140,6 +191,7 @@ async function runPerformanceTests(options) {
       '--disable-features=TranslateUI',                   // Disable translate features
       '--disable-dev-shm-usage',                          // Use /tmp instead of /dev/shm
       '--memory-pressure-off',                            // Disable memory pressure signals
+      '--run-all-compositor-stages-before-draw',          // Force full render pipeline each frame
       '--js-flags=--max-old-space-size=8192 --expose-gc', // Control heap and expose window.gc()
     ],
   });
@@ -148,7 +200,7 @@ async function runPerformanceTests(options) {
 
     // Set viewport size
     const [width, height] = options.viewport.split('x').map(Number);
-    await page.setViewport({ width, height });
+    await page.setViewport({ width, height, deviceScaleFactor: 1 });
 
     // Configure page for stable performance testing
     await page.setCacheEnabled(false);
@@ -157,7 +209,6 @@ async function runPerformanceTests(options) {
     // Build URL with query parameters
     const params = new URLSearchParams();
     params.set('frames', options.frames.toString());
-    params.set('timing', options.timing);
     for (const skip of options.skip) {
       params.append('skip', skip);
     }
@@ -167,20 +218,29 @@ async function runPerformanceTests(options) {
       params.set('profile', 'true');
     }
 
+    // Add fixed range parameters when provided
+    if (options.fixInject) {
+      params.set('fixInject', options.fixInject);
+    }
+    if (options.fixInitial) {
+      params.set('fixInitial', options.fixInitial);
+    }
+    if (options.fixUpdate) {
+      params.set('fixUpdate', options.fixUpdate);
+    }
+
     const url = `http://localhost:8080/performance/?${params.toString()}`;
 
-    // Enable profiling if requested
+   const cdpSession = await page.createCDPSession();
+
+    // Fixed CPU throttle if requested.
+    await cdpSession.send('Emulation.setCPUThrottlingRate', { rate: options.throttling });
+
+    // Enable CPU profiling if requested.
     if (options.profile) {
-      // Start tracing with comprehensive categories
-      await page.tracing.start({
-        path: `performance/performance-profile${suffix}.json`,
-        categories: [
-          'devtools.timeline',
-          'v8.execute',
-          'disabled-by-default-v8.cpu_profiler',
-          'disabled-by-default-v8.cpu_profiler.hires',
-        ],
-      });
+      // Connect to Chrome DevTools Protocol.
+      await cdpSession.send('Profiler.enable');
+      await cdpSession.send('Profiler.start');
     }
 
     // Capture performance results and wait for completion
@@ -215,25 +275,55 @@ async function runPerformanceTests(options) {
     // Wait for tests to complete or timeout
     await Promise.race([completionPromise, timeoutPromise]);
 
-    // Stop profiling if enabled
+    // Stop CPU profiling if enabled and save profile
     if (options.profile) {
-      await page.tracing.stop();
+      const profile = await cdpSession.send('Profiler.stop');
+
+      // Save raw CPU profile
+      fs.writeFileSync(cpuProfileFile, JSON.stringify(profile.profile));
+
+      // Generate human-readable summary
+      const hotspots = profile.profile.nodes.filter(node => node.hitCount > 0);
+      hotspots.sort((a, b) => b.hitCount - a.hitCount);
+
+      let summary = '=== CPU PROFILE HOTSPOTS ===\n';
+      summary += 'HitCount | Function | File:Line\n';
+      summary += '---------|----------|----------\n';
+
+      hotspots.slice(0, 20).forEach(node => {
+        const frame = node.callFrame;
+        const fileName = frame.url ? frame.url.split('/').pop() : 'native';
+        const location = frame.url ? `${fileName}:${frame.lineNumber}` : 'native';
+        const functionName = frame.functionName || '(anonymous)';
+        summary += `${node.hitCount.toString().padStart(8)} | ${functionName.padEnd(30)} | ${location}\n`;
+      });
+
+      summary += '\n=== X-ELEMENT SPECIFIC HOTSPOTS ===\n';
+      const xElementHotspots = hotspots.filter(node => 
+        node.callFrame.url && (
+          node.callFrame.url.includes('x-parser.js') || 
+          node.callFrame.url.includes('x-template.js')
+        )
+      );
+
+      xElementHotspots.forEach(node => {
+        const frame = node.callFrame;
+        const fileName = frame.url.split('/').pop();
+        const functionName = frame.functionName || '(anonymous)';
+        summary += `${node.hitCount.toString().padStart(8)} | ${functionName.padEnd(30)} | ${fileName}:${frame.lineNumber}\n`;
+      });
+
+      fs.writeFileSync(profileSummaryFile, summary);
     }
 
     // Save performance results to file
     if (performanceResults) {
-      if (!fs.existsSync(performanceDir)) {
-        fs.mkdirSync(performanceDir, { recursive: true });
-      }
       fs.writeFileSync(resultsFile, JSON.stringify(performanceResults, null, 2));
     }
 
     // Take screenshot if requested
     if (options.screenshot) {
-      if (!fs.existsSync(performanceDir)) {
-        fs.mkdirSync(performanceDir, { recursive: true });
-      }
-      const screenshotFile = path.join(performanceDir, `performance-screenshot${suffix}.png`);
+      const screenshotFile = path.join(resultsDir, `${prefix}performance-screenshot.png`);
       await page.screenshot({ path: screenshotFile, fullPage: true, type: 'png' });
     }
   } finally {

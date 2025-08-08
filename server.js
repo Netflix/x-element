@@ -85,7 +85,15 @@ class Server {
   }
 
   static sendFile(response, filePath, mimeType, contentLength) {
-    response.writeHead(200, { 'Content-Type': mimeType, 'Content-Length': contentLength, ...userHeaders });
+    const headers = { 'Content-Type': mimeType, 'Content-Length': contentLength, ...userHeaders };
+    
+    // Add COOP/COEP headers for HTML documents to enable cross-origin isolation
+    if (mimeType === 'text/html') {
+      headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+      headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+    }
+    
+    response.writeHead(200, headers);
     fs.createReadStream(filePath).pipe(response);
   }
 

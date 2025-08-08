@@ -1,6 +1,6 @@
 class RootTest {
   static #tests = [];
-  
+
   static #buildUrl(href, testName) {
     const url = new URL(href, location.href);
     url.searchParams.set('test', testName);
@@ -63,6 +63,9 @@ class RootTest {
         element.classList.add('median');
       }
       element.style.left = `${percent}%`;
+      if (percent < 0 || percent > 100) {
+        element.classList.add('overflow');
+      }
       element.textContent = '•';
       fragment.append(element);
     }
@@ -121,9 +124,23 @@ class RootTest {
     const output = document.getElementById(name).querySelector('.output');
     output.replaceChildren();
     const tests = RootTest.#tests.filter(candidate => candidate.name === name);
-    // We only show 20-80 percentiles to ditch some outliers.
-    const min = Math.min(...tests.filter(({ skip }) => !skip).map(({ percentiles }) => percentiles[20]));
-    const max = Math.max(...tests.filter(({ skip }) => !skip).map(({ percentiles }) => percentiles[80]));
+
+    // Check for fixed range parameters
+    const url = new URL(location.href);
+    const fixRangeParam = url.searchParams.get(`fix${name.charAt(0).toUpperCase() + name.slice(1)}`);
+
+    let min, max;
+    if (fixRangeParam) {
+      // Use fixed range from URL parameter (convert microseconds to milliseconds)
+      const [minMicros, maxMicros] = fixRangeParam.split('-').map(Number);
+      min = minMicros / 1000;
+      max = maxMicros / 1000;
+    } else {
+      // Use dynamic range based on test results (20-80 percentiles to ditch outliers)
+      min = Math.min(...tests.filter(({ skip }) => !skip).map(({ percentiles }) => percentiles[20]));
+      max = Math.max(...tests.filter(({ skip }) => !skip).map(({ percentiles }) => percentiles[80]));
+    }
+
     for (const { id, percentiles, skip, reason } of tests) {
       const container = document.createElement('div');
       container.classList.add('distribution');
@@ -163,23 +180,30 @@ class RootTest {
   static async testGroup(name, testConfigs) {
     // Check if this group should be skipped via query parameter
     const url = new URL(location.href);
-    const skipGroups = url.searchParams.getAll('skip');
+    const skipItems = url.searchParams.getAll('skip');
     const validGroups = ['inject', 'initial', 'update'];
+    const validLibraries = ['default', 'lit-html', 'uhtml', 'react'];
 
     // Validate skip parameters
-    for (const skipGroup of skipGroups) {
-      if (!validGroups.includes(skipGroup)) {
-        throw new Error(`Invalid skip group: ${skipGroup}. Must be one of: ${validGroups.join(', ')}`);
+    for (const skipItem of skipItems) {
+      if (!validGroups.includes(skipItem) && !validLibraries.includes(skipItem)) {
+        throw new Error(`Invalid skip item: ${skipItem}. Must be one of: ${[...validGroups, ...validLibraries].join(', ')}`);
       }
     }
-    if (skipGroups.includes(name)) {
+
+    // Skip entire group if requested
+    if (skipItems.includes(name)) {
       return;
     }
 
-    // Run each test in the group
+    // Run each test in the group, filtering out skipped libraries
     for (const config of testConfigs) {
+      // Extract library name from href (e.g., './default.html' -> 'default')
+      const libraryName = config.href.replace('./', '').replace('.html', '');
       if (config.skip) {
         RootTest.skip(RootTest.#buildUrl(config.href, name), config.skip);
+      } else if (skipItems.includes(libraryName)) {
+        RootTest.skip(RootTest.#buildUrl(config.href, name), `Skipped via --skip=${libraryName} parameter.`);
       } else {
         await RootTest.test(RootTest.#buildUrl(config.href, name));
       }
