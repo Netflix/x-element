@@ -6,10 +6,10 @@ import path from 'path';
 
 const DEFAULT_OPTIONS = {
   frames: 100,
-  delay: 1000,
   timing: 'fixed',
   skip: [],
   profile: false,
+  suffix: '',
 };
 
 const HELP = `
@@ -17,17 +17,23 @@ Usage: node performance.js [options]
 
 Options:
   --frames=<number>    Number of animation frames to run (default: 100)
-  --delay=<number>     Delay between test phases in ms (default: 1000)
+                       Note: Use 200+ frames for reliable optimization measurements.
+                       Lower values (5-20) are useful for quick sanity checks.
   --timing=<mode>      Timing mode: 'raf' or 'fixed' (default: 'fixed')
   --skip=<group>       Skip test group: 'inject', 'initial', or 'update' (can be used multiple times)
   --profile=true       Enable performance profiling with Chrome DevTools
+  --suffix=<string>    File suffix for output files (default: none)
+                       Examples: --suffix=before, --suffix=optimized
   --help               Show this help message
 
 Examples:
-  node performance.js
+  node performance.js --frames=5           # Quick sanity check
+  node performance.js --frames=200         # Reliable optimization testing
   node performance.js --frames=50 --timing=raf
   node performance.js --skip=inject --skip=initial
   node performance.js --profile=true
+  node performance.js --suffix=before      # Saves to performance-before.json
+  node performance.js --suffix=optimized   # Saves to performance-optimized.json
 
 Note: Server must be running on localhost:8080 (use 'npm start')
 `;
@@ -46,12 +52,12 @@ function parseArgs() {
     }
     if (arg.startsWith('--frames=')) {
       options.frames = parseInt(arg.split('=')[1]);
-    } else if (arg.startsWith('--delay=')) {
-      options.delay = parseInt(arg.split('=')[1]);
     } else if (arg.startsWith('--timing=')) {
       options.timing = arg.split('=')[1];
     } else if (arg.startsWith('--skip=')) {
       options.skip.push(arg.split('=')[1]);
+    } else if (arg.startsWith('--suffix=')) {
+      options.suffix = arg.split('=')[1];
     } else if (arg.startsWith('--profile=')) {
       const value = arg.split('=')[1];
       if (value === 'true') {
@@ -74,8 +80,9 @@ function parseArgs() {
 async function runPerformanceTests(options) {
   // Clean up any existing result files to ensure fresh results
   const performanceDir = 'performance';
-  const resultsFile = path.join(performanceDir, 'performance.json');
-  const profileFile = path.join(performanceDir, 'performance-profile.json');
+  const suffix = options.suffix ? `-${options.suffix}` : '';
+  const resultsFile = path.join(performanceDir, `performance${suffix}.json`);
+  const profileFile = path.join(performanceDir, `performance-profile${suffix}.json`);
   if (fs.existsSync(resultsFile)) {
     fs.unlinkSync(resultsFile);
   }
@@ -86,15 +93,30 @@ async function runPerformanceTests(options) {
   const browser = await puppeteer.launch({ 
     headless: true,
     timeout: 10000,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox', 
+      '--disable-setuid-sandbox',
+      '--disable-background-timer-throttling',     // Prevent background throttling
+      '--disable-renderer-backgrounding',          // Keep renderer priority high  
+      '--disable-backgrounding-occluded-windows',  // Prevent window throttling
+      '--disable-web-security',                    // Reduce security overhead
+      '--disable-features=TranslateUI',            // Disable translate features
+      '--disable-dev-shm-usage',                   // Use /tmp instead of /dev/shm
+      '--memory-pressure-off',                     // Disable memory pressure signals
+      '--max_old_space_size=8192',                 // Increase V8 heap size
+      '--js-flags=--max-old-space-size=8192 --gc-interval=100', // Control GC
+    ],
   });
   try {
     const page = await browser.newPage();
 
+    // Configure page for stable performance testing
+    await page.setCacheEnabled(false);
+    await page.setJavaScriptEnabled(true);
+
     // Build URL with query parameters
     const params = new URLSearchParams();
     params.set('frames', options.frames.toString());
-    params.set('delay', options.delay.toString());
     params.set('timing', options.timing);
     for (const skip of options.skip) {
       params.append('skip', skip);
@@ -111,7 +133,7 @@ async function runPerformanceTests(options) {
     if (options.profile) {
       // Start tracing with comprehensive categories
       await page.tracing.start({
-        path: 'performance/performance-profile.json',
+        path: `performance/performance-profile${suffix}.json`,
         categories: [
           'devtools.timeline',
           'v8.execute',
@@ -163,7 +185,7 @@ async function runPerformanceTests(options) {
       if (!fs.existsSync(performanceDir)) {
         fs.mkdirSync(performanceDir, { recursive: true });
       }
-      fs.writeFileSync('performance/performance.json', JSON.stringify(performanceResults, null, 2));
+      fs.writeFileSync(resultsFile, JSON.stringify(performanceResults, null, 2));
     }
   } finally {
     await browser.close();

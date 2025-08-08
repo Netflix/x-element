@@ -144,34 +144,42 @@ export default class CommonTest {
     }
     return 500; // At ~16ms per frame, this is ~8 seconds per test, per engine.
   })();
-  static #waitAWhileDelay = (() => {
-    const url = new URL(location.href);
-    if (url.searchParams.has('delay')) {
-      const param = url.searchParams.get('delay');
-      if (!/^[1-9]\d*$/.test(param)) {
-        throw new Error(`delay must be a positive integer >= 1, got: ${param}`);
-      }
-      return Number.parseInt(param, 10);
-    }
-    return 1_000;
-  })();
   static #tests = [];
 
   // TODO: The math for the lowIndex / highIndex might be off ever-so-slightly.
   //  Might be worth it to look it up in a stats book if we need to be more
   //  precise there.
   static #percentile(percentile, numbers) {
+    if (numbers.length === 0) {
+      return null;
+    }
     numbers = numbers.toSorted();
     if (percentile === 0) {
       return numbers[0];
     } else if (percentile === 100) {
       return numbers[numbers.length - 1];
     } else {
-      const lowIndex = Math.floor(numbers.length / (100 / percentile));
-      const highIndex = Math.ceil(numbers.length / (100 / percentile));
+      const position = (percentile / 100) * (numbers.length - 1);
+      const lowIndex = Math.floor(position);
+      const highIndex = Math.ceil(position);
+
+      // Ensure indices are valid.
+      if (lowIndex >= numbers.length) {
+        return numbers[numbers.length - 1];
+      }
+      if (highIndex >= numbers.length) {
+        return numbers[numbers.length - 1];
+      }
+
       const low = numbers[lowIndex];
       const high = numbers[highIndex];
-      return (low + high) / 2;
+      if (low === undefined || high === undefined) {
+        return null;
+      }
+
+      // Interpolate between the two values.
+      const fraction = position - lowIndex;
+      return low + fraction * (high - low);
     }
   }
 
@@ -190,8 +198,42 @@ export default class CommonTest {
     }
   }
 
-  static async #waitAWhile() {
-    await new Promise(resolve => setTimeout(resolve, this.#waitAWhileDelay));
+  static async #jitWarmup(run, batch) {
+    // JIT warmup: Run the function multiple times to ensure JIT compilation.
+    //  This stabilizes performance by ensuring code is optimized before the
+    //  actual measurements are performed.
+    const warmupIterations = Math.min(batch * 10, 1000);
+    for (let iii = 0; iii < warmupIterations; iii++) {
+      run();
+    }
+    await new Promise(resolve => setTimeout(resolve, 10)); // Allow JIT compilation to settle.
+  }
+
+  static async #measureSingleFrame(run, batch) {
+    // Take a single clean measurement for this frame.
+    const t0 = performance.now();
+    for (let jjj = 0; jjj < batch; jjj++) {
+      run();
+    }
+    const t1 = performance.now();
+    return (t1 - t0) / batch;
+  }
+
+  static #removeOutliers(data) {
+    if (data.length < 4) {
+      return [...data]; // Need at least 4 points for IQR
+    }
+    const sorted = [...data].sort((a, b) => a - b);
+    const q1Index = Math.floor(sorted.length * 0.25);
+    const q3Index = Math.floor(sorted.length * 0.75);
+    const q1 = sorted[q1Index];
+    const q3 = sorted[q3Index];
+    const iqr = q3 - q1;
+
+    // Standard IQR outlier detection: beyond 1.5 * IQR from quartiles
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+    return data.filter(value => value >= lowerBound && value <= upperBound);
   }
 
   // This assumes we have ~16ms per frame (i.e., ~60Hz refresh).
@@ -212,29 +254,39 @@ export default class CommonTest {
     label.textContent = `${test.id} | ${name}`;
     const progress = document.createElement('progress');
     document.body.append(label, progress);
-    await CommonTest.#waitAWhile();
+
+    // Setup phase.
     await setup();
     const batch = CommonTest.#getBatch(name, run);
-    await CommonTest.#waitAWhile();
+
+    // JIT warmup phase to stabilize performance.
+    await CommonTest.#jitWarmup(run, batch);
+
+    // Force GC before measurements if available.
+    if (typeof window.gc === 'function') {
+      window.gc();
+      await new Promise(resolve => setTimeout(resolve, 50)); // Allow GC to complete.
+    }
+
     const results = [];
     progress.max = batch * CommonTest.#targetAnimationFrames;
     progress.value = 0;
+
     for (let iii = 0; iii < CommonTest.#targetAnimationFrames; iii++) {
       await CommonTest.#waitAFrame();
-      const t0 = performance.now();
-      for (let jjj = 0; jjj < batch; jjj++) {
-        // Batch up actions — this is tuned to work within an animation frame.
-        run();
-      }
-      const t1 = performance.now();
-      results.push((t1 - t0) / batch);
+      const measurement = await CommonTest.#measureSingleFrame(run, batch);
+      results.push(measurement);
       progress.value = (iii + 1) * batch;
     }
+
+    // Remove statistical outliers using Interquartile Range (IQR) method.
+    const cleanedResults = CommonTest.#removeOutliers(results);
+
     const percentiles = {};
     for (const percentile of [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]) {
-      percentiles[percentile] = CommonTest.#percentile(percentile, results);
+      percentiles[percentile] = CommonTest.#percentile(percentile, cleanedResults);
     }
-    CommonTest.#tests.push({ test, name, results, percentiles });
+    CommonTest.#tests.push({ test, name, results: cleanedResults, percentiles });
     return { id: test.id, name, percentiles };
   }
 }
