@@ -33,12 +33,17 @@ Results are saved to:
 - `performance/performance-profile.json` - Detailed profiling data (if profiling is enabled)
 
 **Important Performance Testing Notes:**
-- Use the `--profile=true` flag to focus on this library’s performance (chrome profiling results are also output).
+- Use the `--profile=true` flag to focus on this library's performance (chrome profiling results are also output).
 - Performance results can be volatile and unstable with default settings
 - For reliable measurements when optimizing, use more frames: `--frames=200` or higher
 - Run tests multiple times and compare medians to account for noise
 - System load, browser state, and other factors affect timing measurements
 - Focus on consistent trends across multiple runs rather than single measurements
+- **Always confirm your performance testing findings with a larger `--frames` count. And, run it twice to be very certain. It's easy for a single run to produce poor results and lead you astray!**
+
+## Development Server Assumptions
+
+- You can assume that the development server will already be running. This is standard for developers to do in this repository.
 
 ## Core Architecture
 
@@ -87,6 +92,10 @@ Properties have extensive configuration options:
 
 Tests are located in `/test` directory with individual HTML files for each test suite. Tests use a custom testing framework (@netflix/x-test) and run in the browser environment.
 
+### Test Execution
+
+- To test a specific test, you should test through `npm test` and then find the relevant lines in the output.
+
 ## Project Philosophy
 
 1. Zero compilation step required
@@ -119,3 +128,21 @@ The `/demo` directory contains examples showing different template engines and u
 The `x-parser.js` file should be valid in the latest LTS for Node and the latest
 versions of Chrome, Firefox, and Safari. The `x-template.js` and `x-element.js`
 files should be valid in the latest versions of Chrome, Firefox, and Safari.
+
+## Performance Insights
+
+- Simple looping functions are more performant than even loops like `for .. of`
+- Switch statements are more performant for small enumerations of known values than a map, the browser heavily optimizes this
+
+## File Fetching and Server Root
+
+- The files that you may want to fetch from the server are _exactly_ the files in the repository where you should consider the project root as equivalent to the web server root. I.e., you do not need to web-fetch the test links to look at the code, you can just read the files in the repository.
+
+## DOM Manipulation Strategies
+
+- While it might be tempting to stop using comments as DOM cursors — the current two-cursor approach offers robustness and predictability for DOM manipulation.
+
+## Miscellaneous Development Tips
+
+- Use the `--suffix` argument to save things like `--suffix=before` and `--suffix=after` for easier A/B testing. Don't forget to clean up these files after you are finished with all your tasks.
+```
