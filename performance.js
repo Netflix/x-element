@@ -10,6 +10,9 @@ const DEFAULT_OPTIONS = {
   skip: [],
   profile: false,
   suffix: '',
+  headless: false,
+  screenshot: false,
+  viewport: '616x800',
 };
 
 const HELP = `
@@ -24,6 +27,10 @@ Options:
   --profile=true       Enable performance profiling with Chrome DevTools
   --suffix=<string>    File suffix for output files (default: none)
                        Examples: --suffix=before, --suffix=optimized
+  --headless=true      Run in headless mode (default: false, shows browser)
+  --screenshot=true    Save screenshot after tests complete (default: false)
+  --viewport=WxH       Set browser viewport size (default: 616x800)
+                       Examples: --viewport=1920x1080, --viewport=800x600
   --help               Show this help message
 
 Examples:
@@ -34,6 +41,9 @@ Examples:
   node performance.js --profile=true
   node performance.js --suffix=before      # Saves to performance-before.json
   node performance.js --suffix=optimized   # Saves to performance-optimized.json
+  node performance.js --headless=true      # Run without visible browser
+  node performance.js --screenshot=true    # Save screenshot for record keeping
+  node performance.js --viewport=1920x1080 # High resolution viewport and screenshot
 
 Note: Server must be running on localhost:8080 (use 'npm start')
 `;
@@ -68,6 +78,33 @@ function parseArgs() {
         console.error(`Invalid profile value: ${value}. Must be "true" or "false".`); // eslint-disable-line no-console
         process.exit(1);
       }
+    } else if (arg.startsWith('--headless=')) {
+      const value = arg.split('=')[1];
+      if (value === 'true') {
+        options.headless = true;
+      } else if (value === 'false') {
+        options.headless = false;
+      } else {
+        console.error(`Invalid headless value: ${value}. Must be "true" or "false".`); // eslint-disable-line no-console
+        process.exit(1);
+      }
+    } else if (arg.startsWith('--screenshot=')) {
+      const value = arg.split('=')[1];
+      if (value === 'true') {
+        options.screenshot = true;
+      } else if (value === 'false') {
+        options.screenshot = false;
+      } else {
+        console.error(`Invalid screenshot value: ${value}. Must be "true" or "false".`); // eslint-disable-line no-console
+        process.exit(1);
+      }
+    } else if (arg.startsWith('--viewport=')) {
+      const viewport = arg.split('=')[1];
+      if (!/^\d+x\d+$/.test(viewport)) {
+        console.error(`Invalid viewport format: ${viewport}. Must be WIDTHxHEIGHT (e.g., 1920x1080).`); // eslint-disable-line no-console
+        process.exit(1);
+      }
+      options.viewport = viewport;
     }
   }
   return options;
@@ -91,24 +128,27 @@ async function runPerformanceTests(options) {
   }
 
   const browser = await puppeteer.launch({ 
-    headless: true,
+    headless: options.headless,
     timeout: 10000,
     args: [
-      '--no-sandbox', 
-      '--disable-setuid-sandbox',
-      '--disable-background-timer-throttling',     // Prevent background throttling
-      '--disable-renderer-backgrounding',          // Keep renderer priority high  
-      '--disable-backgrounding-occluded-windows',  // Prevent window throttling
-      '--disable-web-security',                    // Reduce security overhead
-      '--disable-features=TranslateUI',            // Disable translate features
-      '--disable-dev-shm-usage',                   // Use /tmp instead of /dev/shm
-      '--memory-pressure-off',                     // Disable memory pressure signals
-      '--max_old_space_size=8192',                 // Increase V8 heap size
-      '--js-flags=--max-old-space-size=8192 --gc-interval=100', // Control GC
+      '--no-sandbox',                                     // Required for CI/CD environments
+      '--disable-setuid-sandbox',                         // Disable setuid sandbox for compatibility
+      '--disable-background-timer-throttling',            // Prevent background throttling
+      '--disable-renderer-backgrounding',                 // Keep renderer priority high
+      '--disable-backgrounding-occluded-windows',         // Prevent window throttling
+      '--disable-web-security',                           // Reduce security overhead
+      '--disable-features=TranslateUI',                   // Disable translate features
+      '--disable-dev-shm-usage',                          // Use /tmp instead of /dev/shm
+      '--memory-pressure-off',                            // Disable memory pressure signals
+      '--js-flags=--max-old-space-size=8192 --expose-gc', // Control heap and expose window.gc()
     ],
   });
   try {
     const page = await browser.newPage();
+
+    // Set viewport size
+    const [width, height] = options.viewport.split('x').map(Number);
+    await page.setViewport({ width, height });
 
     // Configure page for stable performance testing
     await page.setCacheEnabled(false);
@@ -186,6 +226,15 @@ async function runPerformanceTests(options) {
         fs.mkdirSync(performanceDir, { recursive: true });
       }
       fs.writeFileSync(resultsFile, JSON.stringify(performanceResults, null, 2));
+    }
+
+    // Take screenshot if requested
+    if (options.screenshot) {
+      if (!fs.existsSync(performanceDir)) {
+        fs.mkdirSync(performanceDir, { recursive: true });
+      }
+      const screenshotFile = path.join(performanceDir, `performance-screenshot${suffix}.png`);
+      await page.screenshot({ path: screenshotFile, fullPage: true, type: 'png' });
     }
   } finally {
     await browser.close();

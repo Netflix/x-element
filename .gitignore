@@ -8,3 +8,5 @@ performance/performance.json
 performance/performance-*.json
 performance/performance-profile.json
 performance/performance-profile-*.json
+performance/performance-screenshot.png
+performance/performance-screenshot-*.png
