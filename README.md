@@ -23,9 +23,9 @@ See [SPEC.md](./doc/SPEC.md) for all the deets.
 
 Save a local copy to your project:
 ```bash
-curl https://raw.githubusercontent.com/Netflix/x-element/main/x-element.js > x-element.js
-curl https://raw.githubusercontent.com/Netflix/x-element/main/x-parser.js > x-parser.js
-curl https://raw.githubusercontent.com/Netflix/x-element/main/x-template.js > x-template.js
+curl -O https://raw.githubusercontent.com/Netflix/x-element/main/x-element.js \
+     -O https://raw.githubusercontent.com/Netflix/x-element/main/x-parser.js \
+     -O https://raw.githubusercontent.com/Netflix/x-element/main/x-template.js
 ```
 
 Then import it:
