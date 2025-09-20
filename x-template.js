@@ -808,11 +808,7 @@ class TemplateEngine {
   //   }
   // }
   static #removeWithin(node) {
-    // Iterate backwards over the live node collection since we’re mutating it.
-    const childNodes = node.childNodes;
-    for (let iii = childNodes.length - 1; iii >= 0; iii--) {
-      node.removeChild(childNodes[iii]);
-    }
+    node.replaceChildren()
   }
 
   // TODO: Future state — we may choose to iterate differently as an
