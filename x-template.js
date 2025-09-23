@@ -808,7 +808,7 @@ class TemplateEngine {
   //   }
   // }
   static #removeWithin(node) {
-    node.replaceChildren()
+    node.replaceChildren();
   }
 
   // TODO: Future state — we may choose to iterate differently as an
