@@ -1,0 +1,7 @@
+# Run tests on pull requests, including from forks.
+name: Check Pull Request
+on:
+  pull_request
+jobs:
+  test:
+    uses: ./.github/workflows/test.yaml
