@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   “x-parser.js” which is all about interpolated html markup interpretation.
 - An error is no longer thrown when binding an empty document fragment as
   content in a template (#310).
+- Testing infrastructure updated to use “@netflix/x-test@2.0.0-rc.2” and
+  “@netflix/x-test-cli@1.0.0-rc.2”. The custom “test.js” file has been removed
+  in favor of the CLI tool, and “tap-parser” is no longer needed as a
+  dependency (#327).
 
 ### Removed
 
