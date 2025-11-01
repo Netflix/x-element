@@ -21,7 +21,7 @@
     "start": "node ./server.js",
     "lint": "eslint --max-warnings=0 .",
     "lint-fix": "eslint --fix .",
-    "test": "node test.js | tap-parser -l",
+    "test": "x-test --client=puppeteer --url=http://127.0.0.1:8080/test/ --coverage=true",
     "type": "tsc",
     "performance": "node ./performance.js",
     "bump": "./bump.sh"
@@ -37,12 +37,12 @@
   ],
   "devDependencies": {
     "@netflix/eslint-config": "3.0.0",
-    "@netflix/x-test": "1.0.3",
+    "@netflix/x-test": "2.0.0-rc.2",
+    "@netflix/x-test-cli": "1.0.0-rc.2",
+    "eslint": "9.39.0",
     "eslint-plugin-jsdoc": "51.2.3",
-    "eslint": "9.30.0",
-    "puppeteer": "24.11.0",
-    "tap-parser": "18.0.0",
-    "typescript": "5.8.3"
+    "puppeteer": "24.27.0",
+    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=22.14",
