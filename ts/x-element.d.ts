@@ -7,20 +7,20 @@ export default class XElement extends HTMLElement {
     static get observedAttributes(): string[];
     /**
      * Default templating engine. Use "templateEngine" to override.
-     * @returns {{[key: string]: Function}}
+     * @returns {{[key: string]: (...args: unknown[]) => unknown}}
      */
     static get defaultTemplateEngine(): {
-        [key: string]: Function;
+        [key: string]: (...args: unknown[]) => unknown;
     };
     /**
      * Configured templating engine. Defaults to "defaultTemplateEngine".
      * Override this as needed if x-element's default template engine does not
      * meet your needs. A "render" method is the only required field. An "html"
      * tagged template literal is expected, but not strictly required.
-     * @returns {{[key: string]: Function}}
+     * @returns {{[key: string]: (...args: unknown[]) => unknown}}
      */
     static get templateEngine(): {
-        [key: string]: Function;
+        [key: string]: (...args: unknown[]) => unknown;
     };
     /**
      * Declare an array of CSSStyleSheet objects to adopt on the shadow root.
@@ -43,22 +43,22 @@ export default class XElement extends HTMLElement {
      * Observe callback.
      * @callback observeCallback
      * @param {HTMLElement} host
-     * @param {any} value
-     * @param {any} oldValue
+     * @param {unknown} value
+     * @param {unknown} oldValue
      */
     /**
      * A property value.
      * @typedef {object} Property
-     * @property {any} [type]
+     * @property {(new (...args: unknown[]) => unknown) | undefined} [type]
      * @property {string} [attribute]
      * @property {string[]} [input]
-     * @property {Function} [compute]
+     * @property {(...args: unknown[]) => unknown} [compute]
      * @property {observeCallback} [observe]
      * @property {boolean} [reflect]
      * @property {boolean} [internal]
      * @property {boolean} [readOnly]
-     * @property {any|Function} [initial]
-     * @property {any|Function} [default]
+     * @property {unknown | (() => unknown)} [initial]
+     * @property {unknown | (() => unknown)} [default]
      */
     /**
      * Declare watched properties (and related attributes) on an element.
@@ -83,16 +83,16 @@ export default class XElement extends HTMLElement {
      */
     static get properties(): {
         [key: string]: {
-            type?: any;
+            type?: (new (...args: unknown[]) => unknown) | undefined;
             attribute?: string;
             input?: string[];
-            compute?: Function;
-            observe?: (host: HTMLElement, value: any, oldValue: any) => any;
+            compute?: (...args: unknown[]) => unknown;
+            observe?: (host: HTMLElement, value: unknown, oldValue: unknown) => any;
             reflect?: boolean;
             internal?: boolean;
             readOnly?: boolean;
-            initial?: any | Function;
-            default?: any | Function;
+            initial?: unknown | (() => unknown);
+            default?: unknown | (() => unknown);
         };
     };
     /**
@@ -140,12 +140,12 @@ export default class XElement extends HTMLElement {
      *   }
      * }
      * ```
-     * @param {Function} html
-     * @param {{[key: string]: Function}} engine
+     * @param {(strings: TemplateStringsArray, ...values: unknown[]) => unknown} html
+     * @param {{[key: string]: (...args: unknown[]) => unknown}} engine
      * @returns {templateCallback}
      */
-    static template(html: Function, engine: {
-        [key: string]: Function;
+    static template(html: (strings: TemplateStringsArray, ...values: unknown[]) => unknown, engine: {
+        [key: string]: (...args: unknown[]) => unknown;
     }): (properties: object, host: HTMLElement) => any;
     static "__#private@#analyzeConstructor"(constructor: any): void;
     static "__#private@#validateProperties"(constructor: any, properties: any, entries: any): void;

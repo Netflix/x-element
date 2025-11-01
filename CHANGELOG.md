@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   “@netflix/x-test-cli@1.0.0-rc.2”. The custom “test.js” file has been removed
   in favor of the CLI tool, and “tap-parser” is no longer needed as a
   dependency (#327).
+- Updated JSDoc type annotations to be more specific: replaced generic `any`,
+  `Function`, and `*` types with `unknown`, explicit function signatures
+  `(...args: unknown[]) => unknown`, and `TemplateStringsArray`. This improves
+  type safety for TypeScript integrators without breaking existing code (#329).
 
 ### Removed
 
