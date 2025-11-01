@@ -13,7 +13,7 @@ export default class XElement extends HTMLElement {
 
   /**
    * Default templating engine. Use "templateEngine" to override.
-   * @returns {{[key: string]: Function}}
+   * @returns {{[key: string]: (...args: unknown[]) => unknown}}
    */
   static get defaultTemplateEngine() {
     return defaultTemplateEngine;
@@ -24,7 +24,7 @@ export default class XElement extends HTMLElement {
    * Override this as needed if x-element's default template engine does not
    * meet your needs. A "render" method is the only required field. An "html"
    * tagged template literal is expected, but not strictly required.
-   * @returns {{[key: string]: Function}}
+   * @returns {{[key: string]: (...args: unknown[]) => unknown}}
    */
   static get templateEngine() {
     return XElement.defaultTemplateEngine;
@@ -54,23 +54,23 @@ export default class XElement extends HTMLElement {
    * Observe callback.
    * @callback observeCallback
    * @param {HTMLElement} host
-   * @param {any} value
-   * @param {any} oldValue
+   * @param {unknown} value
+   * @param {unknown} oldValue
    */
 
   /**
    * A property value.
    * @typedef {object} Property
-   * @property {any} [type]
+   * @property {(new (...args: unknown[]) => unknown) | undefined} [type]
    * @property {string} [attribute]
    * @property {string[]} [input]
-   * @property {Function} [compute]
+   * @property {(...args: unknown[]) => unknown} [compute]
    * @property {observeCallback} [observe]
    * @property {boolean} [reflect]
    * @property {boolean} [internal]
    * @property {boolean} [readOnly]
-   * @property {any|Function} [initial]
-   * @property {any|Function} [default]
+   * @property {unknown | (() => unknown)} [initial]
+   * @property {unknown | (() => unknown)} [default]
    */
 
   /**
@@ -149,8 +149,8 @@ export default class XElement extends HTMLElement {
    *   }
    * }
    * ```
-   * @param {Function} html
-   * @param {{[key: string]: Function}} engine
+   * @param {(strings: TemplateStringsArray, ...values: unknown[]) => unknown} html
+   * @param {{[key: string]: (...args: unknown[]) => unknown}} engine
    * @returns {templateCallback}
    */
   static template(html, engine) { // eslint-disable-line no-unused-vars

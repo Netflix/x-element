@@ -955,7 +955,7 @@ export class XParser {
   /**
    * The core parse function takes in the “strings” from a tagged template
    * function and returns an array of tokens representing the parsed result.
-   * @param {*} strings
+   * @param {TemplateStringsArray} strings
    * @param {onToken} onToken
    */
   static parse(strings, onToken) {

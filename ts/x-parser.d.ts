@@ -139,9 +139,9 @@ export class XParser {
     /**
      * The core parse function takes in the “strings” from a tagged template
      * function and returns an array of tokens representing the parsed result.
-     * @param {*} strings
+     * @param {TemplateStringsArray} strings
      * @param {onToken} onToken
      */
-    static parse(strings: any, onToken: (type: string, index: number, start: number, end: number, substring: string) => any): void;
+    static parse(strings: TemplateStringsArray, onToken: (type: string, index: number, start: number, end: number, substring: string) => any): void;
 }
 //# sourceMappingURL=x-parser.d.ts.map

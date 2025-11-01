@@ -35,7 +35,7 @@ class TemplateEngine {
 
   /**
    * Default template engine interface — what you get inside “template”.
-   * @type {{[key: string]: Function}}
+   * @type {{[key: string]: (...args: unknown[]) => unknown}}
    */
   static interface = Object.freeze({
     // Long-term interface.
@@ -53,8 +53,8 @@ class TemplateEngine {
    * html`<div attr="${obj.attr}" .prop="${obj.prop}">${obj.content}</div>`;
    * ```
    * @param {string[]} strings
-   * @param {any[]} values
-   * @returns {any}
+   * @param {unknown[]} values
+   * @returns {unknown}
    */
   static html(strings, ...values) {
     return TemplateEngine.#createRawResult(strings, values);
@@ -64,7 +64,7 @@ class TemplateEngine {
    * Core rendering entry point for x-element template engine.
    * Accepts a "container" element and renders the given "raw result" into it.
    * @param {HTMLElement} container
-   * @param {any} rawResult
+   * @param {unknown} rawResult
    */
   static render(container, rawResult) {
     if (!(container instanceof Node)) {
@@ -94,8 +94,8 @@ class TemplateEngine {
    * html`<a href="${ifDefined(obj.href)}"></div>`;
    * ```
    * @deprecated
-   * @param {any} value
-   * @returns {any}
+   * @param {unknown} value
+   * @returns {unknown}
    */
   static ifDefined(value) {
     const symbol = Object.create(null);
@@ -107,10 +107,10 @@ class TemplateEngine {
   /**
    * Shim for prior "repeat" function. Use native entries array.
    * @deprecated
-   * @param {any[]} items
-   * @param {Function} identify
-   * @param {Function} [callback]
-   * @returns {any}
+   * @param {unknown[]} items
+   * @param {(...args: unknown[]) => unknown} identify
+   * @param {(...args: unknown[]) => unknown} [callback]
+   * @returns {unknown}
    */
   static repeat(items, identify, callback) {
     if (arguments.length === 2) {
