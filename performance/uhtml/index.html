@@ -2,29 +2,26 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <!-- We use “unsafe-eval” below because we need to trick the browser into
+          not caching tagged template string objects to test interpretation. -->
     <!-- The “connect-src” below is required for loading source maps. -->
     <meta http-equiv="content-security-policy" content="
       default-src 'self';
       connect-src
         https://esm.sh/uhtml@5.0.9/;
-      script-src 'self' 'sha256-nCQydfYEYyRSBtwQFjD4HwXEjXY7JamFcGypyTm3NVs='
+      script-src 'self' 'unsafe-eval' 'sha256-wYWwzxD1cTZ0LXYcagtuCdN5rGkRsjegz/3/i1Dqum4='
         https://esm.sh/uhtml@5.0.9
         https://esm.sh/uhtml@5.0.9/;">
     <script type="importmap">
       {
         "imports": {
-          "@netflix/x-element/": "../../",
           "uhtml": "https://esm.sh/uhtml@5.0.9"
         }
       }
     </script>
-    <script type="module" blocking="render" src="./index.js"></script>
+    <link rel="stylesheet" href="../common.css">
   </head>
   <body>
-    <ol>
-      <li><demo-uhtml message="one" emoji="🔥"></demo-uhtml></li>
-      <li><demo-uhtml message="two" emoji="😻"></demo-uhtml></li>
-      <li><demo-uhtml message="three" emoji="✌️"></demo-uhtml></li>
-    </ol>
+    <script type="module" src="./index.js"></script>
   </body>
 </html>

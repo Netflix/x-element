@@ -1,8 +1,8 @@
-import { render, html } from 'lit-html';
-import CommonTest, { HtmlLiteralInterface } from './common.js';
+import { render, html } from '@netflix/x-element/x-template.js';
+import CommonTest, { HtmlLiteralInterface } from '../common.js';
 
 class Test extends CommonTest {
-  static id = 'lit-html';
+  static id = 'default';
 
   static async injectSetup() {
     const properties = this.properties[0];
@@ -10,7 +10,7 @@ class Test extends CommonTest {
   }
   static injectRun() {
     const { properties } = this.injectContext;
-    render(HtmlLiteralInterface.getResultEval(html, properties), document.createElement('div'));
+    render(document.createElement('div'), HtmlLiteralInterface.getResultEval(html, properties));
   }
 
   static async initialSetup() {
@@ -19,18 +19,18 @@ class Test extends CommonTest {
   }
   static initialRun() {
     const { properties } = this.initialContext;
-    render(HtmlLiteralInterface.getResult(html, properties), document.createElement('div'));
+    render(document.createElement('div'), HtmlLiteralInterface.getResult(html, properties));
   }
 
   static async updateSetup() {
     const container = document.createElement('div');
     const getProperties = this.getProperties;
-    render(HtmlLiteralInterface.getResult(html, getProperties()), container);
-    this.initialContext = { render, html, container, getProperties };
+    render(container, HtmlLiteralInterface.getResult(html, getProperties()));
+    this.updateContext = { render, html, container, getProperties };
   }
   static updateRun() {
-    const { container, getProperties } = this.initialContext;
-    render(HtmlLiteralInterface.getResult(html, getProperties()), container);
+    const { container, getProperties } = this.updateContext;
+    render(container, HtmlLiteralInterface.getResult(html, getProperties()));
   }
 }
 

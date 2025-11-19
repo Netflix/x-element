@@ -298,23 +298,25 @@ export class HtmlLiteralInterface {
   // The browser will optimize “strings” here to return the same actual reference.
   static getResult(html, properties) {
     const { attr, one, two, three, four, five, six, seven, eight, nine, ten, id, hidden, title, content1, content2 } = properties;
-    return html`<div data-id="p1" attr="${attr}">
-    <div data-id="p2" data-foo one="${one}" two="${two}" three="${three}" four="${four}" five="${five}" .six="${six}" .seven="${seven}" .eight="${eight}" .nine="${nine}" .ten="${ten}">
-      <div data-id="p3" data-bar="bar">
-        <div data-id="${id}" boolean ?hidden="${hidden}" .title="${title}">
-          ${content1} -- ${content2}
+    return html`
+      <div data-id="p1" attr="${attr}">
+        <div data-id="p2" data-foo one="${one}" two="${two}" three="${three}" four="${four}" five="${five}" .six="${six}" .seven="${seven}" .eight="${eight}" .nine="${nine}" .ten="${ten}">
+          <div data-id="p3" data-bar="bar">
+            <div data-id="${id}" boolean ?hidden="${hidden}" .title="${title}">
+              ${content1} -- ${content2}
+            </div>
+          </div>
+        </div>
+        <div class="extra">
+          <p>
+            Just something a little <em>extra</em> at the end!
+          </p>
+          <p>
+            There are no more interpolations, so this ought to just get skipped.
+          </p>
         </div>
       </div>
-    </div>
-    <div class="extra">
-      <p>
-        Just something a little <em>extra</em> at the end!
-      </p>
-      <p>
-        There are no more interpolations, so this ought to just get skipped.
-      </p>
-    </div>
-  </div>`;
+    `;
   }
 
   // We can get around the optimization by using eval though!

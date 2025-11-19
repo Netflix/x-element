@@ -1,4 +1,4 @@
-import XElement from '../../x-element.js';
+import XElement from '@netflix/x-element/x-element.js';
 import { asyncAppend } from 'lit-html/directives/async-append.js';
 import { asyncReplace } from 'lit-html/directives/async-replace.js';
 import { cache } from 'lit-html/directives/cache.js';

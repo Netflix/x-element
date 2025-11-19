@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <!-- We use “unsafe-eval” below because we need to trick the browser into
+          not caching tagged template string objects to test interpretation. -->
+    <!-- The “connect-src” below is required for loading source maps. -->
+    <meta http-equiv="content-security-policy" content="
+      default-src 'self';
+      connect-src
+        https://esm.sh/lit-html@3.3.1/;
+      script-src 'self' 'unsafe-eval' 'sha256-TyXx3kOOu2lvx4maNNxbAyrGnrGkIaenVpjLuM16jk4='
+        https://esm.sh/lit-html@3.3.1
+        https://esm.sh/lit-html@3.3.1/;">
+    <script type="importmap">
+      {
+        "imports": {
+          "lit-html": "https://esm.sh/lit-html@3.3.1"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="../common.css">
+  </head>
+  <body>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-import XElement from '../../x-element.js';
+import XElement from '@netflix/x-element/x-element.js';
 import { render, html, svg } from 'uhtml';
 
 export default class BaseElement extends XElement {
