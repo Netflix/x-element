@@ -27,6 +27,8 @@ export default [
   {
     ignores: [
       'node_modules',
+      'demo/react/index.js',        // generated from .jsx file
+      'performance/react/index.js', // generated from .jsx file
       '*.d.ts',
     ],
   },

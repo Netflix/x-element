@@ -1,8 +1,8 @@
-import { render, html } from '../../x-template.js';
-import CommonTest, { HtmlLiteralInterface } from './common.js';
+import { render, html } from 'uhtml';
+import CommonTest, { HtmlLiteralInterface } from '../common.js';
 
 class Test extends CommonTest {
-  static id = 'default';
+  static id = 'uhtml';
 
   static async injectSetup() {
     const properties = this.properties[0];

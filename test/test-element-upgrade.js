@@ -140,3 +140,25 @@ it('x-element upgrade lifecycle', () => {
     'element created after definition upgrades/renders after being added'
   );
 });
+
+it('preserves x-element properties set before customElements.define', () => {
+  class PreUpgradeElement extends XElement {
+    static get properties() {
+      return {
+        foo: {
+          type: String,
+        },
+        bar: {
+          type: Number,
+        },
+      };
+    }
+  }
+  const el = document.createElement('pre-upgrade-element');
+  el.foo = 'test';
+  el.bar = 42;
+  customElements.define('pre-upgrade-element', PreUpgradeElement);
+  document.body.append(el);
+  assert(el.foo === 'test');
+  assert(el.bar === 42);
+});

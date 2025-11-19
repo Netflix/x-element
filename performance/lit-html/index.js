@@ -1,8 +1,8 @@
-import { render, html } from 'uhtml';
-import CommonTest, { HtmlLiteralInterface } from './common.js';
+import { render, html } from 'lit-html';
+import CommonTest, { HtmlLiteralInterface } from '../common.js';
 
 class Test extends CommonTest {
-  static id = 'uhtml';
+  static id = 'lit-html';
 
   static async injectSetup() {
     const properties = this.properties[0];
@@ -10,7 +10,7 @@ class Test extends CommonTest {
   }
   static injectRun() {
     const { properties } = this.injectContext;
-    render(document.createElement('div'), HtmlLiteralInterface.getResultEval(html, properties));
+    render(HtmlLiteralInterface.getResultEval(html, properties), document.createElement('div'));
   }
 
   static async initialSetup() {
@@ -19,18 +19,18 @@ class Test extends CommonTest {
   }
   static initialRun() {
     const { properties } = this.initialContext;
-    render(document.createElement('div'), HtmlLiteralInterface.getResult(html, properties));
+    render(HtmlLiteralInterface.getResult(html, properties), document.createElement('div'));
   }
 
   static async updateSetup() {
     const container = document.createElement('div');
     const getProperties = this.getProperties;
-    render(container, HtmlLiteralInterface.getResult(html, getProperties()));
-    this.initialContext = { render, html, container, getProperties };
+    render(HtmlLiteralInterface.getResult(html, getProperties()), container);
+    this.updateContext = { render, html, container, getProperties };
   }
   static updateRun() {
-    const { container, getProperties } = this.initialContext;
-    render(container, HtmlLiteralInterface.getResult(html, getProperties()));
+    const { container, getProperties } = this.updateContext;
+    render(HtmlLiteralInterface.getResult(html, getProperties()), container);
   }
 }
 

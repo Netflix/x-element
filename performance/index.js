@@ -219,28 +219,28 @@ const profile = url.searchParams.has('profile') && url.searchParams.get('profile
 
 if (profile) {
   // In profile mode, only run default tests
-  await RootTest.testGroup('inject', [{ href: './default.html' }]);
-  await RootTest.testGroup('initial', [{ href: './default.html' }]);
-  await RootTest.testGroup('update', [{ href: './default.html' }]);
+  await RootTest.testGroup('inject', [{ href: './default/index.html' }]);
+  await RootTest.testGroup('initial', [{ href: './default/index.html' }]);
+  await RootTest.testGroup('update', [{ href: './default/index.html' }]);
 } else {
   // Normal mode - run all tests
   await RootTest.testGroup('inject', [
-    { href: './default.html' },
-    { href: './lit-html.html' },
-    { href: './uhtml.html' },
-    { href: './react.html', skip: 'React does interpretation during compilation.' },
+    { href: './default/index.html' },
+    { href: './lit-html/index.html' },
+    { href: './uhtml/index.html' },
+    { href: './react/index.html', skip: 'React does interpretation during compilation.' },
   ]);
   await RootTest.testGroup('initial', [
-    { href: './default.html' },
-    { href: './lit-html.html' },
-    { href: './uhtml.html' },
-    { href: './react.html' },
+    { href: './default/index.html' },
+    { href: './lit-html/index.html' },
+    { href: './uhtml/index.html' },
+    { href: './react/index.html', skip: 'React 19+ currently hangs when performing this test.' },
   ]);
   await RootTest.testGroup('update', [
-    { href: './default.html' },
-    { href: './lit-html.html' },
-    { href: './uhtml.html' },
-    { href: './react.html' },
+    { href: './default/index.html' },
+    { href: './lit-html/index.html' },
+    { href: './uhtml/index.html' },
+    { href: './react/index.html' },
   ]);
 }
 

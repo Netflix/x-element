@@ -13,6 +13,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run type
+      - run: npm run build-react
       - run: git diff --exit-code
       - run: npm start &
       - run: sleep 2

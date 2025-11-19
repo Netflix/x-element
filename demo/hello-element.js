@@ -1,4 +1,4 @@
-import XElement from '../x-element.js';
+import XElement from '@netflix/x-element/x-element.js';
 import styleSheet from './hello-element.css' with { type: 'css' };
 
 const logo = `\
