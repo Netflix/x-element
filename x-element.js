@@ -662,10 +662,48 @@ export default class XElement extends HTMLElement {
         observeMap.set(property, { value: undefined });
       }
     }
-    XElement.#hosts.set(host, {
+    const hostInfo = {
       initialized: false, reflecting: false, invalidProperties, listenerMap,
       renderRoot, render, template, properties, internal, computeMap,
       observeMap, defaultMap, valueMap,
+    };
+    XElement.#hosts.set(host, hostInfo);
+    XElement.#upgradeOwnProperties(host);
+    // Define properties during construction for React 19 introspection (#331).
+    for (const property of propertyMap.values()) {
+      if (!property.internal) {
+        if (Reflect.has(host, property.key)) {
+          valueMap.set(property, host[property.key]);
+        }
+        XElement.#defineProperty(host, property, hostInfo);
+      }
+    }
+  }
+
+  // Called during host construction.
+  static #defineProperty(host, property, hostInfo) {
+    const { valueMap } = hostInfo;
+    const { key } = property;
+    Reflect.defineProperty(host, key, {
+      configurable: false,
+      enumerable: true,
+      get() {
+        const { initialized } = hostInfo;
+        if (initialized) {
+          return XElement.#getPropertyValue(host, property);
+        } else {
+          return valueMap.get(property);
+        }
+      },
+      set(value) {
+        const { initialized } = hostInfo;
+        if (initialized) {
+          XElement.#validatePropertyMutable(host, property);
+          XElement.#setPropertyValue(host, property, value);
+        } else {
+          valueMap.set(property, value);
+        }
+      },
     });
   }
 
@@ -765,19 +803,22 @@ export default class XElement extends HTMLElement {
 
   static #initializeHost(host) {
     const hostInfo = XElement.#hosts.get(host);
-    const { computeMap, initialized, invalidProperties } = hostInfo;
+    const { computeMap, initialized, invalidProperties, valueMap } = hostInfo;
     if (initialized === false) {
-      XElement.#upgradeOwnProperties(host);
       // Only reflect attributes when the element is connected.
       const { propertyMap } = XElement.#constructors.get(host.constructor);
       for (const property of propertyMap.values()) {
-        const { value, found } = XElement.#getPreUpgradePropertyValue(host, property);
-        XElement.#initializeProperty(host, property);
+        const { value, found } = XElement.#getPreUpgradePropertyValue(host, property, hostInfo);
         if (found) {
-          host[property.key] = property.default(host, property.initial(value));
+          XElement.#validatePropertyMutable(host, property);
+          const initialValue = property.default(host, property.initial(value));
+          XElement.#validatePropertyValue(host, property, initialValue);
+          valueMap.set(property, initialValue);
         } else if (!property.compute) {
           // Set to a nullish value so that it coalesces to the default.
-          XElement.#setPropertyValue(host, property, property.default(host, property.initial()));
+          const initialValue = property.default(host, property.initial());
+          XElement.#validatePropertyValue(host, property, initialValue);
+          valueMap.set(property, initialValue);
         }
         invalidProperties.add(property);
         if (property.compute) {
@@ -800,17 +841,19 @@ export default class XElement extends HTMLElement {
   }
 
   // Called during host initialization.
-  static #getPreUpgradePropertyValue(host, property) {
+  static #getPreUpgradePropertyValue(host, property, hostInfo) {
     // Process possible sources of initial state, with this priority:
     // 1. imperative, e.g. `element.prop = 'value';`
     // 2. declarative, e.g. `<element prop="value"></element>`
-    const { key, attribute, internal } = property;
+    const { attribute, internal } = property;
     let value;
     let found = false;
     if (!internal) {
       // Only look for public (i.e., non-internal) properties.
-      if (Reflect.has(host, key)) {
-        value = host[key];
+      const { valueMap } = hostInfo;
+      if (valueMap.has(property)) {
+        value = valueMap.get(property);
+        valueMap.delete(property);
         found = true;
       } else if (attribute && host.hasAttribute(attribute)) {
         const attributeValue = host.getAttribute(attribute);
@@ -819,25 +862,6 @@ export default class XElement extends HTMLElement {
       }
     }
     return { value, found };
-  }
-
-  static #initializeProperty(host, property) {
-    if (!property.internal) {
-      const { key, compute, readOnly } = property;
-      const path = `${host.constructor.name}.properties.${key}`;
-      const get = () => XElement.#getPropertyValue(host, property);
-      const set = compute || readOnly
-        ? () => {
-          if (compute) {
-            throw new Error(`Property "${path}" is computed (computed properties are read-only).`);
-          } else {
-            throw new Error(`Property "${path}" is read-only.`);
-          }
-        }
-        : value => XElement.#setPropertyValue(host, property, value);
-      Reflect.deleteProperty(host, key);
-      Reflect.defineProperty(host, key, { get, set, enumerable: true });
-    }
   }
 
   static #addListener(host, element, type, callback, options) {
@@ -907,26 +931,36 @@ export default class XElement extends HTMLElement {
   }
 
   static #invalidateProperty(host, property) {
-    const { initialized, invalidProperties, computeMap } = XElement.#hosts.get(host);
-    if (initialized) {
-      for (const output of property.output) {
-        XElement.#invalidateProperty(host, output);
-      }
-      const queueUpdate = invalidProperties.size === 0;
-      invalidProperties.add(property);
-      if (property.compute) {
-        computeMap.get(property).valid = false;
-      }
-      if (queueUpdate) {
-        // Batch on microtask to allow multiple, synchronous changes.
-        queueMicrotask(() => XElement.#updateHost(host));
-      }
+    const { invalidProperties, computeMap } = XElement.#hosts.get(host);
+    for (const output of property.output) {
+      XElement.#invalidateProperty(host, output);
+    }
+    const queueUpdate = invalidProperties.size === 0;
+    invalidProperties.add(property);
+    if (property.compute) {
+      computeMap.get(property).valid = false;
+    }
+    if (queueUpdate) {
+      // Batch on microtask to allow multiple, synchronous changes.
+      queueMicrotask(() => XElement.#updateHost(host));
     }
   }
 
   static #getPropertyValue(host, property) {
     const { valueMap } = XElement.#hosts.get(host);
     return property.compute?.(host) ?? valueMap.get(property);
+  }
+
+  static #validatePropertyMutable(host, property) {
+    const { compute, readOnly, key } = property;
+    if (compute) {
+      const path = `${host.constructor.name}.properties.${key}`;
+      throw new Error(`Property "${path}" is computed (computed properties are read-only).`);
+    }
+    if (readOnly) {
+      const path = `${host.constructor.name}.properties.${key}`;
+      throw new Error(`Property "${path}" is read-only.`);
+    }
   }
 
   static #validatePropertyValue(host, property, value) {

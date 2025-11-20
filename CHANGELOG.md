@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Function`, and `*` types with `unknown`, explicit function signatures
   `(...args: unknown[]) => unknown`, and `TemplateStringsArray`. This improves
   type safety for TypeScript integrators without breaking existing code (#329).
+- Public properties are guaranteed to be enumerable on instances just after
+  instantiation / construction. This enables framework like React, which don’t
+  have a property binding syntax, to determine whether to bind values as
+  attributes or properties at render-time (#331).
 
 ### Removed
 
