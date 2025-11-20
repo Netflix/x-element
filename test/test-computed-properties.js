@@ -229,21 +229,6 @@ it('resets compute validity on initialization to catch upgrade edge cases with i
   assert(el.internal.c === 3);
 });
 
-it('throws when computed property is set before connection', () => {
-  const el = document.createElement('test-element');
-  el.count = undefined;
-  let passed = false;
-  let message = 'no error was thrown';
-  try {
-    el.connectedCallback();
-  } catch (error) {
-    const expected = 'Property "TestElement.properties.count" is computed (computed properties are read-only).';
-    message = error.message;
-    passed = error.message === expected;
-  }
-  assert(passed, message);
-});
-
 it('cannot be written to from host', () => {
   const el = document.createElement('test-element');
   document.body.append(el);

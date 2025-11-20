@@ -161,17 +161,17 @@ export default class XElement extends HTMLElement {
     static "__#private@#addPropertyCompute"(constructor: any, property: any): void;
     static "__#private@#addPropertyObserve"(constructor: any, property: any): void;
     static "__#private@#constructHost"(host: any): void;
+    static "__#private@#defineProperty"(host: any, property: any, hostInfo: any): void;
     static "__#private@#createInternal"(host: any): any;
     static "__#private@#createProperties"(host: any): any;
     static "__#private@#connectHost"(host: any): void;
     static "__#private@#disconnectHost"(host: any): void;
     static "__#private@#initializeHost"(host: any): boolean;
     static "__#private@#upgradeOwnProperties"(host: any): void;
-    static "__#private@#getPreUpgradePropertyValue"(host: any, property: any): {
+    static "__#private@#getPreUpgradePropertyValue"(host: any, property: any, hostInfo: any): {
         value: any;
         found: boolean;
     };
-    static "__#private@#initializeProperty"(host: any, property: any): void;
     static "__#private@#addListener"(host: any, element: any, type: any, callback: any, options: any): void;
     static "__#private@#addListeners"(host: any): void;
     static "__#private@#removeListener"(host: any, element: any, type: any, callback: any, options: any): void;
@@ -181,6 +181,7 @@ export default class XElement extends HTMLElement {
     static "__#private@#toPathString"(host: any): string;
     static "__#private@#invalidateProperty"(host: any, property: any): void;
     static "__#private@#getPropertyValue"(host: any, property: any): any;
+    static "__#private@#validatePropertyMutable"(host: any, property: any): void;
     static "__#private@#validatePropertyValue"(host: any, property: any, value: any): void;
     static "__#private@#setPropertyValue"(host: any, property: any, value: any): void;
     static "__#private@#serializeProperty"(host: any, property: any, value: any): any;

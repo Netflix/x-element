@@ -100,3 +100,4 @@ it('cannot set to known properties', () => {
   }
   assert(passed, message);
 });
+
