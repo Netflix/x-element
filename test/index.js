@@ -28,4 +28,5 @@ test('./test-reflected-properties.html');
 test('./test-computed-properties.html');
 test('./test-observed-properties.html');
 test('./test-listeners.html');
+test('./test-property-deletion.html');
 test('./test-scratch.html');
