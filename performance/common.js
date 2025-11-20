@@ -184,29 +184,33 @@ export default class CommonTest {
   }
 
   static async #waitAFrame() {
-    const url = new URL(location.href);
-    const timing = url.searchParams.has('timing') ? url.searchParams.get('timing') : 'raf';
-    switch (timing) {
-      case 'raf':
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        break;
-      case 'fixed':
-        await new Promise(resolve => setTimeout(resolve, 16)); // ~60fps
-        break;
-      default:
-        throw new Error(`Invalid timing mode: ${timing}. Use 'raf' or 'fixed'.`);
-    }
+    await new Promise(resolve => requestAnimationFrame(resolve));
   }
 
   static async #jitWarmup(run, batch) {
     // JIT warmup: Run the function multiple times to ensure JIT compilation.
     //  This stabilizes performance by ensuring code is optimized before the
     //  actual measurements are performed.
-    const warmupIterations = Math.min(batch * 10, 1000);
+    const warmupIterations = Math.ceil(CommonTest.#targetAnimationFrames / 4);
     for (let iii = 0; iii < warmupIterations; iii++) {
-      run();
+      await CommonTest.#waitAFrame();
+      for (let jjj = 0; jjj < batch; jjj++) {
+        run();
+      }
     }
-    await new Promise(resolve => setTimeout(resolve, 10)); // Allow JIT compilation to settle.
+    await CommonTest.#waitAFrame();
+    await CommonTest.#waitAFrame(); // Allow JIT compilation to settle.
+  }
+
+  static async #forceGarbageCleanupIfAvailable() {
+    // Force GC before measurements if available.
+    if (typeof window.gc === 'function') {
+      window.gc();
+      await CommonTest.#waitAFrame();
+      await CommonTest.#waitAFrame(); // Allow GC to complete.
+      return true;
+    }
+    return false;
   }
 
   static async #measureSingleFrame(run, batch) {
@@ -245,7 +249,7 @@ export default class CommonTest {
     }
     const t1 = performance.now();
     const estimate = (t1 - t0) / count;
-    const batch = Math.ceil(16 / estimate * 3 / 4); // Shoot for a 3/4 duty cycle.
+    const batch = Math.ceil(16 / estimate * 1 / 2); // Shoot for a 1/2 duty cycle.
     return batch;
   }
 
@@ -262,18 +266,15 @@ export default class CommonTest {
     // JIT warmup phase to stabilize performance.
     await CommonTest.#jitWarmup(run, batch);
 
-    // Force GC before measurements if available.
-    if (typeof window.gc === 'function') {
-      window.gc();
-      await new Promise(resolve => setTimeout(resolve, 50)); // Allow GC to complete.
-    }
-
     const results = [];
     progress.max = batch * CommonTest.#targetAnimationFrames;
     progress.value = 0;
 
     for (let iii = 0; iii < CommonTest.#targetAnimationFrames; iii++) {
-      await CommonTest.#waitAFrame();
+      const success = await CommonTest.#forceGarbageCleanupIfAvailable();
+      if (!success) {
+        await CommonTest.#waitAFrame();
+      }
       const measurement = await CommonTest.#measureSingleFrame(run, batch);
       results.push(measurement);
       progress.value = (iii + 1) * batch;

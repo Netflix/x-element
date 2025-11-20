@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used to accomplish this behavior — https://github.com/whatwg/html/pull/1936.
   If integrators need this functionality in the interim, it can easily be copied
   into source for temporary use (#302).
+- The previously-deprecated `ifDefined` and `repeat` directives are formally
+  removed and will cause a runtime error if you try to use them. Instead, use
+  the new `??` binding and `[[]]`-entries for keyed mappings (#314).
 
 ### Fixed
 

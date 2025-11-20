@@ -146,3 +146,5 @@ files should be valid in the latest versions of Chrome, Firefox, and Safari.
 
 - Use the `--suffix` argument to save things like `--suffix=before` and `--suffix=after` for easier A/B testing. Don't forget to clean up these files after you are finished with all your tasks.
 ```
+- When looking for performance improvements after running performance tests with the `--profile` flag, check the `performance/results/performance-profile-summary*.txt` files for code bottlenecks.
+- Use the `--profile` flag to locate potential bottlenecks. However, don’t use the `--profile` flag for setting performance baselines or A/B testing for optimizations.

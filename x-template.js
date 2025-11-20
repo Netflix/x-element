@@ -30,21 +30,13 @@ class TemplateEngine {
   // Mapping of tagged template function “strings” to caches computations.
   static #stringsToAnalysis = new WeakMap();
 
-  // Mapping of opaque references to internal update objects.
-  static #symbolToUpdate = new WeakMap();
-
   /**
    * Default template engine interface — what you get inside “template”.
    * @type {{[key: string]: (...args: unknown[]) => unknown}}
    */
   static interface = Object.freeze({
-    // Long-term interface.
     render: TemplateEngine.render,
     html: TemplateEngine.html,
-
-    // Deprecated interface.
-    ifDefined: TemplateEngine.#interfaceDeprecated('ifDefined', TemplateEngine.ifDefined),
-    repeat: TemplateEngine.#interfaceDeprecated('repeat', TemplateEngine.repeat),
   });
 
   /**
@@ -86,60 +78,6 @@ class TemplateEngine {
     }
   }
 
-  /**
-   * Updater to manage an attribute which may be undefined.
-   * In the following example, the "ifDefined" updater will remove the
-   * attribute if it's undefined. Else, it sets the key-value pair.
-   * ```js
-   * html`<a href="${ifDefined(obj.href)}"></div>`;
-   * ```
-   * @deprecated
-   * @param {unknown} value
-   * @returns {unknown}
-   */
-  static ifDefined(value) {
-    const symbol = Object.create(null);
-    const updater = TemplateEngine.#ifDefined;
-    TemplateEngine.#symbolToUpdate.set(symbol, { updater, value });
-    return symbol;
-  }
-
-  /**
-   * Shim for prior "repeat" function. Use native entries array.
-   * @deprecated
-   * @param {unknown[]} items
-   * @param {(...args: unknown[]) => unknown} identify
-   * @param {(...args: unknown[]) => unknown} [callback]
-   * @returns {unknown}
-   */
-  static repeat(items, identify, callback) {
-    if (arguments.length === 2) {
-      callback = identify;
-      identify = null;
-    }
-    if (!Array.isArray(items)) {
-      throw new Error(`Unexpected repeat items "${items}" provided, expected an array.`);
-    }
-    if (arguments.length !== 2 && typeof identify !== 'function') {
-      throw new Error(`Unexpected repeat identify "${identify}" provided, expected a function.`);
-    } else if (typeof callback !== 'function') {
-      throw new Error(`Unexpected repeat callback "${callback}" provided, expected a function.`);
-    }
-    return identify
-      ? items.map((...args) => [identify(...args), callback(...args)])
-      : items.map((...args) => callback(...args)); // Just a basic array.
-  }
-
-  // Deprecated. Will remove in future release.
-  static #ifDefined(node, name, value, lastValue) {
-    if (value !== lastValue) {
-      value === undefined || value === null
-        ? node.removeAttribute(name)
-        : node.setAttribute(name, value);
-    }
-  }
-
-
   // We only decode things we know to be encoded since it’s non-performant.
   static #decode(encoded) {
     TemplateEngine.#htmlEntityContainer.setHTMLUnsafe(encoded);
@@ -150,7 +88,7 @@ class TemplateEngine {
   // Walk over a pre-validated set of tokens from our parser. Note that because
   //  the parser is _very_ strict, we can make a lot of simplifying assumptions.
   static #onToken(
-    // These areguments are passed in through a “bind”.
+    // These arguments are passed in through a “bind”.
     state, onBoolean, onDefined, onAttribute, onProperty, onContent, onText,
     // These arguments are passed in through the “onToken” callback.
     type, index, start, end, substring
@@ -314,61 +252,20 @@ class TemplateEngine {
     return targets;
   }
 
-  static #commitAttribute(node, name, value, lastValue) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      // If there’s an update, it _has_ to be #ifDefined at this point.
-      const lastUpdate = TemplateEngine.#symbolToUpdate.get(lastValue);
-      TemplateEngine.#ifDefined(node, name, update.value, lastUpdate?.value);
-    } else {
-      node.setAttribute(name, value);
-    }
+  static #commitAttribute(node, name, value) {
+    node.setAttribute(name, value);
   }
-
   static #commitBoolean(node, name, value) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      TemplateEngine.#throwIfDefinedError(TemplateEngine.#BOOLEAN);
-    } else {
-      value ? node.setAttribute(name, '') : node.removeAttribute(name);
-    }
+    value ? node.setAttribute(name, '') : node.removeAttribute(name);
   }
-
   static #commitDefined(node, name, value) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      TemplateEngine.#throwIfDefinedError(TemplateEngine.#DEFINED);
-    } else {
-      value === undefined || value === null
-        ? node.removeAttribute(name)
-        : node.setAttribute(name, value);
-    }
+    value === undefined || value === null
+      ? node.removeAttribute(name)
+      : node.setAttribute(name, value);
   }
-
   static #commitProperty(node, name, value) {
-    const update = TemplateEngine.#symbolToUpdate.get(value);
-    if (update) {
-      TemplateEngine.#throwIfDefinedError(TemplateEngine.#PROPERTY);
-    } else {
-      node[name] = value;
-    }
+    node[name] = value;
   }
-
-  // TODO: Future state here once “ifDefined” is gone.
-  // static #commitAttribute(node, name, value) {
-  //   node.setAttribute(name, value);
-  // }
-  // static #commitBoolean(node, name, value) {
-  //   value ? node.setAttribute(name, '') : node.removeAttribute(name);
-  // }
-  // static #commitDefined(node, name, value) {
-  //   value === undefined || value === null
-  //     ? node.removeAttribute(name)
-  //     : node.setAttribute(name, value);
-  // }
-  // static #commitProperty(node, name, value) {
-  //   node[name] = value;
-  // }
 
   static #commitContentResultValue(node, startNode, value) {
     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
@@ -760,10 +657,6 @@ class TemplateEngine {
     }
   }
 
-  static #throwIfDefinedError(binding) {
-    throw new Error(`The ifDefined update must be used on ${TemplateEngine.#getBindingText(TemplateEngine.#ATTRIBUTE)}, not on ${TemplateEngine.#getBindingText(binding)}.`);
-  }
-
   static #canReuseDom(preparedResult, rawResult) {
     return preparedResult?.rawResult.strings === rawResult?.strings;
   }
@@ -797,45 +690,16 @@ class TemplateEngine {
     }
   }
 
-  // TODO: Future state — we may choose to iterate differently as an
-  //  optimization in later versions.
-  // static #removeWithin(node) {
-  //   let childNode = node.lastChild;
-  //   while (childNode) {
-  //     const nextChildNode = childNode.previousSibling;
-  //     node.removeChild(childNode);
-  //     childNode = nextChildNode;
-  //   }
-  // }
   static #removeWithin(node) {
     node.replaceChildren();
   }
 
-  // TODO: Future state — we may choose to iterate differently as an
-  //  optimization in later versions.
-  // static #removeBetween(startNode, node, parentNode) {
-  //   parentNode ??= node.parentNode;
-  //   let childNode = node.previousSibling;
-  //   while(childNode !== startNode) {
-  //     const nextChildNode = childNode.previousSibling;
-  //     parentNode.removeChild(childNode);
-  //     childNode = nextChildNode;
-  //   }
-  // }
   static #removeBetween(startNode, node) {
     while(node.previousSibling !== startNode) {
       node.previousSibling.remove();
     }
   }
 
-  // TODO: Future state — we may choose to iterate differently as an
-  //  optimization in later versions.
-  // static #removeThrough(startNode, node, parentNode) {
-  //   parentNode ??= node.parentNode;
-  //   TemplateEngine.#removeBetween(startNode, node, parentNode);
-  //   parentNode.removeChild(startNode);
-  //   parentNode.removeChild(node);
-  // }
   static #removeThrough(startNode, node) {
     TemplateEngine.#removeBetween(startNode, node);
     startNode.remove();
@@ -869,33 +733,7 @@ class TemplateEngine {
     }
     return value;
   }
-
-  static #getBindingText(binding) {
-    switch (binding) {
-      case TemplateEngine.#ATTRIBUTE: return 'an attribute';
-      case TemplateEngine.#BOOLEAN: return 'a boolean attribute';
-      case TemplateEngine.#DEFINED: return 'a defined attribute';
-      case TemplateEngine.#PROPERTY: return 'a property';
-    }
-  }
-
-  static #interfaceDeprecatedMessages = new Set();
-  static #interfaceDeprecated(name, callback) {
-    return (...args) => {
-      const message = `Deprecated "${name}" from default templating engine interface.`;
-      if (!this.#interfaceDeprecatedMessages.has(message)) {
-        this.#interfaceDeprecatedMessages.add(message);
-        console.warn(new Error(message)); // eslint-disable-line no-console
-      }
-      return callback(...args);
-    };
-  }
 }
 
-// Long-term interface.
 export const render = TemplateEngine.interface.render.bind(TemplateEngine);
 export const html = TemplateEngine.interface.html.bind(TemplateEngine);
-
-// Deprecated interface.
-export const ifDefined = TemplateEngine.interface.ifDefined.bind(TemplateEngine);
-export const repeat = TemplateEngine.interface.repeat.bind(TemplateEngine);

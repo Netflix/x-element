@@ -64,6 +64,10 @@
   color: black;
 }
 
+.distribution .percentile.overflow {
+  display: none;
+}
+
 .distribution .min {
   position: absolute;
   top: -24px;
@@ -91,6 +95,8 @@
   position: fixed;
   top: 0;
   right: 0;
+  height: 50px;
+  width: 200px;
   background-color: white;
   z-index: 1;
 }
