@@ -1,17 +1,4 @@
-import { test, coverage } from '@netflix/x-test/x-test.js';
-
-// We import these here so we can see code coverage.
-import '../x-element.js';
-import '../x-element-next.js';
-import '../x-parser.js';
-import '../x-template.js';
-
-// Set a high bar for code coverage!
-// x-element.js at 90% until decorator tests can be run (requires native support or Babel compat)
-coverage(new URL('../x-element.js', import.meta.url).href, 90);
-coverage(new URL('../x-element-next.js', import.meta.url).href, 90);
-coverage(new URL('../x-parser.js', import.meta.url).href, 100);
-coverage(new URL('../x-template.js', import.meta.url).href, 100);
+import { test } from '@netflix/x-test/x-test.js';
 
 test('./test-parser.html');
 test('./test-template-engine.html');
@@ -31,7 +18,6 @@ test('./test-reflected-properties.html');
 test('./test-computed-properties.html');
 test('./test-observed-properties.html');
 test('./test-listeners.html');
+test('./test-inheritance.html');
 test('./test-property-deletion.html');
 test('./test-scratch.html');
-
-test('../test-next/index.html');
