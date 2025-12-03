@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Support for custom template engines has been removed. The `templateEngine` and
+  `defaultTemplateEngine` static getters are no longer available, and the
+  `template()` method no longer receives an `engine` parameter. The `x-element`
+  class now uses `x-template` exclusively. Developers who prefer other template
+  engines can use them directly with custom elements / libraries (#337).
 - The `unsafeHTML`, `live`, `nullish`, and `map` updaters are gone (#208, #216).
 - The `<style>` element is now restricted. The spec and conventions for `style`
   differ a lot from `html` and a faster / more-maintainable parser can be built

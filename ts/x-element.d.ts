@@ -6,23 +6,6 @@ export default class XElement extends HTMLElement {
      */
     static get observedAttributes(): string[];
     /**
-     * Default templating engine. Use "templateEngine" to override.
-     * @returns {{[key: string]: (...args: unknown[]) => unknown}}
-     */
-    static get defaultTemplateEngine(): {
-        [key: string]: (...args: unknown[]) => unknown;
-    };
-    /**
-     * Configured templating engine. Defaults to "defaultTemplateEngine".
-     * Override this as needed if x-element's default template engine does not
-     * meet your needs. A "render" method is the only required field. An "html"
-     * tagged template literal is expected, but not strictly required.
-     * @returns {{[key: string]: (...args: unknown[]) => unknown}}
-     */
-    static get templateEngine(): {
-        [key: string]: (...args: unknown[]) => unknown;
-    };
-    /**
      * Declare an array of CSSStyleSheet objects to adopt on the shadow root.
      * Note that a CSSStyleSheet object is the type returned when importing a
      * stylesheet file via import attributes.
@@ -141,12 +124,9 @@ export default class XElement extends HTMLElement {
      * }
      * ```
      * @param {(strings: TemplateStringsArray, ...values: unknown[]) => unknown} html
-     * @param {{[key: string]: (...args: unknown[]) => unknown}} engine
      * @returns {templateCallback}
      */
-    static template(html: (strings: TemplateStringsArray, ...values: unknown[]) => unknown, engine: {
-        [key: string]: (...args: unknown[]) => unknown;
-    }): (properties: object, host: HTMLElement) => any;
+    static template(html: (strings: TemplateStringsArray, ...values: unknown[]) => unknown): (properties: object, host: HTMLElement) => any;
     static "__#private@#analyzeConstructor"(constructor: any): void;
     static "__#private@#validateProperties"(constructor: any, properties: any, entries: any): void;
     static "__#private@#validateProperty"(constructor: any, key: any, property: any): void;

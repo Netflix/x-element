@@ -378,4 +378,3 @@ class MyElement extends XElement {
 ## References
 
 - [WHATWG Custom Elements Spec](https://html.spec.whatwg.org/multipage/custom-elements.html)
-- [lit-html](https://lit.dev)
