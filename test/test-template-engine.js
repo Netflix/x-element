@@ -1,7 +1,5 @@
 import { assert, describe, it } from '@netflix/x-test/x-test.js';
-import XElement from '../x-element.js';
-
-const { render, html } = XElement.templateEngine;
+import { render, html } from '../x-template.js';
 
 // Simple helper for asserting thrown messages.
 const assertThrows = (callback, expectedMessage, options) => {

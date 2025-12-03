@@ -10,7 +10,7 @@
 
 A dead simple basis for custom elements. It provides the following functionality:
 
-- Efficient DOM generation and data binding using your preferred [templating engine](./doc/TEMPLATES.md)
+- Efficient DOM generation and data binding using [integrated templating engine](./doc/TEMPLATES.md)
 - Automatic `.property` to `[attribute]` reflection (opt-in)
 - Automatic `[attribute]` to `.property` synchronization (one-directional, on connected)
 - Simple and efficient property observation and computation

@@ -1,4 +1,4 @@
-import * as defaultTemplateEngine from './x-template.js';
+import { html, render } from './x-template.js';
 
 /** Base element class for creating custom elements. */
 export default class XElement extends HTMLElement {
@@ -11,24 +11,6 @@ export default class XElement extends HTMLElement {
     return [...XElement.#constructors.get(this).attributeMap.keys()];
   }
 
-  /**
-   * Default templating engine. Use "templateEngine" to override.
-   * @returns {{[key: string]: (...args: unknown[]) => unknown}}
-   */
-  static get defaultTemplateEngine() {
-    return defaultTemplateEngine;
-  }
-
-  /**
-   * Configured templating engine. Defaults to "defaultTemplateEngine".
-   * Override this as needed if x-element's default template engine does not
-   * meet your needs. A "render" method is the only required field. An "html"
-   * tagged template literal is expected, but not strictly required.
-   * @returns {{[key: string]: (...args: unknown[]) => unknown}}
-   */
-  static get templateEngine() {
-    return XElement.defaultTemplateEngine;
-  }
 
   /**
    * Declare an array of CSSStyleSheet objects to adopt on the shadow root.
@@ -150,10 +132,9 @@ export default class XElement extends HTMLElement {
    * }
    * ```
    * @param {(strings: TemplateStringsArray, ...values: unknown[]) => unknown} html
-   * @param {{[key: string]: (...args: unknown[]) => unknown}} engine
    * @returns {templateCallback}
    */
-  static template(html, engine) { // eslint-disable-line no-unused-vars
+  static template(html) { // eslint-disable-line no-unused-vars, no-shadow
     return (properties, host) => {}; // eslint-disable-line no-unused-vars
   }
 
@@ -209,7 +190,7 @@ export default class XElement extends HTMLElement {
    * This is called when properties update, but is exposed for advanced use cases.
    */
   render() {
-    const { template, properties, renderRoot, render } = XElement.#hosts.get(this);
+    const { template, properties, renderRoot } = XElement.#hosts.get(this);
     const result = template(properties, this);
     try {
       render(renderRoot, result);
@@ -635,8 +616,7 @@ export default class XElement extends HTMLElement {
     if (!renderRoot || renderRoot !== host && renderRoot !== host.shadowRoot) {
       throw new Error('Unexpected render root returned. Expected "host" or "host.shadowRoot".');
     }
-    const { render, html, ...engine } = host.constructor.templateEngine;
-    const template = host.constructor.template(html, { html, ...engine }).bind(host.constructor);
+    const template = host.constructor.template(html).bind(host.constructor);
     const properties = XElement.#createProperties(host);
     const internal = XElement.#createInternal(host);
     const computeMap = new Map();
@@ -664,8 +644,8 @@ export default class XElement extends HTMLElement {
     }
     const hostInfo = {
       initialized: false, reflecting: false, invalidProperties, listenerMap,
-      renderRoot, render, template, properties, internal, computeMap,
-      observeMap, defaultMap, valueMap,
+      renderRoot, template, properties, internal, computeMap, observeMap,
+      defaultMap, valueMap,
     };
     XElement.#hosts.set(host, hostInfo);
     XElement.#upgradeOwnProperties(host);

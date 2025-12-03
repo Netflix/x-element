@@ -2,8 +2,6 @@
 
 Because `x-element` has zero dependencies, it ships with an integrated template
 engine which is invoked when you use the `html` tagged template function.
-Developers can choose alternatives according to their preference, e.g.
-`lit-html`, `ReactDOM`, etc.
 
 Add a static template function in your `x-element` definition in order to
 leverage automagical DOM generation and data binding:
@@ -327,57 +325,7 @@ supported:
   <slot> <template>
 ```
 
-## Customizing your base class
-
-Following is a working example using [lit-html](https://lit.dev):
-
-```javascript
-// base-element.js
-import XElement from 'https://deno.land/x/element/x-element.js';
-import { html, render as litRender, svg } from 'https://unpkg.com/lit-html@3.1.2/lit-html.js';
-import { repeat } from 'https://unpkg.com/lit-html@3.1.2/directives/repeat.js';
-
-export default class BaseElement extends XElement {
-  static get templateEngine() {
-    const render = (container, template) => litRender(template, container);
-    return { render, html, repeat };
-  }
-}
-```
-
-Use it in your elements like this:
-
-```javascript
-// my-custom-element.js
-import BaseElement from './base-element.js';
-
-class MyCustomElement extends BaseElement {
-  static get properties() {
-    return {
-      items: {
-        type: Array,
-      },
-    };
-  }
-  static template(html, { repeat }) {
-    return ({ items }) => {
-      return html`
-        <div id="container">
-          ${repeat(items, item => item.id, item => html`
-            <div id="${item.id}">${item.label}</div>
-          `)}
-        </div>
-      `;
-    };
-  }
-}
-
-customElements.define('my-custom-element', MyCustomElement);
-```
-
-A more complete implementation that incorporates all of the Lit directives can be viewed [here](../demo/lit-html/).
-
-## Choosing your template engine(s)
+## Using custom elements with other frameworks
 
 Because native [custom elements](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements) are now part of the browser specification it is important to distinguish `x-element` from other popular JavaScript frameworks. **The manner in which custom elements are defined is framework-agnostic.** Here’s more explanation:
 
