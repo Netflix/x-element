@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instantiation / construction. This enables framework like React, which don’t
   have a property binding syntax, to determine whether to bind values as
   attributes or properties at render-time (#331).
+- Package exports now use the `types` condition in the `exports` field for
+  improved TypeScript type discovery. TypeScript can now automatically locate
+  type definitions for each export without additional configuration when using
+  modern module resolution modes (#341).
+- TypeScript declaration files are now in the `/types` directory instead of
+  `/ts` for improved clarity and adherence to community conventions. The
+  `/types` name is more self-documenting and widely recognized as the standard
+  location for type definitions (#341).
 
 ### Removed
 

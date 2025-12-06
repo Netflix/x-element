@@ -6,12 +6,22 @@
   "repository": "github:Netflix/x-element",
   "type": "module",
   "exports": {
-    "./x-element.js": "./x-element.js",
-    "./x-parser.js": "./x-parser.js",
-    "./x-template.js": "./x-template.js",
-    "./ts/x-element.d.ts": "./ts/x-element.d.ts",
-    "./ts/x-parser.d.ts": "./ts/x-parser.d.ts",
-    "./ts/x-template.d.ts": "./ts/x-template.d.ts"
+    ".": {
+      "types": "./types/x-element.d.ts",
+      "default": "./x-element.js"
+    },
+    "./x-element.js": {
+      "types": "./types/x-element.d.ts",
+      "default": "./x-element.js"
+    },
+    "./x-template.js": {
+      "types": "./types/x-template.d.ts",
+      "default": "./x-template.js"
+    },
+    "./x-parser.js": {
+      "types": "./types/x-parser.d.ts",
+      "default": "./x-parser.js"
+    }
   },
   "publishConfig": {
     "access": "public",
@@ -35,8 +45,7 @@
     "/x-template.js",
     "/demo",
     "/test",
-    "/etc",
-    "/ts"
+    "/types"
   ],
   "devDependencies": {
     "@netflix/eslint-config": "3.0.0",

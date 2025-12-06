@@ -9,7 +9,7 @@
     // Beyond just organization, a “bug” in how JSDocs works causes a cyclic
     //  import to be detected by TypeScript when letting generated “*.d.ts”
     //  sit next to files.
-    "outDir": "ts",
+    "outDir": "types",
     "allowJs": true,
     "checkJs": true,
     "declaration": true,
