@@ -428,6 +428,66 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').children[2].classList.contains('true'));
   });
 
+  // This specifically tests out cases where we _cannot_ reuse DOM on shuffle.
+  it('renders map arrays with changing templates', () => {
+    const getTemplate = ({ items }) => {
+      return html`
+        <div id="target">
+          ${items.map(item => {
+            if (item.type === 'div') {
+              return [item.id, html`<div>${item.id}</div>`];
+            } else if (item.type === 'span') {
+              return [item.id, html`<span>${item.id}</span>`];
+            } else {
+              return [item.id, html`<p>${item.id}</p>`];
+            }
+          })}
+        </div>
+      `;
+    };
+    const container = document.createElement('div');
+
+    // Render with all “div” elements.
+    render(container, getTemplate({ items: [
+      { id: 'a', type: 'div' },
+      { id: 'b', type: 'div' },
+      { id: 'c', type: 'div' },
+    ] }));
+    assert(container.querySelector('#target').childElementCount === 3);
+    assert(container.querySelector('#target').children[0].localName === 'div');
+    assert(container.querySelector('#target').children[0].textContent === 'a');
+    assert(container.querySelector('#target').children[1].localName === 'div');
+    assert(container.querySelector('#target').children[1].textContent === 'b');
+    assert(container.querySelector('#target').children[2].localName === 'div');
+    assert(container.querySelector('#target').children[2].textContent === 'c');
+
+    // Change first and last to “span” elements. Different template, same order.
+    render(container, getTemplate({ items: [
+      { id: 'a', type: 'span' },
+      { id: 'b', type: 'div' },
+      { id: 'c', type: 'span' },
+    ] }));
+    assert(container.querySelector('#target').children[0].localName === 'span');
+    assert(container.querySelector('#target').children[0].textContent === 'a');
+    assert(container.querySelector('#target').children[1].localName === 'div');
+    assert(container.querySelector('#target').children[1].textContent === 'b');
+    assert(container.querySelector('#target').children[2].localName === 'span');
+    assert(container.querySelector('#target').children[2].textContent === 'c');
+
+    // Reorder _and_ change templates.
+    render(container, getTemplate({ items: [
+      { id: 'b', type: 'span' },
+      { id: 'c', type: 'p' },
+      { id: 'a', type: 'div' },
+    ] }));
+    assert(container.querySelector('#target').children[0].localName === 'span');
+    assert(container.querySelector('#target').children[0].textContent === 'b');
+    assert(container.querySelector('#target').children[1].localName === 'p');
+    assert(container.querySelector('#target').children[1].textContent === 'c');
+    assert(container.querySelector('#target').children[2].localName === 'div');
+    assert(container.querySelector('#target').children[2].textContent === 'a');
+  });
+
   it('renders lists with changing length', () => {
     const getTemplate = ({ items }) => {
       return html`
@@ -845,14 +905,13 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').childElementCount === 2);
   });
 
-  // TODO: #254: Uncomment “moves” lines when we leverage “moveBefore”.
   it('native map does not cause disconnectedCallback on prefix removal', () => {
     let connects = 0;
-    // let moves = 0;
+    let moves = 0;
     let disconnects = 0;
     class TestPrefixRemoval extends HTMLElement {
       connectedCallback() { connects++; }
-      // connectedMoveCallback() { moves++; }
+      connectedMoveCallback() { moves++; }
       disconnectedCallback() { disconnects++; }
     }
     customElements.define('test-prefix-removal', TestPrefixRemoval);
@@ -871,35 +930,34 @@ describe('html rendering', () => {
 
     document.body.append(container);
     assert(connects === 0);
-    // assert(moves === 0);
+    assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar' }] }));
     assert(connects === 2);
-    // assert(moves === 0);
+    assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'bar' }] }));
     assert(connects === 2);
-    // assert(moves === 1);
+    assert(moves === 1);
     assert(disconnects === 1);
 
     render(container, getTemplate({ items: [] }));
     assert(connects === 2);
-    // assert(moves === 1);
+    assert(moves === 1);
     assert(disconnects === 2);
 
     container.remove();
   });
 
-  // TODO: #254: Uncomment “moves” lines when we leverage “moveBefore”.
   it('native map does not cause disconnectedCallback on suffix removal', () => {
     let connects = 0;
-    // let moves = 0;
+    let moves = 0;
     let disconnects = 0;
     class TestSuffixRemoval extends HTMLElement {
       connectedCallback() { connects++; }
-      // connectedMoveCallback() { moves++; }
+      connectedMoveCallback() { moves++; }
       disconnectedCallback() { disconnects++; }
     }
     customElements.define('test-suffix-removal', TestSuffixRemoval);
@@ -918,29 +976,28 @@ describe('html rendering', () => {
 
     document.body.append(container);
     assert(connects === 0);
-    // assert(moves === 0);
+    assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'foo' }, { id: 'bar' }] }));
     assert(connects === 2);
-    // assert(moves === 0);
+    assert(moves === 0);
     assert(disconnects === 0);
 
     render(container, getTemplate({ items: [{ id: 'foo' }] }));
     assert(connects === 2);
-    // assert(moves === 0);
+    assert(moves === 0);
     assert(disconnects === 1);
 
     render(container, getTemplate({ items: [] }));
     assert(connects === 2);
-    // assert(moves === 0);
+    assert(moves === 0);
     assert(disconnects === 2);
 
     container.remove();
   });
 
-  // TODO: #254: See https://chromestatus.com/feature/5135990159835136.
-  it.todo('native map does not cause disconnectedCallback on list shuffle', () => {
+  it('native map does not cause disconnectedCallback on list shuffle', () => {
     let connects = 0;
     let moves = 0;
     let disconnects = 0;
