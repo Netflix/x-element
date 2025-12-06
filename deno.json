@@ -2,22 +2,27 @@
   "name": "@netflix/x-element",
   "version": "2.0.0-rc.13",
   "exports": {
-    "./x-element.js": "./x-element.js",
-    "./x-parser.js": "./x-parser.js",
-    "./x-template.js": "./x-template.js",
-    "./ts/x-element.d.ts": "./ts/x-element.d.ts",
-    "./ts/x-parser.d.ts": "./ts/x-parser.d.ts",
-    "./ts/x-template.d.ts": "./ts/x-template.d.ts"
+    ".": {
+      "types": "./types/x-element.d.ts",
+      "default": "./x-element.js"
+    },
+    "./x-element.js": {
+      "types": "./types/x-element.d.ts",
+      "default": "./x-element.js"
+    },
+    "./x-template.js": {
+      "types": "./types/x-template.d.ts",
+      "default": "./x-template.js"
+    },
+    "./x-parser.js": {
+      "types": "./types/x-parser.d.ts",
+      "default": "./x-parser.js"
+    }
   },
   "include": [
     "./x-element.js",
     "./x-parser.js",
     "./x-template.js",
-    "./ts/x-element.d.ts",
-    "./ts/x-element.d.ts.map",
-    "./ts/x-parser.d.ts",
-    "./ts/x-parser.d.ts.map",
-    "./ts/x-template.d.ts",
-    "./ts/x-template.d.ts.map"
+    "./types"
   ]
 }

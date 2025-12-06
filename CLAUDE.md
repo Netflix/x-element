@@ -110,7 +110,7 @@ Tests are located in `/test` directory with individual HTML files for each test 
 
 ## TypeScript Support
 
-TypeScript definitions are generated and available in `/ts` directory:
+TypeScript definitions are generated and available in `/types` directory:
 - x-element.d.ts
 - x-parser.d.ts  
 - x-template.d.ts
