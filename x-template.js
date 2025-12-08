@@ -385,15 +385,19 @@ class TemplateEngine {
       arrayState.map = new Map();
     }
 
-    // A mapping has already been created — we need to update the items.
-    const ids = new Set(); // Populated in “parseListValue”.
-    let index = 0;
-    for (const entry of entries) {
+    const idsToRemove = new Set(arrayState.map.keys());
+    const ids = new Set(); // Populated in “parseArrayEntry”.
+    let reference = startNode.nextSibling;
+    for (let index = 0; index < entries.length; index++) {
+      const entry = entries[index];
       const [id, rawResult] = TemplateEngine.#parseArrayEntry(entry, index, ids);
       let item = arrayState.map.get(id);
       if (item) {
+        idsToRemove.delete(id);
         if (!TemplateEngine.#canReuseDom(item.preparedResult, rawResult)) {
+          const referenceWasStartNode = reference === item.startNode;
           TemplateEngine.#recreateArrayItem(item, rawResult);
+          reference = referenceWasStartNode ? item.startNode : reference;
         } else {
           TemplateEngine.#update(item.preparedResult, rawResult);
         }
@@ -401,82 +405,26 @@ class TemplateEngine {
         item = TemplateEngine.#createArrayItem(node, id, rawResult);
         arrayState.map.set(id, item);
       }
-      index++;
-    }
-    for (const [id, item] of arrayState.map.entries()) {
-      if (!ids.has(id)) {
-        TemplateEngine.#removeThrough(item.startNode, item.node);
-        arrayState.map.delete(id);
-      }
-    }
-    let lastItem;
-    for (const id of ids) {
-      const item = arrayState.map.get(id);
-      // TODO: We should be able to make the following code more performant.
-      const referenceNode = lastItem ? lastItem.node.nextSibling : startNode.nextSibling;
-      if (referenceNode !== item.startNode) {
+      if (item.startNode !== reference) {
+        // Move to the correct location
         const nodesToMove = [item.startNode];
         while (nodesToMove[nodesToMove.length - 1] !== item.node) {
           nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
         }
-        TemplateEngine.#insertAllBefore(referenceNode.parentNode, referenceNode, nodesToMove);
+        TemplateEngine.#moveAllBefore(reference.parentNode, reference, nodesToMove);
       }
-      lastItem = item;
+
+      // Move our position forward.
+      reference = item.node.nextSibling;
+    }
+
+    // Remove any ids which are not longer in the entries.
+    for (const id of idsToRemove) {
+      const item = arrayState.map.get(id);
+      TemplateEngine.#removeThrough(item.startNode, item.node);
+      arrayState.map.delete(id);
     }
   }
-
-  // TODO: #254: Future state where the “moveBefore” API is better-supported.
-  // // Loops over given array of “entries” to manage an array of nodes.
-  // static #commitContentArrayEntries(node, startNode, entries) {
-  //   const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
-  //   if (!arrayState.map) {
-  //     // There is no mapping in our state — create an empty one as our base.
-  //     TemplateEngine.#clearObject(arrayState);
-  //     arrayState.map = new Map();
-  //   }
-  //
-  //   const idsToRemove = new Set(arrayState.map.keys());
-  //   const ids = new Set(); // Populated in “parseArrayEntry”.
-  //   let reference = startNode.nextSibling;
-  //   for (let index = 0; index < entries.length; index++) {
-  //     const entry = entries[index];
-  //     const [id, rawResult] = TemplateEngine.#parseArrayEntry(entry, index, ids);
-  //     let item = arrayState.map.get(id);
-  //     if (item) {
-  //       // Update existing item.
-  //       idsToRemove.delete(id);
-  //       if (!TemplateEngine.#canReuseDom(item.preparedResult, rawResult)) {
-  //         const referenceWasStartNode = reference === item.startNode;
-  //         TemplateEngine.#recreateArrayItem(item, rawResult);
-  //         reference = referenceWasStartNode ? item.startNode : reference;
-  //       } else {
-  //         TemplateEngine.#update(item.preparedResult, rawResult);
-  //       }
-  //     } else {
-  //       // Create new item.
-  //       item = TemplateEngine.#createArrayItem(node, id, rawResult);
-  //       arrayState.map.set(id, item);
-  //     }
-  //     // Move to the correct location
-  //     if (item.startNode !== reference) {
-  //       const nodesToMove = [item.startNode];
-  //       while (nodesToMove[nodesToMove.length - 1] !== item.node) {
-  //         nodesToMove.push(nodesToMove[nodesToMove.length - 1].nextSibling);
-  //       }
-  //       TemplateEngine.#moveAllBefore(reference.parentNode, reference, nodesToMove);
-  //     }
-  //
-  //     // Move our position forward.
-  //     reference = item.node.nextSibling;
-  //   }
-  //
-  //   // Remove any ids which are not longer in the entries.
-  //   for (const id of idsToRemove) {
-  //     const item = arrayState.map.get(id);
-  //     TemplateEngine.#removeThrough(item.startNode, item.node);
-  //     arrayState.map.delete(id);
-  //   }
-  // }
 
   static #commitContentFragmentValue(node, startNode, value) {
     const previousSibling = node.previousSibling;
@@ -669,16 +617,15 @@ class TemplateEngine {
     return { startNode, node };
   }
 
-  // TODO: #254: Future state when we leverage “moveBefore”.
-  // static #moveAllBefore(parentNode, referenceNode, nodes) {
-  //   // Iterate backwards over the live node collection since we’re mutating it.
-  //   // Note that passing “null” as the reference node moves nodes to the end.
-  //   for (let iii = nodes.length - 1; iii >= 0; iii--) {
-  //     const node = nodes[iii];
-  //     parentNode.moveBefore(node, referenceNode);
-  //     referenceNode = node;
-  //   }
-  // }
+  static #moveAllBefore(parentNode, referenceNode, nodes) {
+    // Iterate backwards over the live node collection since we’re mutating it.
+    // Note that passing “null” as the reference node moves nodes to the end.
+    for (let iii = nodes.length - 1; iii >= 0; iii--) {
+      const node = nodes[iii];
+      parentNode.moveBefore(node, referenceNode);
+      referenceNode = node;
+    }
+  }
 
   static #insertAllBefore(parentNode, referenceNode, nodes) {
     // Iterate backwards over the live node collection since we’re mutating it.
