@@ -4,7 +4,9 @@ on: [workflow_call]
 jobs:
   main:
     runs-on: ubuntu-latest
-    environment: jsr-publish
+    # TODO: Figure out whether an environment is appropriate here. This workflow
+    #  is currently not called by the top-level publish.yaml flow.
+    # environment: jsr-publish
     permissions:
       contents: read
       id-token: write
