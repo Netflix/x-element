@@ -10,7 +10,8 @@ jobs:
     needs: test
     uses: ./.github/workflows/publish-to-npm.yaml
     secrets: inherit
-  publish-to-jsr:
-    needs: test
-    uses: ./.github/workflows/publish-to-jsr.yaml
-    secrets: inherit
+  # Disabled for now as we sort out “environment” support.
+  # publish-to-jsr:
+  #   needs: test
+  #   uses: ./.github/workflows/publish-to-jsr.yaml
+  #   secrets: inherit
