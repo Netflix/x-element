@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-12-13
+
 ### Changed
 
 - The current “forgiving” html parser is replaced for a more “unforgiving” html
