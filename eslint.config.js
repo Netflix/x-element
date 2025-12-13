@@ -1,6 +1,7 @@
 import globals from 'globals';
 import jsdoc from 'eslint-plugin-jsdoc';
 import NetflixCommon from '@netflix/eslint-config';
+import babelParser from '@babel/eslint-parser';
 
 export default [
   jsdoc.configs['flat/recommended'],
@@ -11,7 +12,7 @@ export default [
     ignores: ['server.js', 'test.js'],
   },
   {
-    files: ['x-element.js', 'x-parser.js', 'x-template.js'],
+    files: ['x-element.js', 'x-element-next.js', 'x-parser.js', 'x-template.js'],
     plugins: { jsdoc },
     rules: {
       'jsdoc/require-param-description': 'off',
@@ -25,10 +26,21 @@ export default [
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
+    files: ['**/*.src.js'],
+    languageOptions: {
+      parser: babelParser,
+      globals: globals.browser,
+    },
+  },
+  {
     ignores: [
       'node_modules',
-      'demo/react/index.js',        // generated from .jsx file
-      'performance/react/index.js', // generated from .jsx file
+      'demo/react/index.js',         // generated from .jsx file
+      'performance/react/index.js',  // generated from .jsx file
+      'test-next/*.js',              // transpiled decorator tests (test-next directory)
+      '!test-next/*.src.js',         // but DO lint decorator source files
+      'test/test-decorators.js',     // transpiled decorator tests (for old test suite)
+      'transpile-decorators.js',     // build script
       '*.d.ts',
     ],
   },
@@ -38,6 +50,8 @@ export default [
         preferredTypes: [
           // TypeScript knows about this, but eslint does not.
           'TemplateStringsArray',
+          'AddEventListenerOptions',
+          'CustomElementConstructor',
         ],
       },
     },

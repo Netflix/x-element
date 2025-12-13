@@ -146,3 +146,4 @@ files should be valid in the latest versions of Chrome, Firefox, and Safari.
 
 - Use the `--suffix` argument to save things like `--suffix=before` and `--suffix=after` for easier A/B testing. Don't forget to clean up these files after you are finished with all your tasks.
 ```
+- You can use the `--test-name="pattern"` feature from x-test to target specific tests by the text in the `it()`.
