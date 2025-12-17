@@ -1,6 +1,7 @@
 {
   "files": [
     "./x-element.js",
+    "./x-element-next.js",
     "./x-parser.js",
     "./x-template.js"
   ],

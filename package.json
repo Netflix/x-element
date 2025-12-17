@@ -34,6 +34,8 @@
     "build-react": "npm run build-react-demo && npm run build-react-performance",
     "build-react-demo": "esbuild demo/react/index.jsx --bundle --format=esm --jsx=automatic --packages=external --external:../* --outfile=demo/react/index.js",
     "build-react-performance": "esbuild performance/react/index.jsx --bundle --format=esm --jsx=automatic --packages=external --external:../* --outfile=performance/react/index.js",
+    "transpile-decorators": "node transpile-decorators.js",
+    "pretest": "npm run transpile-decorators",
     "test": "x-test --client=puppeteer --url=http://127.0.0.1:8080/test/ --coverage=true",
     "type": "tsc",
     "performance": "node ./performance.js",
@@ -48,6 +50,10 @@
     "/types"
   ],
   "devDependencies": {
+    "@babel/cli": "^7.28.3",
+    "@babel/core": "^7.28.5",
+    "@babel/eslint-parser": "^7.28.5",
+    "@babel/plugin-proposal-decorators": "^7.28.0",
     "@netflix/eslint-config": "3.0.0",
     "@netflix/x-test": "2.0.0-rc.2",
     "@netflix/x-test-cli": "1.0.0-rc.2",
