@@ -103,6 +103,11 @@ class TestElement extends XElement {
     super.adoptedCallback();
     this.adopted = true;
   }
+
+  connectedMoveCallback() {
+    super.connectedMoveCallback();
+    this.moved = true;
+  }
 }
 
 customElements.define('test-element', TestElement);
@@ -240,4 +245,17 @@ it('authors can extend observed attributes', () => {
   assert(!el.customObservedAttributeChange);
   el.setAttribute('custom-observed-attribute', '');
   assert(el.customObservedAttributeChange);
+});
+
+it('test connectedMoveCallback', () => {
+  const el = document.createElement('test-element');
+  const container = document.createElement('div');
+  const sibling = document.createElement('div');
+  document.body.append(container);
+  container.append(sibling);
+  container.append(el);
+  assert(!el.moved);
+  container.moveBefore(el, sibling);
+  assert(el.moved);
+  container.remove();
 });

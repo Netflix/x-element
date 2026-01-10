@@ -182,6 +182,10 @@ export default class XElement extends HTMLElement {
      */
     connectedCallback(): void;
     /**
+     * Extends HTMLElement.prototype.connectedMoveCallback.
+     */
+    connectedMoveCallback(): void;
+    /**
      * Extends HTMLElement.prototype.attributeChangedCallback.
      * @param {string} attribute
      * @param {string|null} oldValue

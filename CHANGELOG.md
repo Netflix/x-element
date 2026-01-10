@@ -85,6 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When re-rendering arrays of changing length, where the length is getting
   smaller or is zero — the internal bookkeeping was getting messed up. This
   caused runtime errors in these cases (#303).
+- When re-rendering a map array with reordered elements, `connectedCallback`
+  and `disconnectedCallback` are no longer called because elements are only
+  moved in the DOM rather than being disconnected and reconnected. Added test
+  coverage for `connectedMoveCallback` and reference tracking during element
+  reordering (#254).
 
 ## [1.1.2] - 2024-12-16
 
