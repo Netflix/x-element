@@ -21,11 +21,15 @@ class TemplateEngine {
   static #STATE = Symbol();
   static #ARRAY_STATE = Symbol();
 
-  // It’s more performant to clone a single fragment, so we keep a reference.
-  static #fragment = new DocumentFragment();
+  // Inert document used during template analysis to avoid triggering custom
+  //  element constructors when building the template fragment.
+  static #document = document.implementation.createHTMLDocument('');
+
+  // It's more performant to clone a single fragment, so we keep a reference.
+  static #fragment = TemplateEngine.#document.createDocumentFragment();
 
   // We decode character references via “setHTMLUnsafe” on this container.
-  static #htmlEntityContainer = document.createElement('template');
+  static #htmlEntityContainer = TemplateEngine.#document.createElement('template');
 
   // Mapping of tagged template function “strings” to caches computations.
   static #stringsToAnalysis = new WeakMap();
@@ -96,7 +100,7 @@ class TemplateEngine {
     switch (type) {
       case XParser.tokenTypes.startTagName: {
         const tagName = substring;
-        const childNode = globalThis.document.createElement(tagName);
+        const childNode = TemplateEngine.#document.createElement(tagName);
         state.tagName === 'template'
           // @ts-ignore — TypeScript doesn’t get that this is a template.
           ? state.element.content.appendChild(childNode)
@@ -136,7 +140,7 @@ class TemplateEngine {
         break;
       }
       case XParser.tokenTypes.comment:
-        state.element.appendChild(document.createComment(substring));
+        state.element.appendChild(TemplateEngine.#document.createComment(substring));
         state.childNodesIndex += 1;
         break;
       case XParser.tokenTypes.textPlaintext:
@@ -157,9 +161,9 @@ class TemplateEngine {
         ) {
           // First newline is stripped according to the <pre> tag specification.
           //  https://html.spec.whatwg.org/multipage/grouping-content.html#the-pre-element
-          state.element.appendChild(document.createTextNode(decoded.slice(1)));
+          state.element.appendChild(TemplateEngine.#document.createTextNode(decoded.slice(1)));
         } else {
-          state.element.appendChild(document.createTextNode(decoded));
+          state.element.appendChild(TemplateEngine.#document.createTextNode(decoded));
         }
         state.childNodesIndex += 1;
         state.encoded = false;
@@ -180,7 +184,7 @@ class TemplateEngine {
         break;
       case XParser.tokenTypes.boundContentValue:
         // @ts-ignore — TypeScript doesn’t get that this is an element.
-        state.element.append(document.createComment(''), document.createComment(''));
+        state.element.append(TemplateEngine.#document.createComment(''), TemplateEngine.#document.createComment(''));
         state.childNodesIndex += 2;
         state.path.push(state.childNodesIndex);
         onContent(state.path);
@@ -495,9 +499,9 @@ class TemplateEngine {
         // The `?? ''` is a shortcut for creating a text node and then
         //  setting its textContent. It’s exactly equivalent to the
         //  following code, but faster.
-        // const textNode = document.createTextNode('');
+        // const textNode = ownerDocument.createTextNode('');
         // textNode.textContent = value;
-        const textNode = document.createTextNode(value ?? '');
+        const textNode = node.ownerDocument.createTextNode(value ?? '');
         node.parentNode.insertBefore(textNode, node);
       } else {
         previousSibling.textContent = value;
@@ -585,7 +589,7 @@ class TemplateEngine {
   static #inject(rawResult, node, before) {
     // Create and prepare a document fragment to be injected.
     const { [TemplateEngine.#ANALYSIS]: analysis } = rawResult;
-    const fragment = analysis.fragment.cloneNode(true);
+    const fragment = node.ownerDocument.importNode(analysis.fragment, true);
     const targets = TemplateEngine.#findTargets(fragment, analysis.lookups);
     const preparedResult = { rawResult, fragment, targets };
 
@@ -662,8 +666,8 @@ class TemplateEngine {
   }
 
   static #createCursors(referenceNode) {
-    const startNode = document.createComment('');
-    const node = document.createComment('');
+    const startNode = referenceNode.ownerDocument.createComment('');
+    const node = referenceNode.ownerDocument.createComment('');
     referenceNode.parentNode.insertBefore(startNode, referenceNode);
     referenceNode.parentNode.insertBefore(node, referenceNode);
     return { startNode, node };

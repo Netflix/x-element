@@ -602,6 +602,28 @@ describe('html rendering', () => {
     assert(!!container2.querySelector('#target'));
   });
 
+  // The naming of this test is a little nuanced. Authors expect a custom
+  //  element’s constructor to be called _exactly once_ per new instance of that
+  //  element in the DOM. Previous to this test, constructors were invoked
+  //  during template analysis when we computed a document fragment for later
+  //  use as a clone base.
+  it('does not call custom element constructor during template analysis', () => {
+    let constructorCount = 0;
+    class PhantomTestElement extends HTMLElement {
+      constructor() {
+        super();
+        constructorCount++;
+      }
+    }
+    customElements.define('phantom-test-element', PhantomTestElement);
+
+    const container = document.createElement('div');
+    document.body.append(container);
+    render(container, html`<phantom-test-element></phantom-test-element>`);
+    assert(constructorCount === 1, `Expected 1 constructor call, got ${constructorCount}`);
+    container.remove();
+  });
+
   it('causes single connect / disconnect for re-rendered elements', () => {
     let connects = 0;
     let disconnects = 0;
