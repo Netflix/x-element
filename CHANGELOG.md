@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Usage of `globalThis.document` is further limited. Instead, the target
+  document is computed based on a reference node’s `.ownerDocument` property.
+  This future-proofs us a bit more from some potential use-cases we have not yet
+  predicted from developers (#351).
+
+### Fixed
+- Custom element constructors are no longer invoked during template analysis.
+  Previously, the internal computation and caching of a `DocumentFragment` would
+  cause custom element’s constructors to run. Now, an inert document is used at
+  analysis time such that the constructor is only invoked when the element will
+  actually be attached to the DOM (#351).
+
 ## [2.0.0] - 2025-12-13
 
 ### Changed
