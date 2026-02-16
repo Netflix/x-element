@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-02-16
+
 ### Changed
 - Usage of `globalThis.document` is further limited. Instead, the target
   document is computed based on a reference node’s `.ownerDocument` property.
