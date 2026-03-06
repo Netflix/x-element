@@ -24,6 +24,10 @@ class TestElement extends XElement {
         initial: false,
         reflect: true,
       },
+      explicitlyNotReflected: {
+        type: Boolean,
+        reflect: false,
+      },
     };
   }
   static template(html) {
@@ -103,4 +107,15 @@ it('does not reflect next false value (Boolean)', async () => {
   // We must await a microtask for the update to take place.
   await Promise.resolve();
   assert(el.hasAttribute('boolean-property-true'));
+});
+
+// Setting “reflect: false” explicitly should behave the same as omitting it.
+//  See https://github.com/Netflix/x-element/issues/353.
+it('does not error when reflect is explicitly set to false', async () => {
+  const el = document.createElement('test-element');
+  document.body.append(el);
+  el.explicitlyNotReflected = true;
+  await Promise.resolve();
+  assert(el.explicitlyNotReflected === true);
+  assert(el.hasAttribute('explicitly-not-reflected') === false);
 });
