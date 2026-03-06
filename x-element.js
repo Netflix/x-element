@@ -563,6 +563,8 @@ export default class XElement extends HTMLElement {
           : host.setAttribute(property.attribute, serialization);
         hostInfo.reflecting = false;
       };
+    } else {
+      delete property.reflect;
     }
   }
 

@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   predicted from developers (#351).
 
 ### Fixed
+- Explicitly setting `reflect` to `false` now works. Previously, setting this
+  explicitly (versus omitting entirely) would cause a runtime error (#354).
 - Custom element constructors are no longer invoked during template analysis.
   Previously, the internal computation and caching of a `DocumentFragment` would
   cause custom element’s constructors to run. Now, an inert document is used at
