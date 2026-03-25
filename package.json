@@ -49,13 +49,14 @@
   ],
   "devDependencies": {
     "@netflix/eslint-config": "3.0.0",
-    "@netflix/x-test": "2.0.0-rc.2",
+    "@netflix/x-test": "2.0.0-rc.6",
     "@netflix/x-test-cli": "1.0.0-rc.2",
-    "esbuild": "0.27.0",
-    "eslint": "9.39.0",
-    "eslint-plugin-jsdoc": "61.1.11",
-    "puppeteer": "24.27.0",
-    "typescript": "5.9.3"
+    "esbuild": "0.27.4",
+    "eslint": "10.1.0",
+    "eslint-plugin-jsdoc": "62.8.0",
+    "globals": "17.4.0",
+    "puppeteer": "24.40.0",
+    "typescript": "6.0.2"
   },
   "engines": {
     "node": ">=22.14",
