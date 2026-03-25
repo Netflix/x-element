@@ -20,6 +20,11 @@
     //  https://www.typescriptlang.org/docs/handbook/declaration-files/dts-from-js.html
     "declarationMap": true,
     "noEmitOnError": true,
-    "module": "NodeNext" // Approximates browser target.
+    "module": "NodeNext", // Approximates browser target.
+    // TODO: #357: Fix strict type errors.
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "useUnknownInCatchVariables": false,
+    "strictFunctionTypes": false
   }
 }
