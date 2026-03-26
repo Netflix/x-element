@@ -2,6 +2,52 @@ import { XParser } from './x-parser.js';
 
 /** Internal implementation details for template engine. */
 class TemplateEngine {
+  /** @typedef {string | null} TagName */
+
+  /**
+   * @typedef {object} LookupValue
+   * @property {string} binding
+   * @property {string} name
+   */
+
+  /**
+   * @typedef {object} Lookups
+   * @property {LookupValue[]} [values]
+   * @property {[number, Lookups][]} [map]
+   */
+
+  /** @typedef {(value: unknown, lastValue: unknown) => void} CommitTarget */
+
+  /**
+   * @typedef {object} PreparedResult
+   * @property {any} rawResult
+   * @property {DocumentFragment} fragment
+   * @property {CommitTarget[]} targets
+   * @property {unknown[]} values
+   * @property {unknown[]} lastValues
+   */
+
+  /**
+   * @typedef {object} ArrayItem
+   * @property {string} id
+   * @property {PreparedResult} preparedResult
+   * @property {Comment} startNode
+   * @property {Comment} node
+   */
+
+  /**
+   * @typedef {object} OnTokenState
+   * @property {number[]} path
+   * @property {(DocumentFragment | Element)[]} parentElements
+   * @property {TagName[]} parentTagNames
+   * @property {DocumentFragment | Element} element
+   * @property {TagName} tagName
+   * @property {number} childNodesIndex
+   * @property {boolean} encoded
+   * @property {string} text
+   * @property {string} name
+   */
+
   // Types of bindings that we can have.
   static #ATTRIBUTE = 'attribute';
   static #BOOLEAN = 'boolean';
@@ -31,12 +77,12 @@ class TemplateEngine {
   // We decode character references via “setHTMLUnsafe” on this container.
   static #htmlEntityContainer = TemplateEngine.#document.createElement('template');
 
-  // Mapping of tagged template function “strings” to caches computations.
+  /** @type {WeakMap<object, any>} Mapping of tagged template function “strings” to cached computations. */
   static #stringsToAnalysis = new WeakMap();
 
   /**
    * Default template engine interface — what you get inside “template”.
-   * @type {{ render: (container: HTMLElement, rawResult: unknown) => void, html: (strings: string[], ...values: unknown[]) => unknown }}
+   * @type {{ render: (container: HTMLElement, rawResult: unknown) => void, html: (strings: TemplateStringsArray, ...values: unknown[]) => unknown }}
    */
   static interface = Object.freeze({
     render: TemplateEngine.render,
@@ -48,7 +94,7 @@ class TemplateEngine {
    * ```js
    * html`<div attr="${obj.attr}" .prop="${obj.prop}">${obj.content}</div>`;
    * ```
-   * @param {string[]} strings
+   * @param {TemplateStringsArray} strings
    * @param {unknown[]} values
    * @returns {unknown}
    */
@@ -82,15 +128,32 @@ class TemplateEngine {
     }
   }
 
-  // We only decode things we know to be encoded since it’s non-performant.
+  /**
+   * We only decode things we know to be encoded since it’s non-performant.
+   * @param {string} encoded
+   * @returns {string}
+   */
   static #decode(encoded) {
     TemplateEngine.#htmlEntityContainer.setHTMLUnsafe(encoded);
-    const decoded = TemplateEngine.#htmlEntityContainer.content.textContent;
-    return decoded;
+    return TemplateEngine.#htmlEntityContainer.content.textContent;
   }
 
-  // Walk over a pre-validated set of tokens from our parser. Note that because
-  //  the parser is _very_ strict, we can make a lot of simplifying assumptions.
+  /**
+   * Walk over a pre-validated set of tokens from our parser. Note that because
+   *  the parser is _very_ strict, we can make a lot of simplifying assumptions.
+   * @param {OnTokenState} state
+   * @param {(name: string, path: number[]) => void} onBoolean
+   * @param {(name: string, path: number[]) => void} onDefined
+   * @param {(name: string, path: number[]) => void} onAttribute
+   * @param {(name: string, path: number[]) => void} onProperty
+   * @param {(path: number[]) => void} onContent
+   * @param {(path: number[]) => void} onText
+   * @param {string} type
+   * @param {number} index
+   * @param {number} start
+   * @param {number} end
+   * @param {string} substring
+   */
   static #onToken(
     // These arguments are passed in through a “bind”.
     state, onBoolean, onDefined, onAttribute, onProperty, onContent, onText,
@@ -102,7 +165,7 @@ class TemplateEngine {
         const tagName = substring;
         const childNode = TemplateEngine.#document.createElement(tagName);
         state.tagName === 'template'
-          // @ts-ignore — TypeScript doesn’t get that this is a template.
+          // @ts-expect-error — TS doesn’t get that this is a template.
           ? state.element.content.appendChild(childNode)
           : state.element.appendChild(childNode);
         state.parentElements.push(state.element);
@@ -114,18 +177,20 @@ class TemplateEngine {
         break;
       }
       case XParser.tokenTypes.voidTagClose:
-        state.element = state.parentElements.pop();
-        state.tagName = state.parentTagNames.pop();
-        state.childNodesIndex = state.path.pop();
+        // Parser guarantees these arrays are non-empty at this point.
+        state.element = /** @type {DocumentFragment | Element} */ (state.parentElements.pop());
+        state.tagName = /** @type {TagName} */ (state.parentTagNames.pop());
+        state.childNodesIndex = /** @type {number} */ (state.path.pop());
         break;
       case XParser.tokenTypes.startTagClose:
         // Assume we’re traversing into the new element and reset index.
         state.childNodesIndex = -1;
         break;
       case XParser.tokenTypes.endTagName:
-        state.childNodesIndex = state.path.pop();
-        state.element = state.parentElements.pop();
-        state.tagName = state.parentTagNames.pop();
+        // Parser guarantees these arrays are non-empty at this point.
+        state.childNodesIndex = /** @type {number} */ (state.path.pop());
+        state.element = /** @type {DocumentFragment | Element} */ (state.parentElements.pop());
+        state.tagName = /** @type {TagName} */ (state.parentTagNames.pop());
         break;
       case XParser.tokenTypes.attributeName:
       case XParser.tokenTypes.boundAttributeName:
@@ -135,7 +200,7 @@ class TemplateEngine {
         state.name = substring;
         break;
       case XParser.tokenTypes.booleanName: {
-        // @ts-ignore — TypeScript doesn’t get that this is an element.
+        // @ts-expect-error — TS doesn’t get that this is an element.
         state.element.setAttribute(substring, '');
         break;
       }
@@ -172,9 +237,9 @@ class TemplateEngine {
       }
       case XParser.tokenTypes.attributeValueEnd: {
         const decoded = state.encoded ? TemplateEngine.#decode(state.text) : state.text;
-        // @ts-ignore — TypeScript doesn’t get that this is an element.
+        // @ts-expect-error — TS doesn’t get that this is an element.
         state.element.setAttribute(state.name, decoded);
-        state.name = null;
+        state.name = '';
         state.encoded = false;
         state.text = '';
         break;
@@ -183,7 +248,6 @@ class TemplateEngine {
         onText(state.path);
         break;
       case XParser.tokenTypes.boundContentValue:
-        // @ts-ignore — TypeScript doesn’t get that this is an element.
         state.element.append(TemplateEngine.#document.createComment(''), TemplateEngine.#document.createComment(''));
         state.childNodesIndex += 2;
         state.path.push(state.childNodesIndex);
@@ -192,28 +256,34 @@ class TemplateEngine {
         break;
       case XParser.tokenTypes.boundAttributeValue:
         onAttribute(state.name, state.path);
-        state.name = null;
+        state.name = '';
         break;
       case XParser.tokenTypes.boundBooleanValue:
         onBoolean(state.name, state.path);
-        state.name = null;
+        state.name = '';
         break;
       case XParser.tokenTypes.boundDefinedValue:
         onDefined(state.name, state.path);
-        state.name = null;
+        state.name = '';
         break;
       case XParser.tokenTypes.boundPropertyValue:
         onProperty(state.name, state.path);
-        state.name = null;
+        state.name = '';
         break;
     }
   }
 
-  // After cloning our common fragment, we use the “lookups” to cache live
-  //  references to DOM nodes so that we can surgically perform updates later in
-  //  an efficient manner. Lookups are like directions to find our real targets.
-  // As a performance boost, we pre-bind references so that the interface is
-  //  just a simple function call when we need to bind new values.
+  /**
+   * After cloning our common fragment, we use the “lookups” to cache live
+   *  references to DOM nodes so that we can surgically perform updates later in
+   *  an efficient manner. Lookups are like directions to find our real targets.
+   * As a performance boost, we pre-bind references so that the interface is
+   *  just a simple function call when we need to bind new values.
+   * @param {any} node
+   * @param {Lookups} lookups
+   * @param {CommitTarget[]} [targets]
+   * @returns {CommitTarget[]}
+   */
   static #findTargets(node, lookups, targets) {
     targets ??= [];
     if (lookups.values) {
@@ -256,21 +326,49 @@ class TemplateEngine {
     return targets;
   }
 
+  /**
+   * @param {Element} node
+   * @param {string} name
+   * @param {any} value
+   */
   static #commitAttribute(node, name, value) {
     node.setAttribute(name, value);
   }
+
+  /**
+   * @param {Element} node
+   * @param {string} name
+   * @param {any} value
+   */
   static #commitBoolean(node, name, value) {
     value ? node.setAttribute(name, '') : node.removeAttribute(name);
   }
+
+  /**
+   * @param {Element} node
+   * @param {string} name
+   * @param {any} value
+   */
   static #commitDefined(node, name, value) {
     value === undefined || value === null
       ? node.removeAttribute(name)
       : node.setAttribute(name, value);
   }
+
+  /**
+   * @param {any} node
+   * @param {string} name
+   * @param {any} value
+   */
   static #commitProperty(node, name, value) {
     node[name] = value;
   }
 
+  /**
+   * @param {Comment} node
+   * @param {Comment} startNode
+   * @param {any} value
+   */
   static #commitContentResultValue(node, startNode, value) {
     const state = TemplateEngine.#getState(node, TemplateEngine.#STATE);
     const rawResult = value;
@@ -284,7 +382,12 @@ class TemplateEngine {
     }
   }
 
-  // Validates array value and returns a “rawResult”.
+  /**
+   * Validates array value and returns a “rawResult”.
+   * @param {any} value
+   * @param {number} index
+   * @returns {any}
+   */
   static #parseArrayValue(value, index) {
     // Values should look like "<raw result>".
     const rawResult = value;
@@ -294,7 +397,13 @@ class TemplateEngine {
     return rawResult;
   }
 
-  // Validates array entry and returns an “id” and a “rawResult”.
+  /**
+   * Validates array entry and returns an “id” and a “rawResult”.
+   * @param {any} entry
+   * @param {number} index
+   * @param {Set<string>} ids
+   * @returns {[string, any]}
+   */
   static #parseArrayEntry(entry, index, ids) {
     // Entries should look like "[<key>, <raw result>]".
     if (entry.length !== 2) {
@@ -314,14 +423,24 @@ class TemplateEngine {
     return [id, rawResult];
   }
 
-  // Helper to create / insert “cursors” in managed array of nodes.
+  /**
+   * Helper to create / insert “cursors” in managed array of nodes.
+   * @param {Comment} node
+   * @param {string} id
+   * @param {any} rawResult
+   * @returns {ArrayItem}
+   */
   static #createArrayItem(node, id, rawResult) {
     const cursors = TemplateEngine.#createCursors(node);
     const preparedResult = TemplateEngine.#inject(rawResult, cursors.node, true);
     return { id, preparedResult, ...cursors };
   }
 
-  // Helper to destroy, create, and replace “cursors” in managed array of nodes.
+  /**
+   * Helper to destroy, create, and replace “cursors” in managed array of nodes.
+   * @param {ArrayItem} item
+   * @param {object} rawResult
+   */
   static #recreateArrayItem(item, rawResult) {
     // Add new comment cursors before removing old comment cursors.
     const cursors = TemplateEngine.#createCursors(item.startNode);
@@ -331,7 +450,12 @@ class TemplateEngine {
     item.node = cursors.node;
   }
 
-  // Loops over given array of “values” to manage an array of nodes.
+  /**
+   * Loops over given array of “values” to manage an array of nodes.
+   * @param {Comment} node
+   * @param {Comment} startNode
+   * @param {any[]} values
+   */
   static #commitContentArrayValues(node, startNode, values) {
     const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
     if (!arrayState.map) {
@@ -380,7 +504,12 @@ class TemplateEngine {
     }
   }
 
-  // Loops over given array of “entries” to manage an array of nodes.
+  /**
+   * Loops over given array of “entries” to manage an array of nodes.
+   * @param {Comment} node
+   * @param {Comment} startNode
+   * @param {Iterable<any>} entries
+   */
   static #commitContentArrayEntries(node, startNode, entries) {
     const arrayState = TemplateEngine.#getState(startNode, TemplateEngine.#ARRAY_STATE);
     if (!arrayState.map) {
@@ -482,14 +611,25 @@ class TemplateEngine {
   //   }
   // }
 
+  /**
+   * @param {Comment} node
+   * @param {Comment} startNode
+   * @param {DocumentFragment} value
+   */
   static #commitContentFragmentValue(node, startNode, value) {
     const previousSibling = node.previousSibling;
     if (previousSibling !== startNode) {
       TemplateEngine.#removeBetween(startNode, node);
     }
+    // @ts-expect-error — TS doesn’t know parentNode is non-null.
     node.parentNode.insertBefore(value, node);
   }
 
+  /**
+   * @param {Comment} node
+   * @param {Comment} startNode
+   * @param {any} value
+   */
   static #commitContentTextValue(node, startNode, value) {
       // TODO: Is there a way to more-performantly skip this init step? E.g., if
       //  the prior value here was not “unset” and we didn’t just reset? We
@@ -502,12 +642,20 @@ class TemplateEngine {
         // const textNode = ownerDocument.createTextNode('');
         // textNode.textContent = value;
         const textNode = node.ownerDocument.createTextNode(value ?? '');
+        // @ts-expect-error — TS doesn’t know parentNode is non-null.
         node.parentNode.insertBefore(textNode, node);
       } else {
+        // @ts-expect-error — TS doesn’t know previousSibling is non-null.
         previousSibling.textContent = value;
       }
   }
 
+  /**
+   * @param {Comment} node
+   * @param {Comment} startNode
+   * @param {any} value
+   * @param {any} lastValue
+   */
   static #commitContent(node, startNode, value, lastValue) {
     const category = TemplateEngine.#getCategory(value);
     const lastCategory = TemplateEngine.#getCategory(lastValue);
@@ -528,12 +676,19 @@ class TemplateEngine {
     }
   }
 
+  /**
+   * @param {Node} node
+   * @param {any} value
+   */
   static #commitText(node, value) {
     node.textContent = value;
   }
 
-  // Bind the current values from a result by walking through each target and
-  //  updating the DOM if things have changed.
+  /**
+   * Bind the current values from a result by walking through each target and
+   *  updating the DOM if things have changed.
+   * @param {PreparedResult} preparedResult
+   */
   static #commit(preparedResult) {
     preparedResult.values ??= preparedResult.rawResult.values;
     preparedResult.lastValues ??= preparedResult.values.map(() => TemplateEngine.#UNSET);
@@ -548,18 +703,32 @@ class TemplateEngine {
     }
   }
 
-  static #textValue = { binding: TemplateEngine.#TEXT };
+  static #textValue = { binding: TemplateEngine.#TEXT, name: '' };
+  /**
+   * @param {Lookups} lookups
+   * @param {number[]} path
+   */
   static #storeTextLookup(lookups, path) {
     const value = TemplateEngine.#textValue;
     TemplateEngine.#storeLookup(lookups, value, path);
   }
 
-  static #contentValue = { binding: TemplateEngine.#CONTENT };
+  static #contentValue = { binding: TemplateEngine.#CONTENT, name: '' };
+  /**
+   * @param {Lookups} lookups
+   * @param {number[]} path
+   */
   static #storeContentLookup(lookups, path) {
     const value = TemplateEngine.#contentValue;
     TemplateEngine.#storeLookup(lookups, value, path);
   }
 
+  /**
+   * @param {Lookups} lookups
+   * @param {string} binding
+   * @param {string} name
+   * @param {number[]} path
+   */
   static #storeKeyLookup(lookups, binding, name, path) {
     const value = { binding, name };
     TemplateEngine.#storeLookup(lookups, value, path);
@@ -569,6 +738,11 @@ class TemplateEngine {
   //  the top of the object each time because it wants to avoid creating paths
   //  that do not end in bindings… However, then we have to do a lot of checking
   //  perhaps there’s a better way!
+  /**
+   * @param {Lookups} lookups
+   * @param {LookupValue} value
+   * @param {number[]} path
+   */
   static #storeLookup(lookups, value, path) {
     let reference = lookups;
     for (let iii = 0; iii < path.length; iii++) {
@@ -585,7 +759,13 @@ class TemplateEngine {
     reference.values.push(value);
   }
 
-  // Inject a given result into a node for the first time.
+  /**
+   * Inject a given result into a node for the first time.
+   * @param {any} rawResult
+   * @param {any} node
+   * @param {boolean} [before]
+   * @returns {PreparedResult}
+   */
   static #inject(rawResult, node, before) {
     // Create and prepare a document fragment to be injected.
     const { [TemplateEngine.#ANALYSIS]: analysis } = rawResult;
@@ -594,6 +774,7 @@ class TemplateEngine {
     const preparedResult = { rawResult, fragment, targets };
 
     // Bind values via our live targets into our disconnected DOM.
+    // @ts-expect-error — TS doesn’t know preparedResult is lazily completed.
     TemplateEngine.#commit(preparedResult);
 
     // Attach a document fragment into the node. Note that all the DOM in the
@@ -603,20 +784,31 @@ class TemplateEngine {
       ? TemplateEngine.#insertAllBefore(node.parentNode, node, nodes)
       : TemplateEngine.#insertAllBefore(node, null, nodes);
 
+    // @ts-expect-error — TS doesn’t know preparedResult is lazily completed.
     return preparedResult;
   }
 
+  /**
+   * @param {PreparedResult} preparedResult
+   * @param {any} rawResult
+   */
   static #update(preparedResult, rawResult) {
     preparedResult.lastValues = preparedResult.values;
     preparedResult.values = rawResult.values;
     TemplateEngine.#commit(preparedResult);
   }
 
+  /**
+   * @param {TemplateStringsArray} strings
+   * @param {unknown[]} values
+   * @returns {any}
+   */
   static #createRawResult(strings, values) {
     const analysis = TemplateEngine.#setIfMissing(TemplateEngine.#stringsToAnalysis, strings, () => ({}));
     if (!analysis.done) {
-      const fragment = TemplateEngine.#fragment.cloneNode(false);
-      const state = {
+      // We know we will always get a DocumentFragment from cloneNode here.
+      const fragment = /** @type {DocumentFragment} */ (TemplateEngine.#fragment.cloneNode(false));
+      const state = /** @type {OnTokenState} */ ({
         path: [],
         parentElements: [],
         parentTagNames: [],
@@ -625,8 +817,8 @@ class TemplateEngine {
         childNodesIndex: -1,
         encoded: false,
         text: '',
-        name: null,
-      };
+        name: '',
+      });
       const lookups = {};
       const onBoolean = TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#BOOLEAN);
       const onDefined = TemplateEngine.#storeKeyLookup.bind(null, lookups, TemplateEngine.#DEFINED);
@@ -645,10 +837,18 @@ class TemplateEngine {
     return { [TemplateEngine.#ANALYSIS]: analysis, strings, values };
   }
 
+  /**
+   * @param {any} value
+   * @returns {boolean}
+   */
   static #isRawResult(value) {
     return !!value?.[TemplateEngine.#ANALYSIS];
   }
 
+  /**
+   * @param {any} value
+   * @returns {string | undefined}
+   */
   static #getCategory(value) {
     if (typeof value === 'object') {
       if (TemplateEngine.#isRawResult(value)) {
@@ -661,14 +861,25 @@ class TemplateEngine {
     }
   }
 
+  /**
+   * @param {PreparedResult | undefined} preparedResult
+   * @param {any} rawResult
+   * @returns {boolean}
+   */
   static #canReuseDom(preparedResult, rawResult) {
     return preparedResult?.rawResult.strings === rawResult?.strings;
   }
 
+  /**
+   * @param {Comment} referenceNode
+   * @returns {{ startNode: Comment, node: Comment }}
+   */
   static #createCursors(referenceNode) {
     const startNode = referenceNode.ownerDocument.createComment('');
     const node = referenceNode.ownerDocument.createComment('');
+    // @ts-expect-error — TS doesn’t know parentNode is non-null.
     referenceNode.parentNode.insertBefore(startNode, referenceNode);
+    // @ts-expect-error — TS doesn’t know parentNode is non-null.
     referenceNode.parentNode.insertBefore(node, referenceNode);
     return { startNode, node };
   }
@@ -684,6 +895,11 @@ class TemplateEngine {
   //   }
   // }
 
+  /**
+   * @param {Node} parentNode
+   * @param {Node | null} referenceNode
+   * @param {NodeListOf<ChildNode> | Node[]} nodes
+   */
   static #insertAllBefore(parentNode, referenceNode, nodes) {
     // Iterate backwards over the live node collection since we’re mutating it.
     // Note that passing “null” as the reference node appends nodes to the end.
@@ -694,22 +910,33 @@ class TemplateEngine {
     }
   }
 
+  /** @param {Element | DocumentFragment} node */
   static #removeWithin(node) {
     node.replaceChildren();
   }
 
+  /**
+   * @param {Comment} startNode
+   * @param {Comment} node
+   */
   static #removeBetween(startNode, node) {
     while(node.previousSibling !== startNode) {
+      // @ts-expect-error — TS doesn’t know previousSibling is non-null.
       node.previousSibling.remove();
     }
   }
 
+  /**
+   * @param {Comment} startNode
+   * @param {Comment} node
+   */
   static #removeThrough(startNode, node) {
     TemplateEngine.#removeBetween(startNode, node);
     startNode.remove();
     node.remove();
   }
 
+  /** @param {Record<string, any>} object */
   static #clearObject(object) {
     for (const key of Object.keys(object)) {
       delete object[key];
@@ -718,6 +945,12 @@ class TemplateEngine {
 
   // TODO: Replace with Map.prototype.getOrInsert when TC39 proposal lands.
   //  https://github.com/tc39/proposal-upsert
+  /**
+   * @param {WeakMap<object, any>} map
+   * @param {object} key
+   * @param {() => any} callback
+   * @returns {any}
+   */
   static #setIfMissing(map, key, callback) {
     // Values set in this file are ALL truthy, so "get" is used (versus "has").
     let value = map.get(key);
@@ -728,6 +961,11 @@ class TemplateEngine {
     return value;
   }
 
+  /**
+   * @param {any} object
+   * @param {symbol} key
+   * @returns {Record<string, any>}
+   */
   static #getState(object, key) {
     // Values set in this file are ALL truthy.
     let value = object[key];
