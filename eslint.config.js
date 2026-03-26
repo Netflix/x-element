@@ -14,6 +14,8 @@ export default [
     files: ['x-element.js', 'x-parser.js', 'x-template.js'],
     plugins: { jsdoc },
     rules: {
+      // TODO: #357: Replace remaining `any` with precise types or `unknown`.
+      'jsdoc/reject-any-type': 'off',
       'jsdoc/require-param-description': 'off',
       'jsdoc/require-property-description': 'off',
       'jsdoc/require-returns-description': 'off',
@@ -36,8 +38,11 @@ export default [
     settings: {
       jsdoc: {
         preferredTypes: [
-          // TypeScript knows about this, but eslint does not.
+          // TypeScript knows about these, but eslint does not.
           'TemplateStringsArray',
+          'Iterable',
+          'NodeListOf',
+          'ChildNode',
         ],
       },
     },
