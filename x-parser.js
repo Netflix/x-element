@@ -1069,7 +1069,13 @@ export class XParser {
               break;
             }
           }
-          stringIndex = nextStringIndex; // Update out pointer from our pattern match.
+          // Cast: nextStringIndex is guaranteed non-null here — it’s always
+          //  set from a regex match (value.lastIndex) before reaching this
+          //  point. TypeScript cannot prove this because the assignment happens
+          //  inside a switch-case that doesn’t cover every value of
+          //  nextStringIndex’s type. A zero-cost cast is preferred over a
+          //  runtime guard in this hot loop.
+          stringIndex = /** @type {number} */ (nextStringIndex); // Update out pointer from our pattern match.
           nextStringIndex = null;
         }
         stringsIndex++;
@@ -1078,10 +1084,13 @@ export class XParser {
       XParser.#validateExit(value, tagName);
     } catch (error) {
       // Roughly match the conventions for “onToken”.
-      const index = stringsIndex;
-      const start = stringIndex;
-      const end = nextStringIndex;
-      error[XParser.#errorContextKey] = { index, start, end };
+      if (typeof error === 'object' && error !== null) {
+        // Narrow from "unknown" to attach debug context via Object.assign.
+        const index = stringsIndex;
+        const start = stringIndex;
+        const end = nextStringIndex;
+        Object.assign(error, { [XParser.#errorContextKey]: { index, start, end } });
+      }
       throw error;
     }
   }

@@ -67,13 +67,13 @@ export default class XElement extends HTMLElement {
     static get properties(): {
         [key: string]: {
             type?: (new (...args: unknown[]) => unknown) | undefined;
-            attribute?: string;
-            input?: string[];
-            compute?: (...args: unknown[]) => unknown;
-            observe?: (host: HTMLElement, value: unknown, oldValue: unknown) => any;
-            reflect?: boolean;
-            internal?: boolean;
-            readOnly?: boolean;
+            attribute?: string | undefined;
+            input?: string[] | undefined;
+            compute?: ((...args: unknown[]) => unknown) | undefined;
+            observe?: ((host: HTMLElement, value: unknown, oldValue: unknown) => any) | undefined;
+            reflect?: boolean | undefined;
+            internal?: boolean | undefined;
+            readOnly?: boolean | undefined;
             initial?: unknown | (() => unknown);
             default?: unknown | (() => unknown);
         };
@@ -131,7 +131,7 @@ export default class XElement extends HTMLElement {
     static #validateProperties(constructor: any, properties: any, entries: any): void;
     static #validateProperty(constructor: any, key: any, property: any): void;
     static #validatePropertyAttribute(constructor: any, key: any, property: any, attribute: any): void;
-    static #propertyIsCyclic(property: any, inputMap: any, seen?: Set<any>): boolean;
+    static #propertyIsCyclic(property: any, inputMap: any, seen?: Set<any>): true | undefined;
     static #validateListeners(constructor: any, listeners: any, entries: any): void;
     static #mutateProperty(constructor: any, propertyMap: any, key: any, property: any): void;
     static #addPropertyInitial(constructor: any, property: any): void;
