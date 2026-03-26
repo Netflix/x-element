@@ -36,7 +36,7 @@ class TemplateEngine {
 
   /**
    * Default template engine interface — what you get inside “template”.
-   * @type {{[key: string]: (...args: unknown[]) => unknown}}
+   * @type {{ render: (container: HTMLElement, rawResult: unknown) => void, html: (strings: string[], ...values: unknown[]) => unknown }}
    */
   static interface = Object.freeze({
     render: TemplateEngine.render,

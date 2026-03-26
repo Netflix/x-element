@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Re-enable strict type errors for `strictNullChecks`,
+  `useUnknownInCatchVariables`, and `strictFunctionTypes` (#357).
 - Bump devDependencies (eslint 10, typescript 6, eslint-plugin-jsdoc 62, etc.).
 
 ## [2.0.2] - 2026-03-10

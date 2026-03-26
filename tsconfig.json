@@ -21,10 +21,7 @@
     "declarationMap": true,
     "noEmitOnError": true,
     "module": "NodeNext", // Approximates browser target.
-    // TODO: #357: Fix strict type errors.
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "useUnknownInCatchVariables": false,
-    "strictFunctionTypes": false
+    // TODO: #357: Fix implicit any types.
+    "noImplicitAny": false
   }
 }
