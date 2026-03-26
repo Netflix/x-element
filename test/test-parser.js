@@ -1654,6 +1654,8 @@ describe('validate', () => {
     `;
   });
 
+  // The eslint-plugin-x-element package relies on error context to map
+  //  parsing errors to source locations. These tests ensure the contract.
   it('errors contain context for debugging', () => {
     let error;
     try {
@@ -1669,6 +1671,8 @@ describe('validate', () => {
     assert(context.end === 5);
   });
 
+  // When an error occurs before character-level parsing begins (e.g., a raw
+  //  string escape), start and end are null to signal no position is available.
   it('initial error contains context for debugging', () => {
     let error;
     try {

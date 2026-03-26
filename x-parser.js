@@ -229,8 +229,12 @@ export class XParser {
   // The following “mappings” (switch statements) are written this way so code
   //  coverage tooling will enforce that all these errors are reachable.
 
-  // Simple mapping of all the errors which can be thrown by the parser. The
-  //  parsing errors are allotted numbers #100-#199.
+  /**
+   * Simple mapping of all the errors which can be thrown by the parser. The
+   *  parsing errors are allotted numbers #100-#199.
+   * @param {string | undefined} key
+   * @returns {string | undefined}
+   */
   static #getErrorMessage(key) {
     switch (key) {
       case '#100': return 'Could not parse template markup (at template start).';
@@ -267,7 +271,11 @@ export class XParser {
     }
   }
 
-  // Block #100-#119 — Invalid transition errors.
+  /**
+   * Block #100-#119 — Invalid transition errors.
+   * @param {RegExp} value
+   * @returns {string | undefined}
+   */
   static #getErrorMessageKeyFromValue(value) {
     // Note that the following states _never_ have their own generic errors. The
     //  main reason is because they all encode a lookahead which is a subset of
@@ -291,7 +299,11 @@ export class XParser {
     }
   }
 
-  // Block #120-#139 — Common mistakes.
+  /**
+   * Block #120-#139 — Common mistakes.
+   * @param {RegExp} valueMalformed
+   * @returns {string | undefined}
+   */
   static #getErrorMessageKeyFromValueMalformed(valueMalformed) {
     switch (valueMalformed) {
       case XParser.#startTagOpenMalformed:    return '#120';
@@ -308,14 +320,22 @@ export class XParser {
     }
   }
 
-  // Block #140-#149 — Forbidden transitions.
+  /**
+   * Block #140-#149 — Forbidden transitions.
+   * @param {RegExp} valueForbidden
+   * @returns {string | undefined}
+   */
   static #getErrorMessageKeyFromValueForbidden(valueForbidden) {
     switch (valueForbidden) {
       case XParser.#cdataStart:               return '#140';
     }
   }
 
-  // Block #150+ — Special, named issues.
+  /**
+   * Block #150+ — Special, named issues.
+   * @param {string} errorName
+   * @returns {string | undefined}
+   */
   static #getErrorMessageKeyFromErrorName(errorName) {
     switch (errorName) {
       case 'javascript-escape':               return '#150';
@@ -334,7 +354,13 @@ export class XParser {
   // Internal parsing logic ////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  // Returns the first valid state-machine transition (if one exists).
+  /**
+   * Returns the first valid state-machine transition (if one exists).
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {...RegExp} values
+   * @returns {RegExp | undefined}
+   */
   static #try(string, stringIndex, ...values) {
     for (const value of values) {
       value.lastIndex = stringIndex;
@@ -344,8 +370,14 @@ export class XParser {
     }
   }
 
-  // Special cases we want to warn about, but which are not just malformed
-  //  versions of valid transitions.
+  /**
+   * Special cases we want to warn about, but which are not just malformed
+   *  versions of valid transitions.
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {RegExp} value
+   * @returns {RegExp | undefined}
+   */
   static #forbiddenTransition(string, stringIndex, value) {
     switch (value) {
       case XParser.#initial:
@@ -357,7 +389,13 @@ export class XParser {
     }
   }
 
-  // This should roughly match our “valid” transition mapping, but for errors.
+  /**
+   * This should roughly match our “valid” transition mapping, but for errors.
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {RegExp} value
+   * @returns {RegExp | undefined}
+   */
   static #invalidTransition(string, stringIndex, value) {
     switch (value) {
       case XParser.#initial: return XParser.#try(string, stringIndex,
@@ -399,8 +437,14 @@ export class XParser {
     }
   }
 
-  // This is the core of the state machine. It describes every valid traversal
-  //  through a set of html template “strings” array.
+  /**
+   * This is the core of the state machine. It describes every valid traversal
+   *  through a set of html template “strings” array.
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {RegExp} value
+   * @returns {RegExp | undefined}
+   */
   static #validTransition(string, stringIndex, value) {
     switch (value) {
       // The “initial” state is where we start when we begin parsing.
@@ -500,8 +544,15 @@ export class XParser {
     }
   }
 
-  // Common functionality to help print out template context when displaying
-  //  helpful error messages to developers.
+  /**
+   * Common functionality to help print out template context when displaying
+   *  helpful error messages to developers.
+   * @param {TemplateStringsArray} strings
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @returns {{ parsed: string, notParsed: string }}
+   */
   static #getErrorInfo(strings, stringsIndex, string, stringIndex) {
     let prefix;
     let prefixIndex;
@@ -520,10 +571,18 @@ export class XParser {
     return { parsed, notParsed };
   }
 
-  // When we cannot transition to a valid state in our state machine — we must
-  //  throw an error. Because we have to halt execution anyhow, we can use it as
-  //  an opportunity to test some additional patterns to improve our messaging.
-  //  This would otherwise be non-performant — but we are about to error anyhow.
+  /**
+   * When we cannot transition to a valid state in our state machine — we must
+   *  throw an error. Because we have to halt execution anyhow, we can use it as
+   *  an opportunity to test some additional patterns to improve our messaging.
+   *  This would otherwise be non-performant — but we are about to error anyhow.
+   * @param {TemplateStringsArray} strings
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {RegExp} value
+   * @returns {never}
+   */
   static #throwTransitionError(strings, stringsIndex, string, stringIndex, value) {
     const { parsed, notParsed } = XParser.#getErrorInfo(strings, stringsIndex, string, stringIndex);
     const valueForbidden = XParser.#forbiddenTransition(string, stringIndex, value);
@@ -540,18 +599,21 @@ export class XParser {
     throw new Error(message);
   }
 
-  // Character escapes like “\n”, “\u” or ”\x” are a JS-ism. We want developers
-  //  to use HTML here, not JS. You can of course interpolate whatever you want.
-  //  https://w3c.github.io/html-reference/syntax.html#character-encoding
-  //  https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Character_escape
-  // Note that syntax highlighters expect the text after the “html” tag to be
-  //  real HTML. Another reason to reject JS-y unicode is that it won’t be
-  //  interpreted correctly by tooling that expects _html_.
-  // Escapes for the “$”, “\”, and “`” characters are required within a template
-  //  literal — users will need to use “&dollar;”, “&bsol;”, and “&grave;”.
-  // Examples:
-  //  - ok: html`&#8230;`, html`&#x2026;`, html`&mldr;`, html`&hellip;`
-  //  - not ok: html`\nhi\nthere`, html`\x8230`, html`\u2026`, html`\s\t\o\p\ \i\t\.`
+  /**
+   * Character escapes like “\n”, “\u” or “\x” are a JS-ism. We want developers
+   *  to use HTML here, not JS. You can of course interpolate whatever you want.
+   *  https://w3c.github.io/html-reference/syntax.html#character-encoding
+   *  https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Character_escape
+   * Note that syntax highlighters expect the text after the “html” tag to be
+   *  real HTML. Another reason to reject JS-y unicode is that it won’t be
+   *  interpreted correctly by tooling that expects _html_.
+   * Escapes for the “$”, “\”, and “`” characters are required within a template
+   *  literal — users will need to use “&dollar;”, “&bsol;”, and “&grave;”.
+   * Examples:
+   *  - ok: html`&#8230;`, html`&#x2026;`, html`&mldr;`, html`&hellip;`
+   *  - not ok: html`\nhi\nthere`, html`\x8230`, html`\u2026`, html`\s\t\o\p\ \i\t\.`
+   * @param {string} rawString
+   */
   static #validateRawString(rawString) {
     const backslashIndex = rawString.indexOf('\\');
     if (backslashIndex !== -1) {
@@ -563,8 +625,12 @@ export class XParser {
     }
   }
 
-  // Before a successful exit, the parser ensures that all non-void opening tags
-  //  have been matched successfully to prevent any unexpected behavior.
+  /**
+   * Before a successful exit, the parser ensures that all non-void opening tags
+   *  have been matched successfully to prevent any unexpected behavior.
+   * @param {RegExp} value
+   * @param {TagName} tagName
+   */
   static #validateExit(value, tagName) {
     switch (value) {
       case XParser.#boundBoolean:
@@ -585,14 +651,23 @@ export class XParser {
     }
   }
 
-  // Certain parts of an html document may contain character references (html
-  //  entities). We find them via a performant pattern, and then parse them out
-  //  via a non-performant pattern. This way, the cost is only as high as the
-  //  number of character references used (which is often low).
-  //  Note that malformed references or ambiguous ampersands will cause errors.
-  //  https://html.spec.whatwg.org/multipage/named-characters.html
-  // Note that we test against the “content”, but ensure to report tokens as
-  //  compared to the original “string”. This is significantly more performant.
+  /**
+   * Certain parts of an html document may contain character references (html
+   *  entities). We find them via a performant pattern, and then parse them out
+   *  via a non-performant pattern. This way, the cost is only as high as the
+   *  number of character references used (which is often low).
+   *  Note that malformed references or ambiguous ampersands will cause errors.
+   *  https://html.spec.whatwg.org/multipage/named-characters.html
+   * Note that we test against the “content”, but ensure to report tokens as
+   *  compared to the original “string”. This is significantly more performant.
+   * @param {onToken} onToken
+   * @param {string} string
+   * @param {number} index
+   * @param {number} start
+   * @param {number} end
+   * @param {string} plaintextType
+   * @param {string} referenceType
+   */
   static #sendInnerTextTokens(onToken, string, index, start, end, plaintextType, referenceType) {
     const content = string.slice(start, end);
     const contentStart = 0;
@@ -635,9 +710,12 @@ export class XParser {
     }
   }
 
-  // In addition to the allow-list of html tag names, any tag with a hyphen in
-  //  the middle is considered a valid custom element. Therefore, we must allow
-  //  for such declarations.
+  /**
+   * In addition to the allow-list of html tag names, any tag with a hyphen in
+   *  the middle is considered a valid custom element. Therefore, we must allow
+   *  for such declarations.
+   * @param {string} tagName
+   */
   static #validateTagName(tagName) {
     if (
       tagName.indexOf('-') === -1 &&
@@ -650,8 +728,12 @@ export class XParser {
     }
   }
 
-  // This validates a specific case where we need to reject “template” elements
-  //  which have “declarative shadow roots” via a “shadowrootmode” attribute.
+  /**
+   * This validates a specific case where we need to reject “template” elements
+   *  which have “declarative shadow roots” via a “shadowrootmode” attribute.
+   * @param {TagName} tagName
+   * @param {string} attributeName
+   */
   static #validateNoDeclarativeShadowRoots(tagName, attributeName) {
     if (tagName === 'template' && attributeName === 'shadowrootmode') {
       const errorMessageKey = XParser.#getErrorMessageKeyFromErrorName('declarative-shadow-root');
@@ -660,10 +742,17 @@ export class XParser {
     }
   }
 
-  // This can only happen with a “textarea” element, currently. Note that the
-  //  subscriber is notified about this as a “text” binding not a “content”
-  //  binding so that it correctly bind _any_ interpolated value to the
-  //  “textContent” property as a string — no matter the type.
+  /**
+   * This can only happen with a “textarea” element, currently. Note that the
+   *  subscriber is notified about this as a “text” binding not a “content”
+   *  binding so that it correctly bind _any_ interpolated value to the
+   *  “textContent” property as a string — no matter the type.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {boolean} sloppyStartInterpolation
+   */
   static #sendBoundTextTokens(onToken, stringsIndex, string, stringIndex, sloppyStartInterpolation) {
     // If the prior match isn’t our opening tag… that’s a problem. If the next
     //  match isn’t our closing tag… that’s also a problem.
@@ -677,23 +766,43 @@ export class XParser {
     onToken(XParser.tokenTypes.boundTextValue, stringsIndex, stringIndex, stringIndex, '');
   }
 
-  // Bound content is simply an interpolation in the template which exists in a
-  //  location destined to be bound as “textContent” on some node.
+  /**
+   * Bound content is simply an interpolation in the template which exists in a
+   *  location destined to be bound as “textContent” on some node.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   */
   static #sendBoundContentTokens(onToken, stringsIndex, string, stringIndex) {
     onToken(XParser.tokenTypes.boundContentValue, stringsIndex, stringIndex, stringIndex, '');
   }
 
-  // This handles literal text in a template that needs to become text content.
+  /**
+   * This handles literal text in a template that needs to become text content.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendTextTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     onToken(XParser.tokenTypes.textStart, stringsIndex, stringIndex, stringIndex, '');
     XParser.#sendInnerTextTokens(onToken, string, stringsIndex, stringIndex, nextStringIndex, XParser.tokenTypes.textPlaintext, XParser.tokenTypes.textReference);
     onToken(XParser.tokenTypes.textEnd, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
-  // A comment is just a basic html comment. Comments may not be interpolated
-  //  and follow some specific rules from the html specification. Note that
-  //  character references are not replaced in comments.
-  //  https://w3c.github.io/html-reference/syntax.html#comments
+  /**
+   * A comment is just a basic html comment. Comments may not be interpolated
+   *  and follow some specific rules from the html specification. Note that
+   *  character references are not replaced in comments.
+   *  https://w3c.github.io/html-reference/syntax.html#comments
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendCommentTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     const commentStart = stringIndex + 4;
     const commentEnd = nextStringIndex - 3;
@@ -709,7 +818,15 @@ export class XParser {
     onToken(XParser.tokenTypes.commentClose, stringsIndex, commentEnd, nextStringIndex, '-->');
   }
 
-  // The beginning of a start tag — e.g., “<div”.
+  /**
+   * The beginning of a start tag — e.g., “<div”.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   * @returns {string}
+   */
   static #sendStartTagOpenTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     const tagNameStart = stringIndex + 1;
     const tagName = string.slice(tagNameStart, nextStringIndex);
@@ -719,18 +836,40 @@ export class XParser {
     return tagName;
   }
 
-  // Simple spaces and newlines withing a start tag.
+  /**
+   * Simple spaces and newlines withing a start tag.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendStartTagSpaceTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     const substring = string.slice(stringIndex, nextStringIndex);
     onToken(XParser.tokenTypes.startTagSpace, stringsIndex, stringIndex, nextStringIndex, substring);
   }
 
-  // A single double-quote after a binding in a start tag.
+  /**
+   * A single double-quote after a binding in a start tag.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendDanglingQuoteTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     onToken(XParser.tokenTypes.startTagQuote, stringsIndex, stringIndex, nextStringIndex, '"');
   }
 
-  // A boolean is a literal boolean attribute declaration with no value.
+  /**
+   * A boolean is a literal boolean attribute declaration with no value.
+   * @param {onToken} onToken
+   * @param {TagName} tagName
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendBooleanTokens(onToken, tagName, stringsIndex, string, stringIndex, nextStringIndex) {
     // A boolean attribute in a start tag — “data-has-flag”
     const attributeName = string.slice(stringIndex, nextStringIndex);
@@ -738,8 +877,16 @@ export class XParser {
     onToken(XParser.tokenTypes.booleanName, stringsIndex, stringIndex, nextStringIndex, attributeName);
   }
 
-  // An attribute is a literal attribute declaration. It has an associated value
-  //  which forms a key-value pair.
+  /**
+   * An attribute is a literal attribute declaration. It has an associated value
+   *  which forms a key-value pair.
+   * @param {onToken} onToken
+   * @param {TagName} tagName
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendAttributeTokens(onToken, tagName, stringsIndex, string, stringIndex, nextStringIndex) {
     // An attribute in a start tag — “data-foo="bar"”
     const equalsStart = string.indexOf('=', stringIndex);
@@ -757,8 +904,15 @@ export class XParser {
     onToken(XParser.tokenTypes.startTagQuote, stringsIndex, valueEnd, nextStringIndex, '"');
   }
 
-  // A bound boolean is a boolean attribute flag with an associated value
-  //  binding. It has a single, preceding “?” character.
+  /**
+   * A bound boolean is a boolean attribute flag with an associated value
+   *  binding. It has a single, preceding “?” character.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendBoundBooleanTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     // A bound boolean in a start tag — “?data-foo="”
     const nameStart = stringIndex + 1;
@@ -772,8 +926,15 @@ export class XParser {
     onToken(XParser.tokenTypes.boundBooleanValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
-  // Similar to a bound boolean, but with two preceding “??” characters. We
-  //  notify subscribers about this attribute which exists only when defined.
+  /**
+   * Similar to a bound boolean, but with two preceding “??” characters. We
+   *  notify subscribers about this attribute which exists only when defined.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendBoundDefinedTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     // A bound defined in a start tag — “??data-foo="”
     const nameStart = stringIndex + 2;
@@ -787,8 +948,15 @@ export class XParser {
     onToken(XParser.tokenTypes.boundDefinedValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
-  // This is an attribute with a name / value pair where the “value” is bound
-  //  as an interpolation.
+  /**
+   * This is an attribute with a name / value pair where the “value” is bound
+   *  as an interpolation.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendBoundAttributeTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     // A bound attribute in a start tag — “data-foo="”
     const equalsStart = string.indexOf('=', stringIndex);
@@ -800,8 +968,15 @@ export class XParser {
     onToken(XParser.tokenTypes.boundAttributeValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
-  // This is an property with a name / value pair where the “value” is bound
-  //  as an interpolation.
+  /**
+   * This is an property with a name / value pair where the “value” is bound
+   *  as an interpolation.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendBoundPropertyTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     // A bound boolean in a start tag — “.dataFoo="”
     const nameStart = stringIndex + 1;
@@ -815,17 +990,31 @@ export class XParser {
     onToken(XParser.tokenTypes.boundPropertyValue, stringsIndex, nextStringIndex, nextStringIndex, '');
   }
 
-  // Because void elements to not have an end tag, we close them slightly
-  //  differently so downstream consumers can track DOM paths easily.
+  /**
+   * Because void elements to not have an end tag, we close them slightly
+   *  differently so downstream consumers can track DOM paths easily.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendVoidElementTokens(onToken, stringsIndex, stringIndex, nextStringIndex) {
     // Void elements are treated with special consideration as they
     //  will never contain child nodes.
     onToken(XParser.tokenTypes.voidTagClose, stringsIndex, stringIndex, nextStringIndex, '>');
   }
 
-  // Textarea contains so-called “replaceable” character data. We throw an error
-  //  if a “complex” interpolation exists — anything other than a perfectly-fit
-  //  content interpolation between the opening and closing tags.
+  /**
+   * Textarea contains so-called “replaceable” character data. We throw an error
+   *  if a “complex” interpolation exists — anything other than a perfectly-fit
+   *  content interpolation between the opening and closing tags.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   * @returns {number}
+   */
   static #sendTextareaTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex) {
     onToken(XParser.tokenTypes.startTagClose, stringsIndex, stringIndex, nextStringIndex, '>');
     XParser.#throughTextarea.lastIndex = nextStringIndex;
@@ -848,12 +1037,27 @@ export class XParser {
     }
   }
 
-  // Literally just indicating the “>” to close a start tag.
+  /**
+   * Literally just indicating the “>” to close a start tag.
+   * @param {onToken} onToken
+   * @param {number} stringsIndex
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendStartTagCloseTokens(onToken, stringsIndex, stringIndex, nextStringIndex) {
     onToken(XParser.tokenTypes.startTagClose, stringsIndex, stringIndex, nextStringIndex, '>');
   }
 
-  // An end tag — e.g., “</div>”.
+  /**
+   * An end tag — e.g., “</div>”.
+   * @param {onToken} onToken
+   * @param {TagName} tagName
+   * @param {TemplateStringsArray} strings
+   * @param {number} stringsIndex
+   * @param {string} string
+   * @param {number} stringIndex
+   * @param {number} nextStringIndex
+   */
   static #sendEndTagTokens(onToken, tagName, strings, stringsIndex, string, stringIndex, nextStringIndex) {
     const endTagNameStart = stringIndex + 2;
     const endTagNameEnd = nextStringIndex - 1;
@@ -929,8 +1133,13 @@ export class XParser {
    * Additional error context.
    * @typedef {object} ErrorContext
    * @property {number} index
-   * @property {number} start
-   * @property {number} end
+   * @property {number | null} start
+   * @property {number | null} end
+   */
+
+  /**
+   * A tag name, or null when at root level (not inside any tag).
+   * @typedef {string | null} TagName
    */
 
   /**
@@ -939,7 +1148,8 @@ export class XParser {
    * @returns {ErrorContext|void}
    */
   static getErrorContext(error) {
-    return error[XParser.#errorContextKey];
+    const record = /** @type {Record<symbol, ErrorContext>} */ (/** @type {unknown} */ (error));
+    return record[XParser.#errorContextKey];
   }
 
   /**
@@ -960,17 +1170,19 @@ export class XParser {
    */
   static parse(strings, onToken) {
     const stringsLength = strings.length;
-    const tagNames = [null];
-    let tagName = null;
+    const tagNames = /** @type {TagName[]} */ ([null]);
+    let tagName = /** @type {TagName} */ (null);
     let stringsIndex = 0;
-    let string = null;
-    let stringLength = null;
-    let stringIndex = null;
-    let nextStringIndex = null;
+    let string = '';
+    let stringLength = 0;
+    let stringIndex = 0;
+    let nextStringIndex = 0;
+    let hasStringContext = false;
     let value = XParser.#initial; // Values are stateful regular expressions.
 
     try {
       while (stringsIndex < stringsLength) {
+        hasStringContext = false;
         XParser.#validateRawString(strings.raw[stringsIndex]);
 
         string = strings[stringsIndex];
@@ -998,6 +1210,7 @@ export class XParser {
 
         stringLength = string.length;
         stringIndex = 0;
+        hasStringContext = true;
         while (stringIndex < stringLength) {
           // The string will be empty if we have a template like this `${…}${…}`.
           //  See related logic at the end of the inner loop;
@@ -1047,7 +1260,7 @@ export class XParser {
               XParser.#sendBoundPropertyTokens(onToken, stringsIndex, string, stringIndex, nextStringIndex);
               break;
             case XParser.#startTagClose:
-              if (XParser.#voidHtmlElements.has(tagName)) {
+              if (tagName !== null && XParser.#voidHtmlElements.has(tagName)) {
                 XParser.#sendVoidElementTokens(onToken, stringsIndex, stringIndex, nextStringIndex);
                 tagNames.pop();
                 tagName = tagNames[tagNames.length - 1];
@@ -1069,14 +1282,8 @@ export class XParser {
               break;
             }
           }
-          // Cast: nextStringIndex is guaranteed non-null here — it’s always
-          //  set from a regex match (value.lastIndex) before reaching this
-          //  point. TypeScript cannot prove this because the assignment happens
-          //  inside a switch-case that doesn’t cover every value of
-          //  nextStringIndex’s type. A zero-cost cast is preferred over a
-          //  runtime guard in this hot loop.
-          stringIndex = /** @type {number} */ (nextStringIndex); // Update out pointer from our pattern match.
-          nextStringIndex = null;
+          stringIndex = nextStringIndex; // Update out pointer from our pattern match.
+          nextStringIndex = 0;
         }
         stringsIndex++;
       }
@@ -1085,10 +1292,14 @@ export class XParser {
     } catch (error) {
       // Roughly match the conventions for “onToken”.
       if (typeof error === 'object' && error !== null) {
-        // Narrow from "unknown" to attach debug context via Object.assign.
+        // Narrow from “unknown” to attach debug context via Object.assign.
+        // The eslint-plugin-x-element package uses this context to map
+        //  parsing errors to source locations. When the error occurs before
+        //  character-level parsing begins (e.g., a raw string escape), start
+        //  and end are null to signal that no character position is available.
         const index = stringsIndex;
-        const start = stringIndex;
-        const end = nextStringIndex;
+        const start = hasStringContext ? stringIndex : null;
+        const end = hasStringContext ? nextStringIndex : null;
         Object.assign(error, { [XParser.#errorContextKey]: { index, start, end } });
       }
       throw error;
