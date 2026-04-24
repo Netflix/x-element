@@ -1,32 +1,22 @@
-import { test, coverage } from '@netflix/x-test/x-test.js';
+import { load } from '@netflix/x-test/x-test.js';
 
-// We import these here so we can see code coverage.
-import '../x-element.js';
-import '../x-parser.js';
-import '../x-template.js';
-
-// Set a high bar for code coverage!
-coverage(new URL('../x-element.js', import.meta.url).href, 100);
-coverage(new URL('../x-parser.js', import.meta.url).href, 100);
-coverage(new URL('../x-template.js', import.meta.url).href, 100);
-
-test('./test-parser.html');
-test('./test-template-engine.html');
-test('./test-analysis-errors.html');
-test('./test-initialization-errors.html');
-test('./test-attribute-changed-errors.html');
-test('./test-element-upgrade.html');
-test('./test-render.html');
-test('./test-render-root.html');
-test('./test-styles.html');
-test('./test-basic-properties.html');
-test('./test-initial-properties.html');
-test('./test-default-properties.html');
-test('./test-read-only-properties.html');
-test('./test-internal-properties.html');
-test('./test-reflected-properties.html');
-test('./test-computed-properties.html');
-test('./test-observed-properties.html');
-test('./test-listeners.html');
-test('./test-property-deletion.html');
-test('./test-scratch.html');
+load('./test-parser.html');
+load('./test-template-engine.html');
+load('./test-analysis-errors.html');
+load('./test-initialization-errors.html');
+load('./test-attribute-changed-errors.html');
+load('./test-element-upgrade.html');
+load('./test-render.html');
+load('./test-render-root.html');
+load('./test-styles.html');
+load('./test-basic-properties.html');
+load('./test-initial-properties.html');
+load('./test-default-properties.html');
+load('./test-read-only-properties.html');
+load('./test-internal-properties.html');
+load('./test-reflected-properties.html');
+load('./test-computed-properties.html');
+load('./test-observed-properties.html');
+load('./test-listeners.html');
+load('./test-property-deletion.html');
+load('./test-scratch.html');

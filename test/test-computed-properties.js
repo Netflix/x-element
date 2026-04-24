@@ -1,4 +1,4 @@
-import { it, assert } from '@netflix/x-test/x-test.js';
+import { test, assert } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 let _count = 0;
@@ -113,7 +113,7 @@ class TestElement extends XElement {
 }
 customElements.define('test-element', TestElement);
 
-it('initializes as expected', () => {
+test('initializes as expected', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.a === undefined);
@@ -126,7 +126,7 @@ it('initializes as expected', () => {
   assert(el.underline === false);
 });
 
-it('properties are recomputed when dependencies change (a, b)', () => {
+test('properties are recomputed when dependencies change (a, b)', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   el.a = 1;
@@ -138,7 +138,7 @@ it('properties are recomputed when dependencies change (a, b)', () => {
   assert(el.underline === true);
 });
 
-it('properties are recomputed when dependencies change (y)', () => {
+test('properties are recomputed when dependencies change (y)', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   el.y = true;
@@ -149,7 +149,7 @@ it('properties are recomputed when dependencies change (y)', () => {
   assert(el.z === false);
 });
 
-it('computed properties can be reflected', async () => {
+test('computed properties can be reflected', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   el.a = -1;
@@ -164,7 +164,7 @@ it('computed properties can be reflected', async () => {
   assert(el.hasAttribute('underline'));
 });
 
-it('skips resolution when dependencies are the same', () => {
+test('skips resolution when dependencies are the same', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let count = el.count;
@@ -179,7 +179,7 @@ it('skips resolution when dependencies are the same', () => {
   assert(el.count === ++count);
 });
 
-it('lazily computes', () => {
+test('lazily computes', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let count = el.count;
@@ -206,7 +206,7 @@ it('lazily computes', () => {
   assert(el.count === ++count);
 });
 
-it('does correct NaN checking', () => {
+test('does correct NaN checking', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let count = el.count;
@@ -216,7 +216,7 @@ it('does correct NaN checking', () => {
   assert(el.count === count);
 });
 
-it('resets compute validity on initialization to catch upgrade edge cases with internal, computed properties', () => {
+test('resets compute validity on initialization to catch upgrade edge cases with internal, computed properties', () => {
   const el = document.createElement('test-element');
   el.setAttribute('a', '1');
   el.setAttribute('b', '2');
@@ -229,7 +229,7 @@ it('resets compute validity on initialization to catch upgrade edge cases with i
   assert(el.internal.c === 3);
 });
 
-it('cannot be written to from host', () => {
+test('cannot be written to from host', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -244,7 +244,7 @@ it('cannot be written to from host', () => {
   assert(passed, message);
 });
 
-it('cannot set to known properties', () => {
+test('cannot set to known properties', () => {
   class BadTestElement extends XElement {
     static get properties() {
       return {
@@ -276,7 +276,7 @@ it('cannot set to known properties', () => {
   assert(passed, message);
 });
 
-it('cannot compute a bad value', () => {
+test('cannot compute a bad value', () => {
   class BadTestElement extends XElement {
     static get properties() {
       return {

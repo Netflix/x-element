@@ -1,37 +1,21 @@
-import { assert, describe, it } from '@netflix/x-test/x-test.js';
+import { assert, suite, test } from '@netflix/x-test/x-test.js';
 import { render, html } from '../x-template.js';
 
-// Simple helper for asserting thrown messages.
-const assertThrows = (callback, expectedMessage, options) => {
-  let thrown = false;
-  try {
-    callback();
-  } catch (error) {
-    thrown = true;
-    if (options?.startsWith === true) {
-      assert(error.message.startsWith(expectedMessage), error.message);
-    } else {
-      assert(error.message === expectedMessage, error.message);
-    }
-  }
-  assert(thrown, 'no error was thrown');
-};
-
-describe('html rendering', () => {
-  it('renders empty template', () => {
+suite('html rendering', () => {
+  test('renders empty template', () => {
     const container = document.createElement('div');
     render(container, html``);
     assert(container.childNodes.length === 0);
   });
 
-  it('renders basic string', () => {
+  test('renders basic string', () => {
     const container = document.createElement('div');
     render(container, html`<div id="target">No interpolation.</div>`);
     assert(container.childNodes.length === 1);
     assert(container.querySelector('#target').textContent === 'No interpolation.');
   });
 
-  it('renders comments', () => {
+  test('renders comments', () => {
     const container = document.createElement('div');
     render(container, html`<!--This is HTML: "&ldquo;<div></div>&rdquo;"-->`);
     assert(container.childNodes.length === 1);
@@ -39,7 +23,7 @@ describe('html rendering', () => {
     assert(container.childNodes[0].textContent === 'This is HTML: "&ldquo;<div></div>&rdquo;"');
   });
 
-  it('renders void tags', () => {
+  test('renders void tags', () => {
     const container = document.createElement('div');
     render(container, html`<input><br><input>`);
     assert(container.childNodes.length === 3);
@@ -48,7 +32,7 @@ describe('html rendering', () => {
     assert(container.childNodes[2].localName === 'input');
   });
 
-  it('renders template elements', () => {
+  test('renders template elements', () => {
     // It’s important that the _content_ is populated here. Not the template.
     const container = document.createElement('div');
     render(container, html`<template><div><p></p></div></template>`);
@@ -58,7 +42,7 @@ describe('html rendering', () => {
     assert(container.querySelector('template').content.children[0].children[0].localName === 'p');
   });
 
-  it('renders pre elements with optional, initial newline', () => {
+  test('renders pre elements with optional, initial newline', () => {
     const expected = '        hi\n      ';
     const container = document.createElement('div');
     render(container, html`
@@ -69,45 +53,45 @@ describe('html rendering', () => {
     assert(container.querySelector('pre').textContent === expected); // first newline is removed
   });
 
-  it('renders named html entities in text content', () => {
+  test('renders named html entities in text content', () => {
     const container = document.createElement('div');
     render(container, html`<div>${'--'}&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;${'--'}</div>`);
     assert(container.childNodes.length === 1);
     assert(container.childNodes[0].textContent === `--{<&>'"}--`);
   });
 
-  it('renders direct references in replaceable character data', () => {
+  test('renders direct references in replaceable character data', () => {
     const container = document.createElement('div');
     render(container, html`&amp;&lt;&gt;&quot;&apos;`);
     assert(container.textContent === `&<>"'`);
   });
 
-  it('renders references for commonly-used characters', () => {
+  test('renders references for commonly-used characters', () => {
     const container = document.createElement('div');
     render(container, html`&nbsp;&lsquo;&rsquo;&ldquo;&rdquo;&ndash;&mdash;&hellip;&bull;&middot;&dagger;`);
     assert(container.textContent === '\u00A0\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u2022\u00B7\u2020');
   });
 
-  it('renders named references which require surrogate pairs', () => {
+  test('renders named references which require surrogate pairs', () => {
     const container = document.createElement('div');
     render(container,  html`<div>--&bopf;&bopf;--&bopf;--</div>`);
     assert(container.children[0].textContent === `--\uD835\uDD53\uD835\uDD53--\uD835\uDD53--`);
   });
 
-  it('leaves malformed references as-is', () => {
+  test('leaves malformed references as-is', () => {
     const container = document.createElement('div');
     render(container,  html`<div>--&:^);--</div>`);
     assert(container.children[0].textContent === `--&:^);--`);
   });
 
-  it('renders interpolated content without parsing', () => {
+  test('renders interpolated content without parsing', () => {
     const userContent = '<a href="https://evil.com">Click Me!</a>';
     const container = document.createElement('div');
     render(container, html`<div id="target">${userContent}</div>`);
     assert(container.querySelector('#target').textContent === userContent);
   });
 
-  it('renders null / undefined templates', () => {
+  test('renders null / undefined templates', () => {
     const container = document.createElement('div');
     render(container, html`<div></div>`);
     assert(!!container.childNodes.length);
@@ -119,7 +103,7 @@ describe('html rendering', () => {
     assert(!container.childNodes.length);
   });
 
-  it('renders solo interpolation', () => {
+  test('renders solo interpolation', () => {
     const container = document.createElement('div');
     render(container, html`${''}`);
     assert(container.childNodes.length === 3);
@@ -131,7 +115,7 @@ describe('html rendering', () => {
     assert(container.childNodes[2].data === '');
   });
 
-  it('renders adjacent interpolations', () => {
+  test('renders adjacent interpolations', () => {
     const container = document.createElement('div');
     render(container, html`${'hi'}${'there'}`);
     assert(container.childNodes.length === 6);
@@ -149,7 +133,7 @@ describe('html rendering', () => {
     assert(container.childNodes[5].data === '');
   });
 
-  it('renders interpolated content', () => {
+  test('renders interpolated content', () => {
     const getTemplate = ({ content }) => {
       return html`<div id="target">a b ${content}</div>`;
     };
@@ -163,7 +147,7 @@ describe('html rendering', () => {
   // Unlike a NodeList, a NamedNodeMap (i.e., “.attributes”) is not technically
   //  ordered in any way. This test just confirms that the template engine logic
   //  doesn’t get confused in any way post-parse.
-  it('renders elements with many attributes in a weird order', () => {
+  test('renders elements with many attributes in a weird order', () => {
     const getTemplate = ({
       property1,
       z99,
@@ -227,7 +211,7 @@ describe('html rendering', () => {
     assert(target.textContent.trim() === 'influencing');
   });
 
-  it('renders multiple, interpolated content', () => {
+  test('renders multiple, interpolated content', () => {
     const container = document.createElement('div');
     render(container, html`
       <div id="target">one: ${'ONE'} / two: ${'TWO'}</div>
@@ -235,7 +219,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').textContent === 'one: ONE / two: TWO');
   });
 
-  it('renders nested content', () => {
+  test('renders nested content', () => {
     const getTemplate = ({ show, nestedContent }) => {
       return html`
         <div id="target">
@@ -254,7 +238,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#conditional').textContent === 'k bye');
   });
 
-  it('renders attributes', () => {
+  test('renders attributes', () => {
     const getTemplate = ({ attr, content }) => {
       return html`<div id="target" attr="${attr}" f="b">Something<span>${content}</span></div>`;
     };
@@ -265,14 +249,14 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').getAttribute('attr') === 'bar');
   });
 
-  it('renders references in attribute values', () => {
+  test('renders references in attribute values', () => {
     const container = document.createElement('div');
     render(container, html`<div foo="--&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;--"></div>`);
     assert(container.childElementCount === 1);
     assert(container.children[0].getAttribute('foo') === `--{<&>'"}--`);
   });
 
-  it('renders boolean attributes', () => {
+  test('renders boolean attributes', () => {
     const getTemplate = ({ attr }) => {
       return html`<div id="target" ?attr="${attr}"></div>`;
     };
@@ -293,7 +277,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').getAttribute('attr') === '');
   });
 
-  it('renders defined attributes', () => {
+  test('renders defined attributes', () => {
     const getTemplate = ({ attr }) => {
       return html`<div id="target" ??attr="${attr}"></div>`;
     };
@@ -316,7 +300,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').getAttribute('attr') === 'true');
   });
 
-  it('renders properties', () => {
+  test('renders properties', () => {
     const getTemplate = ({ prop }) => {
       return html`
         <div
@@ -332,7 +316,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').prop === 'bar');
   });
 
-  it('renders “on*” attributes as event handlers', () => {
+  test('renders “on*” attributes as event handlers', () => {
     const container = document.createElement('div');
     document.body.append(container);
     render(container, html`<div onclick="this.textContent = '&hellip;hi&hellip;';"></div>`);
@@ -346,7 +330,7 @@ describe('html rendering', () => {
     container.remove();
   });
 
-  it('renders “on*” properties as event handlers', () => {
+  test('renders “on*” properties as event handlers', () => {
     const container = document.createElement('div');
     document.body.append(container);
     render(container, html`<div .onclick="${function() { this.textContent = '…hi\u2026'; }}"></div>`);
@@ -358,7 +342,7 @@ describe('html rendering', () => {
     container.remove();
   });
 
-  it('maintains DOM nodes', () => {
+  test('maintains DOM nodes', () => {
     const getTemplate = ({ content }) => {
       return html`<div>${content}</div>`;
     };
@@ -372,7 +356,7 @@ describe('html rendering', () => {
     assert(container.querySelector('div').classList.contains('state'));
   });
 
-  it('renders lists', () => {
+  test('renders lists', () => {
     const getTemplate = ({ items }) => {
       return html`
         <div id="target">
@@ -388,7 +372,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').children[2].textContent === 'baz');
   });
 
-  it('renders lists with multiple elements', () => {
+  test('renders lists with multiple elements', () => {
     const getTemplate = ({ items }) => {
       return html`
         <div id="target">
@@ -407,7 +391,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').children[5].textContent === 'baz');
   });
 
-  it('renders lists with changing templates', () => {
+  test('renders lists with changing templates', () => {
     const getTemplate = ({ items }) => {
       return html`
         <div id="target">
@@ -427,7 +411,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').children[2].classList.contains('true'));
   });
 
-  it('renders lists with changing length', () => {
+  test('renders lists with changing length', () => {
     const getTemplate = ({ items }) => {
       return html`
         <div id="target">
@@ -474,7 +458,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').childElementCount === 2);
   });
 
-  it('renders lists of lists', () => {
+  test('renders lists of lists', () => {
     const getTemplate = ({ items }) => {
       return html`<div id="target">${items.map(item => {
         return html`${item.items.map(subItem => {
@@ -506,7 +490,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').textContent === ':foo-one::foo-two::bar-one::bar-two::baz-one::baz-two:');
   });
 
-  it('renders multiple templates', () => {
+  test('renders multiple templates', () => {
     const getTemplate = ({ content }) => {
       if (content) {
         return html`<div id="content">${content}</div>`;
@@ -523,7 +507,7 @@ describe('html rendering', () => {
     assert(!!container.querySelector('#empty'));
   });
 
-  it('renders multiple templates (as content)', () => {
+  test('renders multiple templates (as content)', () => {
     const getTemplate = ({ content }) => {
       return html`
         <div id="target">
@@ -540,7 +524,7 @@ describe('html rendering', () => {
     assert(!!container.querySelector('#empty'));
   });
 
-  it('renders interpolated textarea (text binding)', () => {
+  test('renders interpolated textarea (text binding)', () => {
     const getTemplate = ({ defaultValue }) => {
       return html`<textarea id="target">${defaultValue}</textarea>`;
     };
@@ -551,7 +535,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').textContent === 'default');
   });
 
-  it('renders instantiated elements as dumb text', () => {
+  test('renders instantiated elements as dumb text', () => {
     const getTemplate = ({ element }) => {
       return html`${element}`;
     };
@@ -561,7 +545,7 @@ describe('html rendering', () => {
     assert(container.textContent === '[object HTMLInputElement]');
   });
 
-  it('renders DocumentFragment nodes with simple append action', () => {
+  test('renders DocumentFragment nodes with simple append action', () => {
     const getTemplate = ({ fragment }) => {
       return html`${fragment}`;
     };
@@ -583,7 +567,7 @@ describe('html rendering', () => {
     assert(container.childNodes[1].nodeType === Node.COMMENT_NODE);
   });
 
-  it('renders the same template result multiple times for', () => {
+  test('renders the same template result multiple times for', () => {
     const rawResult = html`<div id="target"></div>`;
     const container1 = document.createElement('div');
     const container2 = document.createElement('div');
@@ -606,7 +590,7 @@ describe('html rendering', () => {
   //  element in the DOM. Previous to this test, constructors were invoked
   //  during template analysis when we computed a document fragment for later
   //  use as a clone base.
-  it('does not call custom element constructor during template analysis', () => {
+  test('does not call custom element constructor during template analysis', () => {
     let constructorCount = 0;
     class PhantomTestElement extends HTMLElement {
       constructor() {
@@ -623,7 +607,7 @@ describe('html rendering', () => {
     container.remove();
   });
 
-  it('causes single connect / disconnect for re-rendered elements', () => {
+  test('causes single connect / disconnect for re-rendered elements', () => {
     let connects = 0;
     let disconnects = 0;
     class TestConnectDisconnect extends HTMLElement {
@@ -663,7 +647,7 @@ describe('html rendering', () => {
     container.remove();
   });
 
-  it('native map renders basic template', () => {
+  test('native map renders basic template', () => {
     const getTemplate = ({ items }) => {
       return html`
         <div id="target">
@@ -722,7 +706,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').children[2] !== baz);
   });
 
-  it('native map renders depth-first', async () => {
+  test('native map renders depth-first', async () => {
     const updates = [];
     class TestDepthFirstOuter extends HTMLElement {
       #item = null;
@@ -761,11 +745,11 @@ describe('html rendering', () => {
     assert(updates[1] === 'inner-foo', updates[1]);
     assert(updates[2] === 'outer-bar', updates[2]);
     assert(updates[3] === 'inner-bar', updates[3]);
-    assert(updates.length === 4, updates);
+    assert(updates.length === 4, JSON.stringify(updates, null, 2));
     container.remove();
   });
 
-  it('native map re-renders each time', () => {
+  test('native map re-renders each time', () => {
     const getTemplate = ({ items, lookup }) => {
       return html`
         <div>
@@ -794,7 +778,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#c').textContent === 'fuzz');
   });
 
-  it('native map renders template changes', () => {
+  test('native map renders template changes', () => {
     const getTemplate = ({ items }) => {
       return html`
         <div id="target">
@@ -819,7 +803,7 @@ describe('html rendering', () => {
     assert(container.querySelector('#target').children[0] !== foo);
   });
 
-  it('native map with changing length', () => {
+  test('native map with changing length', () => {
     const getTemplate = ({ items }) => {
       return html`
         <div id="target">
@@ -867,7 +851,7 @@ describe('html rendering', () => {
   });
 
   // TODO: #254: Uncomment “moves” lines when we leverage “moveBefore”.
-  it('native map does not cause disconnectedCallback on prefix removal', () => {
+  test('native map does not cause disconnectedCallback on prefix removal', () => {
     let connects = 0;
     // let moves = 0;
     let disconnects = 0;
@@ -914,7 +898,7 @@ describe('html rendering', () => {
   });
 
   // TODO: #254: Uncomment “moves” lines when we leverage “moveBefore”.
-  it('native map does not cause disconnectedCallback on suffix removal', () => {
+  test('native map does not cause disconnectedCallback on suffix removal', () => {
     let connects = 0;
     // let moves = 0;
     let disconnects = 0;
@@ -961,7 +945,7 @@ describe('html rendering', () => {
   });
 
   // TODO: #254: See https://chromestatus.com/feature/5135990159835136.
-  it.todo('native map does not cause disconnectedCallback on list shuffle', () => {
+  test.todo('native map does not cause disconnectedCallback on list shuffle', () => {
     let connects = 0;
     let moves = 0;
     let disconnects = 0;
@@ -1008,7 +992,7 @@ describe('html rendering', () => {
   });
 });
 
-describe('changing content values', () => {
+suite('changing content values', () => {
   // The template engine needs to clear content between cursors if the updater
   //  changes — it‘d be far too complex to try and allow one updater try and
   //  take over from a different one.
@@ -1068,64 +1052,64 @@ describe('changing content values', () => {
     assert(container.querySelector('#target').textContent === '');
   };
 
-  it('can change from undefined content to null content', () => run(toUndefinedContent, toNullContent));
-  it('can change from undefined content to text content', () => run(toUndefinedContent, toTextContent));
-  it('can change from undefined content to fragment content', () => run(toUndefinedContent, toFragmentContent));
-  it('can change from undefined content to array content', () => run(toUndefinedContent, toArrayContent));
-  it('can change from undefined content to map content', () => run(toUndefinedContent, toMapContent));
+  test('can change from undefined content to null content', () => run(toUndefinedContent, toNullContent));
+  test('can change from undefined content to text content', () => run(toUndefinedContent, toTextContent));
+  test('can change from undefined content to fragment content', () => run(toUndefinedContent, toFragmentContent));
+  test('can change from undefined content to array content', () => run(toUndefinedContent, toArrayContent));
+  test('can change from undefined content to map content', () => run(toUndefinedContent, toMapContent));
 
-  it('can change from null content to undefined content', () => run(toNullContent, toUndefinedContent));
-  it('can change from null content to text content', () => run(toNullContent, toTextContent));
-  it('can change from null content to fragment content', () => run(toNullContent, toFragmentContent));
-  it('can change from null content to array content', () => run(toNullContent, toArrayContent));
-  it('can change from null content to map content', () => run(toNullContent, toMapContent));
+  test('can change from null content to undefined content', () => run(toNullContent, toUndefinedContent));
+  test('can change from null content to text content', () => run(toNullContent, toTextContent));
+  test('can change from null content to fragment content', () => run(toNullContent, toFragmentContent));
+  test('can change from null content to array content', () => run(toNullContent, toArrayContent));
+  test('can change from null content to map content', () => run(toNullContent, toMapContent));
 
-  it('can change from text content to undefined content', () => run(toTextContent, toUndefinedContent));
-  it('can change from text content to null content', () => run(toTextContent, toNullContent));
-  it('can change from text content to fragment content', () => run(toTextContent, toFragmentContent));
-  it('can change from text content to array content', () => run(toTextContent, toArrayContent));
-  it('can change from text content to map content', () => run(toTextContent, toMapContent));
+  test('can change from text content to undefined content', () => run(toTextContent, toUndefinedContent));
+  test('can change from text content to null content', () => run(toTextContent, toNullContent));
+  test('can change from text content to fragment content', () => run(toTextContent, toFragmentContent));
+  test('can change from text content to array content', () => run(toTextContent, toArrayContent));
+  test('can change from text content to map content', () => run(toTextContent, toMapContent));
 
-  it('can change from fragment content to undefined content', () => run(toFragmentContent, toUndefinedContent));
-  it('can change from fragment content to null content', () => run(toFragmentContent, toNullContent));
-  it('can change from fragment content to text content', () => run(toFragmentContent, toTextContent));
-  it('can change from fragment content to array content', () => run(toFragmentContent, toArrayContent));
-  it('can change from fragment content to map content', () => run(toFragmentContent, toMapContent));
+  test('can change from fragment content to undefined content', () => run(toFragmentContent, toUndefinedContent));
+  test('can change from fragment content to null content', () => run(toFragmentContent, toNullContent));
+  test('can change from fragment content to text content', () => run(toFragmentContent, toTextContent));
+  test('can change from fragment content to array content', () => run(toFragmentContent, toArrayContent));
+  test('can change from fragment content to map content', () => run(toFragmentContent, toMapContent));
 
-  it('can change from array content to undefined content', () => run(toArrayContent, toUndefinedContent));
-  it('can change from array content to null content', () => run(toArrayContent, toNullContent));
-  it('can change from array content to text content', () => run(toArrayContent, toTextContent));
-  it('can change from array content to fragment content', () => run(toArrayContent, toFragmentContent));
-  it('can change from array content to map content', () => run(toArrayContent, toMapContent));
+  test('can change from array content to undefined content', () => run(toArrayContent, toUndefinedContent));
+  test('can change from array content to null content', () => run(toArrayContent, toNullContent));
+  test('can change from array content to text content', () => run(toArrayContent, toTextContent));
+  test('can change from array content to fragment content', () => run(toArrayContent, toFragmentContent));
+  test('can change from array content to map content', () => run(toArrayContent, toMapContent));
 
-  it('can change from map content to undefined content', () => run(toMapContent, toUndefinedContent));
-  it('can change from map content to null content', () => run(toMapContent, toNullContent));
-  it('can change from map content to text content', () => run(toMapContent, toTextContent));
-  it('can change from map content to fragment content', () => run(toMapContent, toFragmentContent));
-  it('can change from map content to array content', () => run(toMapContent, toArrayContent));
+  test('can change from map content to undefined content', () => run(toMapContent, toUndefinedContent));
+  test('can change from map content to null content', () => run(toMapContent, toNullContent));
+  test('can change from map content to text content', () => run(toMapContent, toTextContent));
+  test('can change from map content to fragment content', () => run(toMapContent, toFragmentContent));
+  test('can change from map content to array content', () => run(toMapContent, toArrayContent));
 });
 
-describe('container issues', () => {
-  it('throws when given container is not a node', () => {
+suite('container issues', () => {
+  test('throws when given container is not a node', () => {
     const callback = () => render({}, html``);
-    const expectedMessage = 'Unexpected non-node render container "[object Object]".';
-    assertThrows(callback, expectedMessage);
+    const expectedMessage = 'Error: Unexpected non-node render container "[object Object]".';
+    assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage) + '$'));
   });
 });
 
-describe('value issues', () => {
-  describe('native array', () => {
-    it('throws for list with non-template value for array item', () => {
+suite('value issues', () => {
+  suite('native array', () => {
+    test('throws for list with non-template value for array item', () => {
       const callback = () => render(document.createElement('div'), html`
         <div>
           ${[null].map(item => item ? html`<div>${item}</div>` : null)}
         </div>
       `);
-      const expectedMessage = 'Unexpected non-template value found in array item at 0 "null".';
-      assertThrows(callback, expectedMessage);
+      const expectedMessage = 'Error: Unexpected non-template value found in array item at 0 "null".';
+      assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage) + '$'));
     });
 
-    it('throws for list with non-template value on re-render', () => {
+    test('throws for list with non-template value on re-render', () => {
       const getTemplate = ({ items }) => {
         return html`
           <div>
@@ -1136,35 +1120,35 @@ describe('value issues', () => {
       const container = document.createElement('div');
       render(container, getTemplate({ items: ['foo'] }));
       const callback = () => render(container, getTemplate({ items: [null] }));
-      const expectedMessage = 'Unexpected non-template value found in array item at 0 "null".';
-      assertThrows(callback, expectedMessage);
+      const expectedMessage = 'Error: Unexpected non-template value found in array item at 0 "null".';
+      assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage) + '$'));
     });
 
-    it('throws for list with empty map entry', () => {
+    test('throws for list with empty map entry', () => {
       const callback = () => render(document.createElement('div'), html`<div>${[[]]}</div>`);
-      const expectedMessage = 'Unexpected entry length found in map entry at 0 with length "0".';
-      assertThrows(callback, expectedMessage);
+      const expectedMessage = 'Error: Unexpected entry length found in map entry at 0 with length "0".';
+      assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage) + '$'));
     });
 
-    it('throws for list with non-string key in a map entry', () => {
+    test('throws for list with non-string key in a map entry', () => {
       const callback = () => render(document.createElement('div'), html`<div>${[[1, html``]]}</div>`);
-      const expectedMessage = 'Unexpected non-string key found in map entry at 0 "1".';
-      assertThrows(callback, expectedMessage);
+      const expectedMessage = 'Error: Unexpected non-string key found in map entry at 0 "1".';
+      assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage) + '$'));
     });
 
-    it('throws for list with duplicated key in a map entry', () => {
+    test('throws for list with duplicated key in a map entry', () => {
       const callback = () => render(
         document.createElement('div'),
         html`<div>${[['1', html``], ['2', html``], ['1', html``]]}</div>`,
       );
-      const expectedMessage = 'Unexpected duplicate key found in map entry at 2 "1".';
-      assertThrows(callback, expectedMessage);
+      const expectedMessage = 'Error: Unexpected duplicate key found in map entry at 2 "1".';
+      assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage) + '$'));
     });
 
-    it('throws for list with non-template values in a map entry', () => {
+    test('throws for list with non-template values in a map entry', () => {
       const callback = () => render(document.createElement('div'), html`<div>${[['1', null]]}</div>`);
-      const expectedMessage = 'Unexpected non-template value found in map entry at 0 "null".';
-      assertThrows(callback, expectedMessage);
+      const expectedMessage = 'Error: Unexpected non-template value found in map entry at 0 "null".';
+      assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage) + '$'));
     });
   });
 });

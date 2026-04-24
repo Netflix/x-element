@@ -34,7 +34,7 @@
     "build-react": "npm run build-react-demo && npm run build-react-performance",
     "build-react-demo": "esbuild demo/react/index.jsx --bundle --format=esm --jsx=automatic --packages=external --external:../* --outfile=demo/react/index.js",
     "build-react-performance": "esbuild performance/react/index.jsx --bundle --format=esm --jsx=automatic --packages=external --external:../* --outfile=performance/react/index.js",
-    "test": "x-test --client=puppeteer --url=http://127.0.0.1:8080/test/ --coverage=true",
+    "test": "x-test",
     "type": "tsc",
     "performance": "node ./performance.js",
     "bump": "./bump.sh"
@@ -43,14 +43,15 @@
     "/x-element.js",
     "/x-parser.js",
     "/x-template.js",
+    "/x-test.config.js",
     "/demo",
     "/test",
     "/types"
   ],
   "devDependencies": {
     "@netflix/eslint-config": "3.0.0",
-    "@netflix/x-test": "2.0.0-rc.6",
-    "@netflix/x-test-cli": "1.0.0-rc.2",
+    "@netflix/x-test": "2.0.0",
+    "@netflix/x-test-cli": "1.0.0",
     "esbuild": "0.27.4",
     "eslint": "10.1.0",
     "eslint-plugin-jsdoc": "62.8.0",

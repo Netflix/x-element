@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement extends XElement {
@@ -17,7 +17,7 @@ class TestElement extends XElement {
 }
 customElements.define('test-delete-element', TestElement);
 
-it('properties are non-configurable from construction', () => {
+test('properties are non-configurable from construction', () => {
   const el = document.createElement('test-delete-element');
   const descriptor = Object.getOwnPropertyDescriptor(el, 'foo');
   assert(descriptor !== undefined);
@@ -27,7 +27,7 @@ it('properties are non-configurable from construction', () => {
   assert(typeof descriptor.set === 'function');
 });
 
-it('prevents deletion of properties after construction', () => {
+test('prevents deletion of properties after construction', () => {
   const el = document.createElement('test-delete-element');
   assert('foo' in el);
   let passed = false;
@@ -42,7 +42,7 @@ it('prevents deletion of properties after construction', () => {
   assert('foo' in el);
 });
 
-it('returns false for Reflect.deleteProperty after construction', () => {
+test('returns false for Reflect.deleteProperty after construction', () => {
   const el = document.createElement('test-delete-element');
   assert('foo' in el);
   const result = Reflect.deleteProperty(el, 'foo');
@@ -50,7 +50,7 @@ it('returns false for Reflect.deleteProperty after construction', () => {
   assert('foo' in el);
 });
 
-it('properties remain non-configurable after initialization', () => {
+test('properties remain non-configurable after initialization', () => {
   const el = document.createElement('test-delete-element');
   document.body.append(el);
   const descriptor = Object.getOwnPropertyDescriptor(el, 'foo');

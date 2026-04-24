@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement extends XElement {
@@ -32,19 +32,19 @@ class TestElement extends XElement {
 }
 customElements.define('test-element', TestElement);
 
-it('initialization', () => {
+test('initialization', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'Ferus', 'initialized as expected');
 });
 
-it('can use "has" api or "in" operator.', () => {
+test('can use "has" api or "in" operator.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert('internalProperty' in el.internal, 'The "has" trap does not work.');
 });
 
-it('can use "ownKeys" api.', () => {
+test('can use "ownKeys" api.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   const ownKeys = Reflect.ownKeys(el.internal);
@@ -57,14 +57,14 @@ it('can use "ownKeys" api.', () => {
   );
 });
 
-it('cannot be read on host', () => {
+test('cannot be read on host', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.internal.internalProperty === 'Ferus');
   assert(el.internalProperty === undefined);
 });
 
-it('cannot be written to on host', () => {
+test('cannot be written to on host', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.internal.internalProperty === 'Ferus');
@@ -74,13 +74,13 @@ it('cannot be written to on host', () => {
   assert(el.internalProperty === 'ignored');
 });
 
-it('can be read from "internal"', () => {
+test('can be read from "internal"', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.internal.internalProperty === 'Ferus');
 });
 
-it('can be written to from "internal"', async () => {
+test('can be written to from "internal"', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   el.internal.internalProperty = 'Dromedary';
@@ -90,7 +90,7 @@ it('can be written to from "internal"', async () => {
   assert(el.shadowRoot.textContent === 'Dromedary', 'written to as expected');
 });
 
-it('cannot be written to from "internal" if computed', () => {
+test('cannot be written to from "internal" if computed', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -105,7 +105,7 @@ it('cannot be written to from "internal" if computed', () => {
   assert(passed, message);
 });
 
-it('cannot set to known properties', () => {
+test('cannot set to known properties', () => {
   class BadTestElement extends XElement {
     static get properties() {
       return {
@@ -136,7 +136,7 @@ it('cannot set to known properties', () => {
   assert(passed, message);
 });
 
-it('cannot get unknown properties', () => {
+test('cannot get unknown properties', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -151,7 +151,7 @@ it('cannot get unknown properties', () => {
   assert(passed, message);
 });
 
-it('cannot get unknown properties', () => {
+test('cannot get unknown properties', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -166,7 +166,7 @@ it('cannot get unknown properties', () => {
   assert(passed, message);
 });
 
-it('cannot "defineProperty" on internal.', () => {
+test('cannot "defineProperty" on internal.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -184,7 +184,7 @@ it('cannot "defineProperty" on internal.', () => {
 // This is a funny one, you can set to undefined, but we strictly don't let you
 // "delete" since it has a different meaning and you strictly cannot delete our
 // accessors.
-it('cannot "delete" on internal.', () => {
+test('cannot "delete" on internal.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -199,7 +199,7 @@ it('cannot "delete" on internal.', () => {
   assert(passed, message);
 });
 
-it('cannot "getOwnPropertyDescriptor" on internal.', () => {
+test('cannot "getOwnPropertyDescriptor" on internal.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -214,7 +214,7 @@ it('cannot "getOwnPropertyDescriptor" on internal.', () => {
   assert(passed, message);
 });
 
-it('cannot "getPrototypeOf" on internal.', () => {
+test('cannot "getPrototypeOf" on internal.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -229,7 +229,7 @@ it('cannot "getPrototypeOf" on internal.', () => {
   assert(passed, message);
 });
 
-it('cannot "isExtensible" on internal.', () => {
+test('cannot "isExtensible" on internal.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -244,7 +244,7 @@ it('cannot "isExtensible" on internal.', () => {
   assert(passed, message);
 });
 
-it('cannot "preventExtensions" on internal.', () => {
+test('cannot "preventExtensions" on internal.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -259,7 +259,7 @@ it('cannot "preventExtensions" on internal.', () => {
   assert(passed, message);
 });
 
-it('cannot "setPrototypeOf" on internal.', () => {
+test('cannot "setPrototypeOf" on internal.', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;

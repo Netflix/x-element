@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import styleSheet from './test-styles.css' with { type: 'css' };
 import XElement from '../x-element.js';
 
@@ -16,7 +16,7 @@ class TestElement1 extends XElement {
 }
 customElements.define('test-element-1', TestElement1);
 
-it('provided style sheets are adopted', () => {
+test('provided style sheets are adopted', () => {
   const el = document.createElement('test-element-1');
   document.body.append(el);
   const boundingClientRect = el.getBoundingClientRect();
@@ -25,7 +25,7 @@ it('provided style sheets are adopted', () => {
   el.remove();
 });
 
-it('should only get styles _once_ per constructor', () => {
+test('should only get styles _once_ per constructor', () => {
   for (let iii = 0; iii < 10; iii++) {
     // No matter how many times you do this, styles must only be accessed once.
     const el = document.createElement('test-element-1');
@@ -38,7 +38,7 @@ it('should only get styles _once_ per constructor', () => {
   }
 });
 
-it('errors are thrown when providing styles without a shadow root', () => {
+test('errors are thrown when providing styles without a shadow root', () => {
   class BadElement extends XElement {
     static get styles() { return [styleSheet]; }
     static createRenderRoot(host) { return host; }
@@ -56,7 +56,7 @@ it('errors are thrown when providing styles without a shadow root', () => {
   assert(passed, message);
 });
 
-it('errors are thrown when styles already exist on shadow root.', () => {
+test('errors are thrown when styles already exist on shadow root.', () => {
   class BadElement extends XElement {
     static get styles() { return [styleSheet]; }
     static createRenderRoot(host) {

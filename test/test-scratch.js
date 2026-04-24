@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement extends XElement {
@@ -108,7 +108,7 @@ class TestElement extends XElement {
 customElements.define('test-element', TestElement);
 
 
-it('scratch', async () => {
+test('scratch', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
 
@@ -198,7 +198,7 @@ it('scratch', async () => {
   document.body.append(el);
 });
 
-it('test dispatchError', () => {
+test('test dispatchError', () => {
   const el = document.createElement('test-element');
   const error = new Error('Foo');
   let passed = false;
@@ -220,7 +220,7 @@ it('test dispatchError', () => {
 
 // TODO: Firefox somehow returns an un-upgraded instance after adoption. This
 //  seems like a bug in the browser, but we should look into it.
-(navigator.userAgent.includes('Firefox') ? it.skip : it)('test adoptedCallback', () => {
+(navigator.userAgent.includes('Firefox') ? test.skip : test)('test adoptedCallback', () => {
   const el = document.createElement('test-element');
   el.prop1 = 'adopt me!';
   document.body.append(el);
@@ -235,7 +235,7 @@ it('test dispatchError', () => {
   assert(el.adopted);
 });
 
-it('authors can extend observed attributes', () => {
+test('authors can extend observed attributes', () => {
   const el = document.createElement('test-element');
   assert(!el.customObservedAttributeChange);
   el.setAttribute('custom-observed-attribute', '');

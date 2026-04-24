@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement extends XElement {
@@ -101,77 +101,51 @@ class TestElement extends XElement {
 
 customElements.define('test-element', TestElement);
 
-
-const isObject = obj => obj instanceof Object && obj !== null;
-const deepEqual = (a, b) => {
-  if (a === b) {
-    return true;
-  }
-  return (
-    isObject(a) &&
-    isObject(b) &&
-    // Note, we ignore non-enumerable properties (Symbols) here.
-    Object.keys(a).length === Object.keys(b).length &&
-    Object.keys(a).every(key => deepEqual(a[key], b[key]))
-  );
-};
-
-it('initialized as expected', () => {
+test('initialized as expected', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
-  assert(
-    deepEqual(el.changes, [
-      { property: 'c', value: 'undefined undefined', oldValue: undefined },
-    ]),
-    'initialized as expected'
-  );
+
+  assert.deepEqual(el.changes, [
+    { property: 'c', value: 'undefined undefined', oldValue: undefined },
+  ], 'initialized as expected');
   document.body.removeChild(el);
 });
 
-it('x-element observed properties', async () => {
+test('x-element observed properties', async () => {
   const el = document.createElement('test-element');
   el.a = '11';
   el.b = '22';
   document.body.append(el);
 
-  assert(
-    deepEqual(el.changes, [
-      { property: 'a', value: '11', oldValue: undefined },
-      { property: 'b', value: '22', oldValue: undefined },
-      { property: 'c', value: '11 22', oldValue: undefined },
-    ]),
-    'initialized as expected'
-  );
+  assert.deepEqual(el.changes, [
+    { property: 'a', value: '11', oldValue: undefined },
+    { property: 'b', value: '22', oldValue: undefined },
+    { property: 'c', value: '11 22', oldValue: undefined },
+  ], 'initialized as expected');
 
   el.b = 'hey';
 
   // We must await a microtask for the update to take place.
   await Promise.resolve();
-  assert(
-    deepEqual(el.changes, [
-      { property: 'a', value: '11', oldValue: undefined },
-      { property: 'b', value: '22', oldValue: undefined },
-      { property: 'c', value: '11 22', oldValue: undefined },
-      { property: 'c', value: '11 hey', oldValue: '11 22' },
-      { property: 'b', value: 'hey', oldValue: '22' },
-    ]),
-    'observe callbacks are called when properties change'
-  );
+  assert.deepEqual(el.changes, [
+    { property: 'a', value: '11', oldValue: undefined },
+    { property: 'b', value: '22', oldValue: undefined },
+    { property: 'c', value: '11 22', oldValue: undefined },
+    { property: 'c', value: '11 hey', oldValue: '11 22' },
+    { property: 'b', value: 'hey', oldValue: '22' },
+  ], 'observe callbacks are called when properties change');
 
   el.b = 'hey';
 
   // We must await a microtask for the update to take place.
   await Promise.resolve();
-  assert(
-    deepEqual(el.changes, [
-      { property: 'a', value: '11', oldValue: undefined },
-      { property: 'b', value: '22', oldValue: undefined },
-      { property: 'c', value: '11 22', oldValue: undefined },
-      { property: 'c', value: '11 hey', oldValue: '11 22' },
-      { property: 'b', value: 'hey', oldValue: '22' },
-    ]),
-    'observe callbacks are not called when set property is the same'
-  );
+  assert.deepEqual(el.changes, [
+    { property: 'a', value: '11', oldValue: undefined },
+    { property: 'b', value: '22', oldValue: undefined },
+    { property: 'c', value: '11 22', oldValue: undefined },
+    { property: 'c', value: '11 hey', oldValue: '11 22' },
+    { property: 'b', value: 'hey', oldValue: '22' },
+  ], 'observe callbacks are not called when set property is the same');
 
   el.popped = true;
 
@@ -181,20 +155,17 @@ it('x-element observed properties', async () => {
 
   // We must await a microtask for the update to take place.
   await Promise.resolve();
-  assert(
-    deepEqual(el.changes, [
-      { property: 'a', value: '11', oldValue: undefined },
-      { property: 'b', value: '22', oldValue: undefined },
-      { property: 'c', value: '11 22', oldValue: undefined },
-      { property: 'c', value: '11 hey', oldValue: '11 22' },
-      { property: 'b', value: 'hey', oldValue: '22' },
-      { property: 'popped', value: true, oldValue: undefined },
-    ]),
-    'no re-entrance for observed, reflected properties'
-  );
+  assert.deepEqual(el.changes, [
+    { property: 'a', value: '11', oldValue: undefined },
+    { property: 'b', value: '22', oldValue: undefined },
+    { property: 'c', value: '11 22', oldValue: undefined },
+    { property: 'c', value: '11 hey', oldValue: '11 22' },
+    { property: 'b', value: 'hey', oldValue: '22' },
+    { property: 'popped', value: true, oldValue: undefined },
+  ], 'no re-entrance for observed, reflected properties');
 });
 
-it('child properties are bound before initialization', () => {
+test('child properties are bound before initialization', () => {
   const observations = [];
   class TestInner extends XElement {
     static get properties() {
@@ -224,7 +195,7 @@ it('child properties are bound before initialization', () => {
   customElements.define('test-outer', TestOuter);
   const el = document.createElement('test-outer');
   document.body.append(el);
-  assert(observations[0] === true, observations[0]);
-  assert(observations.length === 1, observations);
+  assert(observations[0] === true, JSON.stringify(observations[0], null, 2));
+  assert(observations.length === 1, JSON.stringify(observations, null, 2));
   el.remove();
 });

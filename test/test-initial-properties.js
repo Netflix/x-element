@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElementBasic extends XElement {
@@ -95,47 +95,47 @@ class TestElementCompound extends XElement {
 }
 customElements.define('test-element-compound', TestElementCompound);
 
-it('basic initial properties', () => {
+test('basic initial properties', () => {
   const el = document.createElement('test-element-basic');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one');
 });
 
-it('basic initial properties (predefined undefined properties)', () => {
+test('basic initial properties (predefined undefined properties)', () => {
   const el = document.createElement('test-element-basic');
   el.one = undefined;
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one');
 });
 
-it('basic initial properties (predefined null properties)', () => {
+test('basic initial properties (predefined null properties)', () => {
   const el = document.createElement('test-element-basic');
   el.one = null;
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one');
 });
 
-it('basic initial properties (predefined properties)', () => {
+test('basic initial properties (predefined properties)', () => {
   const el = document.createElement('test-element-basic');
   el.one = 'ONE';
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'ONE');
 });
 
-it('basic initial properties (predefined attributes)', () => {
+test('basic initial properties (predefined attributes)', () => {
   const el = document.createElement('test-element-basic');
   el.setAttribute('one', 'ONE');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'ONE');
 });
 
-it('anonymous initial properties', () => {
+test('anonymous initial properties', () => {
   const el = document.createElement('test-element-anonymous');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one, two');
 });
 
-it('anonymous initial properties (predefined undefined properties)', () => {
+test('anonymous initial properties (predefined undefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = undefined;
   el.two = undefined;
@@ -143,7 +143,7 @@ it('anonymous initial properties (predefined undefined properties)', () => {
   assert(el.shadowRoot.textContent === 'one, two');
 });
 
-it('anonymous initial properties (predefined null properties)', () => {
+test('anonymous initial properties (predefined null properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = null;
   el.two = null;
@@ -151,7 +151,7 @@ it('anonymous initial properties (predefined null properties)', () => {
   assert(el.shadowRoot.textContent === 'one, two');
 });
 
-it('anonymous initial properties (predefined properties)', () => {
+test('anonymous initial properties (predefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = 'ONE';
   el.two = 'TWO';
@@ -159,7 +159,7 @@ it('anonymous initial properties (predefined properties)', () => {
   assert(el.shadowRoot.textContent === 'ONE, TWO');
 });
 
-it('anonymous initial properties (predefined attributes)', () => {
+test('anonymous initial properties (predefined attributes)', () => {
   const el = document.createElement('test-element-anonymous');
   el.setAttribute('one', 'ONE');
   el.setAttribute('two', 'TWO');
@@ -167,7 +167,7 @@ it('anonymous initial properties (predefined attributes)', () => {
   assert(el.shadowRoot.textContent === 'ONE, TWO');
 });
 
-it('compound initial properties are not shared accross element instances', () => {
+test('compound initial properties are not shared accross element instances', () => {
   const el1 = document.createElement('test-element-compound');
   const el2 = document.createElement('test-element-compound');
   document.body.append(el1, el2);
@@ -176,7 +176,7 @@ it('compound initial properties are not shared accross element instances', () =>
   assert(el1.compound !== el2.compound);
 });
 
-it('cannot set initial to a bad type', () => {
+test('cannot set initial to a bad type', () => {
   class BadTestElement extends XElement {
     static get properties() {
       return { bad: { type: String, initial: 0 } };

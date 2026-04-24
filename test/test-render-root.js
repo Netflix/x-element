@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement1 extends XElement {
@@ -13,7 +13,7 @@ class TestElement1 extends XElement {
 }
 customElements.define('test-element-1', TestElement1);
 
-it('test render root was respected', () => {
+test('test render root was respected', () => {
   const el = document.createElement('test-element-1');
   document.body.append(el);
   assert(el.shadowRoot === null);
@@ -21,7 +21,7 @@ it('test render root was respected', () => {
   el.remove();
 });
 
-it('errors are thrown in for creating a bad render root', () => {
+test('errors are thrown in for creating a bad render root', () => {
   class BadElement extends XElement {
     static createRenderRoot() {}
   }

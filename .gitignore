@@ -1,5 +1,8 @@
 node_modules
 
+# XTest coverage files
+coverage
+
 # Claude Code local settings
 .claude/*.local.json
 

@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 export default class TestElement extends XElement {
@@ -74,7 +74,7 @@ const hasUpgraded = el => {
   );
 };
 
-it('x-element upgrade lifecycle', () => {
+test('x-element upgrade lifecycle', () => {
   const localName = 'test-element';
   assert(
     customElements.get(localName) === undefined,
@@ -141,7 +141,7 @@ it('x-element upgrade lifecycle', () => {
   );
 });
 
-it('preserves x-element properties set before customElements.define', () => {
+test('preserves x-element properties set before customElements.define', () => {
   class PreUpgradeElement extends XElement {
     static get properties() {
       return {

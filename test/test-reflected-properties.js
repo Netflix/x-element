@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement extends XElement {
@@ -43,31 +43,31 @@ class TestElement extends XElement {
 customElements.define('test-element', TestElement);
 
 
-it('reflects initial value', () => {
+test('reflects initial value', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.getAttribute('camel-case-property') === 'reflectedCamel');
 });
 
-it('renders the template with the initial value', () => {
+test('renders the template with the initial value', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.shadowRoot.querySelector('span').textContent === 'reflectedCamel');
 });
 
-it('reflects initial value (Boolean, true)', () => {
+test('reflects initial value (Boolean, true)', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.hasAttribute('boolean-property-true'));
 });
 
-it('does not reflect initial value (Boolean, false)', () => {
+test('does not reflect initial value (Boolean, false)', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.hasAttribute('boolean-property-false') === false);
 });
 
-it('reflects next value after a micro tick', async () => {
+test('reflects next value after a micro tick', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   el.camelCaseProperty = 'dromedary';
@@ -81,7 +81,7 @@ it('reflects next value after a micro tick', async () => {
   assert(el.shadowRoot.querySelector('span').textContent === 'dromedary');
 });
 
-it('has reflected override value after connected', async () => {
+test('has reflected override value after connected', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.getAttribute('override-property') === 'override_me');
@@ -91,7 +91,7 @@ it('has reflected override value after connected', async () => {
   assert(el.getAttribute('override-property') === 'overridden');
 });
 
-it('does not reflect next false value (Boolean)', async () => {
+test('does not reflect next false value (Boolean)', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.hasAttribute('boolean-property-true'));
@@ -111,7 +111,7 @@ it('does not reflect next false value (Boolean)', async () => {
 
 // Setting “reflect: false” explicitly should behave the same as omitting it.
 //  See https://github.com/Netflix/x-element/issues/353.
-it('does not error when reflect is explicitly set to false', async () => {
+test('does not error when reflect is explicitly set to false', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   el.explicitlyNotReflected = true;
