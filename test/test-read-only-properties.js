@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement extends XElement {
@@ -23,14 +23,14 @@ class TestElement extends XElement {
 }
 customElements.define('test-element', TestElement);
 
-it('initialization', () => {
+test('initialization', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'Dromedary', 'initialized correctly');
   assert(el.readOnlyProperty === 'Ferus', 'correct value after connection');
 });
 
-it('re-render in connectedCallback works', async () => {
+test('re-render in connectedCallback works', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.readOnlyProperty === 'Ferus', 'correct value after connection');
@@ -40,7 +40,7 @@ it('re-render in connectedCallback works', async () => {
   assert(el.shadowRoot.textContent === 'Ferus', 'correct value after re-render');
 });
 
-it('cannot be written to', () => {
+test('cannot be written to', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -55,7 +55,7 @@ it('cannot be written to', () => {
   assert(passed, message);
 });
 
-it('cannot be read from "internal"', () => {
+test('cannot be read from "internal"', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -70,7 +70,7 @@ it('cannot be read from "internal"', () => {
   assert(passed, message);
 });
 
-it('cannot set to known properties', () => {
+test('cannot set to known properties', () => {
   class BadTestElement extends XElement {
     static get properties() {
       return {

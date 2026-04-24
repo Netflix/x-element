@@ -1,7 +1,7 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
-it('properties should not have hyphens (conflicts with attribute names)', () => {
+test('properties should not have hyphens (conflicts with attribute names)', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -19,7 +19,7 @@ it('properties should not have hyphens (conflicts with attribute names)', () => 
   assert(passed, message);
 });
 
-it('property attributes should not have non-standard casing', () => {
+test('property attributes should not have non-standard casing', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -37,7 +37,7 @@ it('property attributes should not have non-standard casing', () => {
   assert(passed, message);
 });
 
-it('properties should not shadow XElement prototype interface', () => {
+test('properties should not shadow XElement prototype interface', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -55,7 +55,7 @@ it('properties should not shadow XElement prototype interface', () => {
   assert(passed, message);
 });
 
-it('property keys should only be from our known set', () => {
+test('property keys should only be from our known set', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -73,7 +73,7 @@ it('property keys should only be from our known set', () => {
   assert(passed, message);
 });
 
-it('properties should be objects', () => {
+test('properties should be objects', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -91,7 +91,7 @@ it('properties should be objects', () => {
   assert(passed, message);
 });
 
-it('type should be a function', () => {
+test('type should be a function', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -109,7 +109,7 @@ it('type should be a function', () => {
   assert(passed, message);
 });
 
-it('compute should be a function', () => {
+test('compute should be a function', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -127,7 +127,7 @@ it('compute should be a function', () => {
   assert(passed, message);
 });
 
-it('observe should be a function', () => {
+test('observe should be a function', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -145,7 +145,7 @@ it('observe should be a function', () => {
   assert(passed, message);
 });
 
-it('attribute should be a string', () => {
+test('attribute should be a string', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -163,7 +163,7 @@ it('attribute should be a string', () => {
   assert(passed, message);
 });
 
-it('attribute should be a non-empty string', () => {
+test('attribute should be a non-empty string', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -181,7 +181,7 @@ it('attribute should be a non-empty string', () => {
   assert(passed, message);
 });
 
-it('attributes cannot be duplicated (1)', () => {
+test('attributes cannot be duplicated (1)', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -199,7 +199,7 @@ it('attributes cannot be duplicated (1)', () => {
   assert(passed, message);
 });
 
-it('attributes cannot be duplicated (2)', () => {
+test('attributes cannot be duplicated (2)', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -217,7 +217,7 @@ it('attributes cannot be duplicated (2)', () => {
   assert(passed, message);
 });
 
-it('default must be a scalar or a function', () => {
+test('default must be a scalar or a function', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -235,7 +235,7 @@ it('default must be a scalar or a function', () => {
   assert(passed, message);
 });
 
-it('reflect should be a boolean', () => {
+test('reflect should be a boolean', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -253,7 +253,7 @@ it('reflect should be a boolean', () => {
   assert(passed, message);
 });
 
-it('internal should be a boolean', () => {
+test('internal should be a boolean', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -271,7 +271,7 @@ it('internal should be a boolean', () => {
   assert(passed, message);
 });
 
-it('readOnly should be a boolean', () => {
+test('readOnly should be a boolean', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -289,7 +289,7 @@ it('readOnly should be a boolean', () => {
   assert(passed, message);
 });
 
-it('input should be an array', () => {
+test('input should be an array', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -307,7 +307,7 @@ it('input should be an array', () => {
   assert(passed, message);
 });
 
-it('input items should be strings', () => {
+test('input items should be strings', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -325,7 +325,7 @@ it('input items should be strings', () => {
   assert(passed, message);
 });
 
-it('input must be declared as other property names', () => {
+test('input must be declared as other property names', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -346,7 +346,7 @@ it('input must be declared as other property names', () => {
   assert(passed, message);
 });
 
-it('input cannot be cyclic (simple)', () => {
+test('input cannot be cyclic (simple)', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -366,7 +366,7 @@ it('input cannot be cyclic (simple)', () => {
   assert(passed, message);
 });
 
-it('input cannot be cyclic (complex)', () => {
+test('input cannot be cyclic (complex)', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -388,7 +388,7 @@ it('input cannot be cyclic (complex)', () => {
   assert(passed, message);
 });
 
-it('attribute cannot be declared on unserializable types', () => {
+test('attribute cannot be declared on unserializable types', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -406,7 +406,7 @@ it('attribute cannot be declared on unserializable types', () => {
   assert(passed, message);
 });
 
-it('input cannot be declared without a compute callback', () => {
+test('input cannot be declared without a compute callback', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -424,7 +424,7 @@ it('input cannot be declared without a compute callback', () => {
   assert(passed, message);
 });
 
-it('compute cannot be declared without an input callback', () => {
+test('compute cannot be declared without an input callback', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -442,7 +442,7 @@ it('compute cannot be declared without an input callback', () => {
   assert(passed, message);
 });
 
-it('initial cannot be declared for a computed property', () => {
+test('initial cannot be declared for a computed property', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -460,7 +460,7 @@ it('initial cannot be declared for a computed property', () => {
   assert(passed, message);
 });
 
-it('readOnly cannot be declared for a computed property', () => {
+test('readOnly cannot be declared for a computed property', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -478,7 +478,7 @@ it('readOnly cannot be declared for a computed property', () => {
   assert(passed, message);
 });
 
-it('internal properties cannot also be readOnly', () => {
+test('internal properties cannot also be readOnly', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -502,7 +502,7 @@ it('internal properties cannot also be readOnly', () => {
   assert(passed, message);
 });
 
-it('internal properties cannot also be reflected', () => {
+test('internal properties cannot also be reflected', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -526,7 +526,7 @@ it('internal properties cannot also be reflected', () => {
   assert(passed, message);
 });
 
-it('internal properties cannot define an attribute', () => {
+test('internal properties cannot define an attribute', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -550,7 +550,7 @@ it('internal properties cannot define an attribute', () => {
   assert(passed, message);
 });
 
-it('reflected properties must have serializable type', () => {
+test('reflected properties must have serializable type', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -573,7 +573,7 @@ it('reflected properties must have serializable type', () => {
   assert(passed, message);
 });
 
-it('reflected properties must have serializable type (2)', () => {
+test('reflected properties must have serializable type (2)', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {
@@ -595,7 +595,7 @@ it('reflected properties must have serializable type (2)', () => {
   assert(passed, message);
 });
 
-it('listeners as an object should map to functions', () => {
+test('listeners as an object should map to functions', () => {
   let passed = false;
   let message = 'no error was thrown';
   try {

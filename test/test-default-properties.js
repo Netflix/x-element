@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElementBasic extends XElement {
@@ -101,7 +101,7 @@ class TestElementEdge extends XElement {
 }
 customElements.define('test-element-edge', TestElementEdge);
 
-it('basic default properties', async () => {
+test('basic default properties', async () => {
   const el = document.createElement('test-element-basic');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one');
@@ -127,41 +127,41 @@ it('basic default properties', async () => {
   assert(el.shadowRoot.textContent === 'one');
 });
 
-it('basic default properties (predefined undefined properties)', () => {
+test('basic default properties (predefined undefined properties)', () => {
   const el = document.createElement('test-element-basic');
   el.one = undefined;
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one');
 });
 
-it('basic default properties (predefined null properties)', () => {
+test('basic default properties (predefined null properties)', () => {
   const el = document.createElement('test-element-basic');
   el.one = null;
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one');
 });
 
-it('basic default properties (predefined properties)', () => {
+test('basic default properties (predefined properties)', () => {
   const el = document.createElement('test-element-basic');
   el.one = 'ONE';
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'ONE');
 });
 
-it('basic default properties (predefined attributes)', () => {
+test('basic default properties (predefined attributes)', () => {
   const el = document.createElement('test-element-basic');
   el.setAttribute('one', 'ONE');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'ONE');
 });
 
-it('anonymous default properties', () => {
+test('anonymous default properties', () => {
   const el = document.createElement('test-element-anonymous');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one, two');
 });
 
-it('anonymous default properties (predefined undefined properties)', () => {
+test('anonymous default properties (predefined undefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = undefined;
   el.two = undefined;
@@ -169,7 +169,7 @@ it('anonymous default properties (predefined undefined properties)', () => {
   assert(el.shadowRoot.textContent === 'one, two');
 });
 
-it('anonymous default properties (predefined null properties)', () => {
+test('anonymous default properties (predefined null properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = null;
   el.two = null;
@@ -177,7 +177,7 @@ it('anonymous default properties (predefined null properties)', () => {
   assert(el.shadowRoot.textContent === 'one, two');
 });
 
-it('anonymous default properties (predefined properties)', () => {
+test('anonymous default properties (predefined properties)', () => {
   const el = document.createElement('test-element-anonymous');
   el.one = 'ONE';
   el.two = { two: 'TWO' };
@@ -185,20 +185,20 @@ it('anonymous default properties (predefined properties)', () => {
   assert(el.shadowRoot.textContent === 'ONE, TWO');
 });
 
-it('anonymous default properties (predefined attributes)', () => {
+test('anonymous default properties (predefined attributes)', () => {
   const el = document.createElement('test-element-anonymous');
   el.setAttribute('one', 'ONE');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'ONE, two');
 });
 
-it('initial + default & computed + default properties', () => {
+test('initial + default & computed + default properties', () => {
   const el = document.createElement('test-element-edge');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one, two, three');
 });
 
-it('default values from functions are unique per instance', () => {
+test('default values from functions are unique per instance', () => {
   const el1 = document.createElement('test-element-edge');
   const el2 = document.createElement('test-element-edge');
   document.body.append(el1, el2);
@@ -207,7 +207,7 @@ it('default values from functions are unique per instance', () => {
   assert(el1.two !== el2.two);
 });
 
-it('default values from functions persist per instance', async () => {
+test('default values from functions persist per instance', async () => {
   const el = document.createElement('test-element-edge');
   document.body.append(el);
   assert(el.shadowRoot.textContent === 'one, two, three');
@@ -222,7 +222,7 @@ it('default values from functions persist per instance', async () => {
   assert(el.two === defaultTwo);
 });
 
-it('cannot set default to a bad type', () => {
+test('cannot set default to a bad type', () => {
   class BadTestElement extends XElement {
     static get properties() {
       return { bad: { type: String, default: 0 } };

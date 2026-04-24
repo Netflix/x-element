@@ -1,7 +1,7 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
-it('errors are thrown in attributeChangedCallback for read-only properties', () => {
+test('errors are thrown in attributeChangedCallback for read-only properties', () => {
   // We cannot try-catch setAttribute, so we fake the attributeChangedCallback.
   class TestElement extends XElement {
     static get properties() {
@@ -28,7 +28,7 @@ it('errors are thrown in attributeChangedCallback for read-only properties', () 
   assert(passed, message);
 });
 
-it('errors are thrown in attributeChangedCallback for computed properties', () => {
+test('errors are thrown in attributeChangedCallback for computed properties', () => {
   // We cannot try-catch setAttribute, so we fake the attributeChangedCallback.
   class TestElement extends XElement {
     static get properties() {

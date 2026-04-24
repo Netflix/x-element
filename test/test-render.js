@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElement extends XElement {
@@ -28,7 +28,7 @@ class TestElement extends XElement {
 }
 customElements.define('test-element', TestElement);
 
-it('test super.render can be ignored', async () => {
+test('test super.render can be ignored', async () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.count === 1);
@@ -43,7 +43,7 @@ it('test super.render can be ignored', async () => {
   assert(el.shadowRoot.textContent === 'next');
 });
 
-it('test host is available', async () => {
+test('test host is available', async () => {
   const el = document.createElement('test-element');
   // Get around our render guard — we're not testing that here.
   el.count = 2;

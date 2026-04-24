@@ -1,4 +1,4 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
 class TestElementChild extends HTMLElement {
@@ -83,7 +83,7 @@ class TestElement extends XElement {
 }
 customElements.define('test-element', TestElement);
 
-it('test lifecycle', () => {
+test('test lifecycle', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   assert(el.clicks === 0 && el.count === 0, 'initialized as expected');
@@ -106,7 +106,7 @@ it('test lifecycle', () => {
   assert(el.clicks === 3 && el.count === 1, 'adds back listeners on reconnect');
 });
 
-it('test connectedCallback lifecycle', () => {
+test('test connectedCallback lifecycle', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   const eventEmitter = el.shadowRoot.getElementById('custom-event-emitter');
@@ -122,7 +122,7 @@ it('test connectedCallback lifecycle', () => {
   assert(el.customEventCount === 2);
 });
 
-it('test manual lifecycle', () => {
+test('test manual lifecycle', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let count = 0;
@@ -136,7 +136,7 @@ it('test manual lifecycle', () => {
   assert(count === 2, 'listener was removed');
 });
 
-it('test synchronous event handling', () => {
+test('test synchronous event handling', () => {
   // This is subtle, but it tests that if child elements emit events
   //  synchronously in their first render, delegated event listening from the
   //  parent will still work.
@@ -149,7 +149,7 @@ it('test synchronous event handling', () => {
   assert(el.connections === count);
 });
 
-it('throws for bad element on listen', () => {
+test('throws for bad element on listen', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -164,7 +164,7 @@ it('throws for bad element on listen', () => {
   assert(passed, message);
 });
 
-it('throws for bad type on listen', () => {
+test('throws for bad type on listen', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -179,7 +179,7 @@ it('throws for bad type on listen', () => {
   assert(passed, message);
 });
 
-it('throws for bad callback on listen', () => {
+test('throws for bad callback on listen', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -194,7 +194,7 @@ it('throws for bad callback on listen', () => {
   assert(passed, message);
 });
 
-it('throws for bad options on listen', () => {
+test('throws for bad options on listen', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -209,7 +209,7 @@ it('throws for bad options on listen', () => {
   assert(passed, message);
 });
 
-it('throws for bad element on unlisten', () => {
+test('throws for bad element on unlisten', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -224,7 +224,7 @@ it('throws for bad element on unlisten', () => {
   assert(passed, message);
 });
 
-it('throws for bad type on unlisten', () => {
+test('throws for bad type on unlisten', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -239,7 +239,7 @@ it('throws for bad type on unlisten', () => {
   assert(passed, message);
 });
 
-it('throws for bad callback on unlisten', () => {
+test('throws for bad callback on unlisten', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;
@@ -254,7 +254,7 @@ it('throws for bad callback on unlisten', () => {
   assert(passed, message);
 });
 
-it('throws for bad options on unlisten', () => {
+test('throws for bad options on unlisten', () => {
   const el = document.createElement('test-element');
   document.body.append(el);
   let passed = false;

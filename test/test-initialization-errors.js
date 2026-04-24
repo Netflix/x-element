@@ -1,7 +1,7 @@
-import { assert, it } from '@netflix/x-test/x-test.js';
+import { assert, test } from '@netflix/x-test/x-test.js';
 import XElement from '../x-element.js';
 
-it('errors are thrown in connectedCallback for initializing values with bad types', () => {
+test('errors are thrown in connectedCallback for initializing values with bad types', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
   class TestElement extends XElement {
     static get properties() {
@@ -27,7 +27,7 @@ it('errors are thrown in connectedCallback for initializing values with bad type
   assert(passed, message);
 });
 
-it('errors are thrown in connectedCallback for initializing read-only properties', () => {
+test('errors are thrown in connectedCallback for initializing read-only properties', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
   class TestElement extends XElement {
     static get properties() {
@@ -54,7 +54,7 @@ it('errors are thrown in connectedCallback for initializing read-only properties
   assert(passed, message);
 });
 
-it('errors are thrown in connectedCallback for initializing computed properties', () => {
+test('errors are thrown in connectedCallback for initializing computed properties', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
   class TestElement extends XElement {
     static get properties() {
@@ -84,7 +84,7 @@ it('errors are thrown in connectedCallback for initializing computed properties'
 
 // Depending on the browser — the underlying error is surfaced differently.
 // We just match our custom suffix to be agnostic.
-it('errors are thrown in connectedCallback when template result fails to render', () => {
+test('errors are thrown in connectedCallback when template result fails to render', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
   class TestElement extends XElement {
     static get properties() {
@@ -115,7 +115,7 @@ it('errors are thrown in connectedCallback when template result fails to render'
 
 // Depending on the browser — the underlying error is surfaced differently.
 // We just match our custom suffix to be agnostic.
-it('errors are thrown in connectedCallback when template result fails to render (with ids, classes, and attributes)', () => {
+test('errors are thrown in connectedCallback when template result fails to render (with ids, classes, and attributes)', () => {
   // We cannot try-catch append, so we fake the connectedCallback.
   class TestElement extends XElement {
     static get properties() {
