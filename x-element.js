@@ -11,7 +11,6 @@ export default class XElement extends HTMLElement {
     return [...XElement.#constructors.get(this).attributeMap.keys()];
   }
 
-
   /**
    * Declare an array of CSSStyleSheet objects to adopt on the shadow root.
    * Note that a CSSStyleSheet object is the type returned when importing a
