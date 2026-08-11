@@ -284,7 +284,10 @@ export default class XElement extends HTMLElement {
     return XElement.#hosts.get(this).internal;
   }
 
-  // Called once per class — kicked off from "static get observedAttributes".
+  /**
+   * Called once per class — kicked off from "static get observedAttributes".
+   * @param {any} constructor
+   */
   static #analyzeConstructor(constructor) {
     const { styles, properties, listeners } = constructor;
     const propertiesEntries = Object.entries(properties);
@@ -294,8 +297,8 @@ export default class XElement extends HTMLElement {
     const propertyMap = new Map(propertiesEntries);
     const internalPropertyMap = new Map();
     // Use a normal object for better autocomplete when debugging in console.
-    const propertiesTarget = {};
-    const internalTarget = {};
+    const propertiesTarget = /** @type {Record<string, any>} */ ({});
+    const internalTarget = /** @type {Record<string, any>} */ ({});
     const attributeMap = new Map();
     for (const [key, property] of propertyMap) {
       // We mutate (vs copy) to allow cross-referencing property objects.
@@ -316,7 +319,12 @@ export default class XElement extends HTMLElement {
     });
   }
 
-  // Called during constructor analysis.
+  /**
+   * Called during constructor analysis.
+   * @param {any} constructor
+   * @param {any} properties
+   * @param {any} entries
+   */
   static #validateProperties(constructor, properties, entries) {
     const path = `${constructor.name}.properties`;
     for (const [key, property] of entries) {
@@ -341,9 +349,9 @@ export default class XElement extends HTMLElement {
         attributes.add(attribute);
       }
       if (property.input) {
-        inputMap.set(property, property.input.map(inputKey => properties[inputKey]));
-        for (const [index, inputKey] of Object.entries(property.input)) {
-          if (XElement.#typeIsWrong(Object, properties[inputKey])) {
+        inputMap.set(property, property.input.map(/** @type {(inputKey: string) => any} */ inputKey => properties[inputKey]));
+        for (const [index, inputKey] of Object.entries(/** @type {string[]} */ (property.input))) {
+          if (XElement.#typeIsWrong(Object, properties[/** @type {string} */ (inputKey)])) {
             throw new Error(`${path}.${key}.input[${index}] has an unexpected item ("${inputKey}" has not been declared).`);
           }
         }
@@ -356,6 +364,11 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} constructor
+   * @param {string} key
+   * @param {any} property
+   */
   static #validateProperty(constructor, key, property) {
     const path = `${constructor.name}.properties.${key}`;
     if (key.includes('-')) {
@@ -449,6 +462,12 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} constructor
+   * @param {string} key
+   * @param {any} property
+   * @param {string} attribute
+   */
   static #validatePropertyAttribute(constructor, key, property, attribute) {
     const path = `${constructor.name}.properties`;
     // Attribute names are case-insensitive — lowercase to properly check for duplicates.
@@ -457,7 +476,13 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Determines if computed property inputs form a cycle.
+  /**
+   * Determines if computed property inputs form a cycle.
+   * @param {any} property
+   * @param {any} inputMap
+   * @param {Set<any>} [seen]
+   * @returns {boolean | undefined}
+   */
   static #propertyIsCyclic(property, inputMap, seen = new Set()) {
     if (inputMap.has(property)) {
       for (const input of inputMap.get(property)) {
@@ -473,6 +498,11 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} constructor
+   * @param {any} listeners
+   * @param {any} entries
+   */
   static #validateListeners(constructor, listeners, entries) {
     const path = `${constructor.name}.listeners`;
     for (const [type, listener] of entries) {
@@ -483,13 +513,19 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Called once per-property during constructor analysis.
+  /**
+   * Called once per-property during constructor analysis.
+   * @param {any} constructor
+   * @param {any} propertyMap
+   * @param {string} key
+   * @param {any} property
+   */
   static #mutateProperty(constructor, propertyMap, key, property) {
     property.key = key;
     property.attribute = XElement.#propertyHasAttribute(property)
       ? property.attribute ?? XElement.#camelToKebab(key)
       : undefined;
-    property.input = new Set((property.input ?? []).map(inputKey => propertyMap.get(inputKey)));
+    property.input = new Set((property.input ?? []).map(/** @type {(inputKey: string) => any} */ inputKey => propertyMap.get(inputKey)));
     property.output = property.output ?? new Set();
     for (const input of property.input) {
       input.output = input.output ?? new Set();
@@ -503,26 +539,34 @@ export default class XElement extends HTMLElement {
     XElement.#addPropertyObserve(constructor, property);
   }
 
-  // Wrapper to improve ergonomics of coalescing nullish, initial value.
+  /**
+   * Wrapper to improve ergonomics of coalescing nullish, initial value.
+   * @param {any} constructor
+   * @param {any} property
+   */
   static #addPropertyInitial(constructor, property) {
     // Should take `value` in and spit the initial or value out.
     if (Reflect.has(property, 'initial')) {
       const initialValue = property.initial;
       const isFunction = XElement.#typeIsWrong(Function, initialValue) === false;
-      property.initial = value =>
+      property.initial = /** @type {(value: any) => any} */ value =>
         value ?? (isFunction ? initialValue.call(constructor) : initialValue);
     } else {
-      property.initial = value => value;
+      property.initial = /** @type {(value: any) => any} */ value => value;
     }
   }
 
-  // Wrapper to improve ergonomics of coalescing nullish, default value.
+  /**
+   * Wrapper to improve ergonomics of coalescing nullish, default value.
+   * @param {any} constructor
+   * @param {any} property
+   */
   static #addPropertyDefault(constructor, property) {
     // Should take `value` in and spit the default or value out.
     if (Reflect.has(property, 'default')) {
       const { key, default: defaultValue } = property;
       const isFunction = XElement.#typeIsWrong(Function, defaultValue) === false;
-      const getOrCreateDefault = host => {
+      const getOrCreateDefault = /** @type {(host: any) => any} */ host => {
         const { defaultMap } = XElement.#hosts.get(host);
         if (!defaultMap.has(key)) {
           const value = isFunction ? defaultValue.call(constructor) : defaultValue;
@@ -531,16 +575,20 @@ export default class XElement extends HTMLElement {
         }
         return defaultMap.get(key);
       };
-      property.default = (host, value) => value ?? getOrCreateDefault(host);
+      property.default = (/** @type {any} */ host, /** @type {any} */ value) => value ?? getOrCreateDefault(host);
     } else {
-      property.default = (host, value) => value;
+      property.default = (/** @type {any} */ host, /** @type {any} */ value) => value;
     }
   }
 
-  // Wrapper to improve ergonomics of syncing attributes back to properties.
+  /**
+   * Wrapper to improve ergonomics of syncing attributes back to properties.
+   * @param {any} constructor
+   * @param {any} property
+   */
   static #addPropertySync(constructor, property) {
     if (XElement.#propertyHasAttribute(property)) {
-      property.sync = (host, value, oldValue) => {
+      property.sync = (/** @type {any} */ host, /** @type {any} */ value, /** @type {any} */ oldValue) => {
         const { initialized, reflecting } = XElement.#hosts.get(host);
         if (reflecting === false && initialized && value !== oldValue) {
           const deserialization = XElement.#deserializeProperty(host, property, value);
@@ -550,10 +598,14 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Wrapper to centralize logic needed to perform reflection.
+  /**
+   * Wrapper to centralize logic needed to perform reflection.
+   * @param {any} constructor
+   * @param {any} property
+   */
   static #addPropertyReflect(constructor, property) {
     if (property.reflect) {
-      property.reflect = host => {
+      property.reflect = /** @param {any} host */ host => {
         const value = XElement.#getPropertyValue(host, property);
         const serialization = XElement.#serializeProperty(host, property, value);
         const hostInfo = XElement.#hosts.get(host);
@@ -568,11 +620,15 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Wrapper to prevent repeated compute callbacks.
+  /**
+   * Wrapper to prevent repeated compute callbacks.
+   * @param {any} constructor
+   * @param {any} property
+   */
   static #addPropertyCompute(constructor, property) {
     const { compute } = property;
     if (compute) {
-      property.compute = host => {
+      property.compute = /** @type {(host: any) => any} */ host => {
         const { computeMap, valueMap } = XElement.#hosts.get(host);
         const saved = computeMap.get(property);
         if (saved.valid === false) {
@@ -593,11 +649,15 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Wrapper to provide last value to observe callbacks.
+  /**
+   * Wrapper to provide last value to observe callbacks.
+   * @param {any} constructor
+   * @param {any} property
+   */
   static #addPropertyObserve(constructor, property) {
     const { observe } = property;
     if (observe) {
-      property.observe = host => {
+      property.observe = /** @param {any} host */ host => {
         const saved = XElement.#hosts.get(host).observeMap.get(property);
         const value = XElement.#getPropertyValue(host, property);
         if (Object.is(value, saved.value) === false) {
@@ -608,7 +668,10 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Called once per-host during construction.
+  /**
+   * Called once per-host during construction.
+   * @param {any} host
+   */
   static #constructHost(host) {
     const invalidProperties = new Set();
     // The weak map prevents memory leaks. E.g., adding anonymous listeners.
@@ -662,7 +725,12 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Called during host construction.
+  /**
+   * Called during host construction.
+   * @param {any} host
+   * @param {any} property
+   * @param {any} hostInfo
+   */
   static #defineProperty(host, property, hostInfo) {
     const { valueMap } = hostInfo;
     const { key } = property;
@@ -689,13 +757,17 @@ export default class XElement extends HTMLElement {
     });
   }
 
-  // Called during host construction.
+  /**
+   * Called during host construction.
+   * @param {any} host
+   * @returns {any}
+   */
   static #createInternal(host) {
     const { propertyMap, internalPropertyMap, internalTarget } =  XElement.#constructors.get(host.constructor);
     // Everything but "get", "set", "has", and "ownKeys" are considered invalid.
     // Note that impossible traps like "apply" or "construct" are not guarded.
     const invalid = () => { throw new Error('Invalid use of internal proxy.'); };
-    const get = (target, key) => {
+    const get = (/** @type {any} */ target, /** @type {string} */ key) => {
       const internalProperty = internalPropertyMap.get(key);
       if (internalProperty?.internal) {
         return XElement.#getPropertyValue(host, internalProperty);
@@ -709,7 +781,7 @@ export default class XElement extends HTMLElement {
         }
       }
     };
-    const set = (target, key, value) => {
+    const set = (/** @type {any} */ target, /** @type {string} */ key, /** @type {any} */ value) => {
       const internalProperty = internalPropertyMap.get(key);
       if (internalProperty && Reflect.has(internalProperty, 'compute') === false) {
         XElement.#setPropertyValue(host, internalProperty, value);
@@ -726,7 +798,7 @@ export default class XElement extends HTMLElement {
         }
       }
     };
-    const has = (target, key) => internalPropertyMap.has(key);
+    const has = (/** @type {any} */ target, /** @type {string} */ key) => internalPropertyMap.has(key);
     const ownKeys = () => [...internalPropertyMap.keys()];
     const handler = {
       defineProperty: invalid, deleteProperty: invalid, get,
@@ -737,13 +809,17 @@ export default class XElement extends HTMLElement {
     return new Proxy(internalTarget, handler);
   }
 
-  // Only available in template callback. Provides getter for all properties.
-  // Called during host construction.
+  /**
+   * Only available in template callback. Provides getter for all properties.
+   * Called during host construction.
+   * @param {any} host
+   * @returns {any}
+   */
   static #createProperties(host) {
     const { propertyMap, propertiesTarget } =  XElement.#constructors.get(host.constructor);
     // Everything but "get", "set", "has", and "ownKeys" are considered invalid.
     const invalid = () => { throw new Error('Invalid use of properties proxy.'); };
-    const get = (target, key) => {
+    const get = (/** @type {any} */ target, /** @type {string} */ key) => {
       if (propertyMap.has(key)) {
         return XElement.#getPropertyValue(host, propertyMap.get(key));
       } else {
@@ -751,7 +827,7 @@ export default class XElement extends HTMLElement {
         throw new Error(`Property "${path}" does not exist.`);
       }
     };
-    const set = (target, key) => {
+    const set = (/** @type {any} */ target, /** @type {string} */ key) => {
       const path = `${host.constructor.name}.properties.${key}`;
       if (propertyMap.has(key)) {
         throw new Error(`Cannot set "${path}" via "properties".`);
@@ -759,7 +835,7 @@ export default class XElement extends HTMLElement {
         throw new Error(`Property "${path}" does not exist.`);
       }
     };
-    const has = (target, key) => propertyMap.has(key);
+    const has = (/** @type {any} */ target, /** @type {string} */ key) => propertyMap.has(key);
     const ownKeys = () => [...propertyMap.keys()];
     const handler = {
       defineProperty: invalid, deleteProperty: invalid, get,
@@ -770,7 +846,10 @@ export default class XElement extends HTMLElement {
     return new Proxy(propertiesTarget, handler);
   }
 
-  // Called once per-host from initial "connectedCallback".
+  /**
+   * Called once per-host from initial "connectedCallback".
+   * @param {any} host
+   */
   static #connectHost(host) {
     const initialized = XElement.#initializeHost(host);
     XElement.#addListeners(host);
@@ -779,10 +858,15 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /** @param {any} host */
   static #disconnectHost(host) {
     XElement.#removeListeners(host);
   }
 
+  /**
+   * @param {any} host
+   * @returns {boolean}
+   */
   static #initializeHost(host) {
     const hostInfo = XElement.#hosts.get(host);
     const { computeMap, initialized, invalidProperties, valueMap } = hostInfo;
@@ -813,7 +897,10 @@ export default class XElement extends HTMLElement {
     return false;
   }
 
-  // Prevent shadowing from properties added to element instance pre-upgrade.
+  /**
+   * Prevent shadowing from properties added to element instance pre-upgrade.
+   * @param {any} host
+   */
   static #upgradeOwnProperties(host) {
     for (const key of Reflect.ownKeys(host)) {
       const value = Reflect.get(host, key);
@@ -822,7 +909,13 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Called during host initialization.
+  /**
+   * Called during host initialization.
+   * @param {any} host
+   * @param {any} property
+   * @param {any} hostInfo
+   * @returns {{ value: any, found: boolean }}
+   */
   static #getPreUpgradePropertyValue(host, property, hostInfo) {
     // Process possible sources of initial state, with this priority:
     // 1. imperative, e.g. `element.prop = 'value';`
@@ -846,11 +939,19 @@ export default class XElement extends HTMLElement {
     return { value, found };
   }
 
+  /**
+   * @param {any} host
+   * @param {any} element
+   * @param {any} type
+   * @param {any} callback
+   * @param {any} [options]
+   */
   static #addListener(host, element, type, callback, options) {
     callback = XElement.#getListener(host, callback);
     element.addEventListener(type, callback, options);
   }
 
+  /** @param {any} host */
   static #addListeners(host) {
     const { listenerMap } = XElement.#constructors.get(host.constructor);
     const { renderRoot } = XElement.#hosts.get(host);
@@ -859,11 +960,19 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} host
+   * @param {any} element
+   * @param {any} type
+   * @param {any} callback
+   * @param {any} [options]
+   */
   static #removeListener(host, element, type, callback, options) {
     callback = XElement.#getListener(host, callback);
     element.removeEventListener(type, callback, options);
   }
 
+  /** @param {any} host */
   static #removeListeners(host) {
     const { listenerMap } = XElement.#constructors.get(host.constructor);
     const { renderRoot } = XElement.#hosts.get(host);
@@ -872,6 +981,11 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} host
+   * @param {any} listener
+   * @returns {any}
+   */
   static #getListener(host, listener) {
     const { listenerMap } = XElement.#hosts.get(host);
     if (listenerMap.has(listener) === false) {
@@ -880,6 +994,7 @@ export default class XElement extends HTMLElement {
     return listenerMap.get(listener);
   }
 
+  /** @param {any} host */
   static #updateHost(host) {
     // Order of operations: compute, reflect, render, then observe.
     const { invalidProperties } = XElement.#hosts.get(host);
@@ -894,7 +1009,11 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Used to improve error messaging by appending DOM path information.
+  /**
+   * Used to improve error messaging by appending DOM path information.
+   * @param {any} host
+   * @returns {string}
+   */
   static #toPathString(host) {
     const path = [];
     let reference = host;
@@ -912,6 +1031,10 @@ export default class XElement extends HTMLElement {
       .join(' < ');
   }
 
+  /**
+   * @param {any} host
+   * @param {any} property
+   */
   static #invalidateProperty(host, property) {
     const { invalidProperties, computeMap } = XElement.#hosts.get(host);
     for (const output of property.output) {
@@ -928,11 +1051,20 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} host
+   * @param {any} property
+   * @returns {any}
+   */
   static #getPropertyValue(host, property) {
     const { valueMap } = XElement.#hosts.get(host);
     return property.compute?.(host) ?? valueMap.get(property);
   }
 
+  /**
+   * @param {any} host
+   * @param {any} property
+   */
   static #validatePropertyMutable(host, property) {
     const { compute, readOnly, key } = property;
     if (compute) {
@@ -945,6 +1077,11 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} host
+   * @param {any} property
+   * @param {any} value
+   */
   static #validatePropertyValue(host, property, value) {
     if (property.type && XElement.#notNullish(value)) {
       if (XElement.#typeIsWrong(property.type, value)) {
@@ -955,6 +1092,11 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} host
+   * @param {any} property
+   * @param {any} value
+   */
   static #setPropertyValue(host, property, value) {
     const { valueMap } = XElement.#hosts.get(host);
     if (Object.is(value, valueMap.get(property)) === false) {
@@ -965,6 +1107,12 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} host
+   * @param {any} property
+   * @param {any} value
+   * @returns {string | undefined}
+   */
   static #serializeProperty(host, property, value) {
     if (XElement.#notNullish(value)) {
       if (property.type === Boolean) {
@@ -974,6 +1122,12 @@ export default class XElement extends HTMLElement {
     }
   }
 
+  /**
+   * @param {any} host
+   * @param {any} property
+   * @param {any} value
+   * @returns {any}
+   */
   static #deserializeProperty(host, property, value) {
     if (property.type === Boolean) {
       // Per HTML spec, every value other than null is considered true.
@@ -996,19 +1150,36 @@ export default class XElement extends HTMLElement {
     }
   }
 
-  // Public properties which are serializable or typeless have attributes.
+  /**
+   * Public properties which are serializable or typeless have attributes.
+   * @param {any} property
+   * @returns {boolean}
+   */
   static #propertyHasAttribute(property) {
     return !property.internal && (XElement.#serializableTypes.has(property.type) || !property.type);
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   static #getTypeName(value) {
     return Object.prototype.toString.call(value).slice(8, -1);
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {boolean}
+   */
   static #notNullish(value) {
     return value !== undefined && value !== null;
   }
 
+  /**
+   * @param {any} type
+   * @param {unknown} value
+   * @returns {boolean}
+   */
   static #typeIsWrong(type, value) {
     // Because `instanceof` fails on primitives (`'' instanceof String === false`)
     // and `Object.prototype.toString` cannot handle inheritance, we use both.
@@ -1018,6 +1189,10 @@ export default class XElement extends HTMLElement {
     );
   }
 
+  /**
+   * @param {string} camel
+   * @returns {string | undefined}
+   */
   static #camelToKebab(camel) {
     if (XElement.#caseMap.has(camel) === false) {
       XElement.#caseMap.set(camel, camel.replace(/([A-Z])/g, '-$1').toLowerCase());

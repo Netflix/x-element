@@ -21,7 +21,5 @@
     "declarationMap": true,
     "noEmitOnError": true,
     "module": "NodeNext", // Approximates browser target.
-    // TODO: #357: Fix implicit any types.
-    "noImplicitAny": false
   }
 }

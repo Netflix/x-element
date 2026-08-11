@@ -127,50 +127,245 @@ export default class XElement extends HTMLElement {
      * @returns {templateCallback}
      */
     static template(html: (strings: TemplateStringsArray, ...values: unknown[]) => unknown): (properties: object, host: HTMLElement) => any;
+    /**
+     * Called once per class — kicked off from "static get observedAttributes".
+     * @param {any} constructor
+     */
     static #analyzeConstructor(constructor: any): void;
+    /**
+     * Called during constructor analysis.
+     * @param {any} constructor
+     * @param {any} properties
+     * @param {any} entries
+     */
     static #validateProperties(constructor: any, properties: any, entries: any): void;
-    static #validateProperty(constructor: any, key: any, property: any): void;
-    static #validatePropertyAttribute(constructor: any, key: any, property: any, attribute: any): void;
-    static #propertyIsCyclic(property: any, inputMap: any, seen?: Set<any>): true | undefined;
+    /**
+     * @param {any} constructor
+     * @param {string} key
+     * @param {any} property
+     */
+    static #validateProperty(constructor: any, key: string, property: any): void;
+    /**
+     * @param {any} constructor
+     * @param {string} key
+     * @param {any} property
+     * @param {string} attribute
+     */
+    static #validatePropertyAttribute(constructor: any, key: string, property: any, attribute: string): void;
+    /**
+     * Determines if computed property inputs form a cycle.
+     * @param {any} property
+     * @param {any} inputMap
+     * @param {Set<any>} [seen]
+     * @returns {boolean | undefined}
+     */
+    static #propertyIsCyclic(property: any, inputMap: any, seen?: Set<any>): boolean | undefined;
+    /**
+     * @param {any} constructor
+     * @param {any} listeners
+     * @param {any} entries
+     */
     static #validateListeners(constructor: any, listeners: any, entries: any): void;
-    static #mutateProperty(constructor: any, propertyMap: any, key: any, property: any): void;
+    /**
+     * Called once per-property during constructor analysis.
+     * @param {any} constructor
+     * @param {any} propertyMap
+     * @param {string} key
+     * @param {any} property
+     */
+    static #mutateProperty(constructor: any, propertyMap: any, key: string, property: any): void;
+    /**
+     * Wrapper to improve ergonomics of coalescing nullish, initial value.
+     * @param {any} constructor
+     * @param {any} property
+     */
     static #addPropertyInitial(constructor: any, property: any): void;
+    /**
+     * Wrapper to improve ergonomics of coalescing nullish, default value.
+     * @param {any} constructor
+     * @param {any} property
+     */
     static #addPropertyDefault(constructor: any, property: any): void;
+    /**
+     * Wrapper to improve ergonomics of syncing attributes back to properties.
+     * @param {any} constructor
+     * @param {any} property
+     */
     static #addPropertySync(constructor: any, property: any): void;
+    /**
+     * Wrapper to centralize logic needed to perform reflection.
+     * @param {any} constructor
+     * @param {any} property
+     */
     static #addPropertyReflect(constructor: any, property: any): void;
+    /**
+     * Wrapper to prevent repeated compute callbacks.
+     * @param {any} constructor
+     * @param {any} property
+     */
     static #addPropertyCompute(constructor: any, property: any): void;
+    /**
+     * Wrapper to provide last value to observe callbacks.
+     * @param {any} constructor
+     * @param {any} property
+     */
     static #addPropertyObserve(constructor: any, property: any): void;
+    /**
+     * Called once per-host during construction.
+     * @param {any} host
+     */
     static #constructHost(host: any): void;
+    /**
+     * Called during host construction.
+     * @param {any} host
+     * @param {any} property
+     * @param {any} hostInfo
+     */
     static #defineProperty(host: any, property: any, hostInfo: any): void;
+    /**
+     * Called during host construction.
+     * @param {any} host
+     * @returns {any}
+     */
     static #createInternal(host: any): any;
+    /**
+     * Only available in template callback. Provides getter for all properties.
+     * Called during host construction.
+     * @param {any} host
+     * @returns {any}
+     */
     static #createProperties(host: any): any;
+    /**
+     * Called once per-host from initial "connectedCallback".
+     * @param {any} host
+     */
     static #connectHost(host: any): void;
+    /** @param {any} host */
     static #disconnectHost(host: any): void;
+    /**
+     * @param {any} host
+     * @returns {boolean}
+     */
     static #initializeHost(host: any): boolean;
+    /**
+     * Prevent shadowing from properties added to element instance pre-upgrade.
+     * @param {any} host
+     */
     static #upgradeOwnProperties(host: any): void;
+    /**
+     * Called during host initialization.
+     * @param {any} host
+     * @param {any} property
+     * @param {any} hostInfo
+     * @returns {{ value: any, found: boolean }}
+     */
     static #getPreUpgradePropertyValue(host: any, property: any, hostInfo: any): {
         value: any;
         found: boolean;
     };
-    static #addListener(host: any, element: any, type: any, callback: any, options: any): void;
+    /**
+     * @param {any} host
+     * @param {any} element
+     * @param {any} type
+     * @param {any} callback
+     * @param {any} [options]
+     */
+    static #addListener(host: any, element: any, type: any, callback: any, options?: any): void;
+    /** @param {any} host */
     static #addListeners(host: any): void;
-    static #removeListener(host: any, element: any, type: any, callback: any, options: any): void;
+    /**
+     * @param {any} host
+     * @param {any} element
+     * @param {any} type
+     * @param {any} callback
+     * @param {any} [options]
+     */
+    static #removeListener(host: any, element: any, type: any, callback: any, options?: any): void;
+    /** @param {any} host */
     static #removeListeners(host: any): void;
+    /**
+     * @param {any} host
+     * @param {any} listener
+     * @returns {any}
+     */
     static #getListener(host: any, listener: any): any;
+    /** @param {any} host */
     static #updateHost(host: any): void;
+    /**
+     * Used to improve error messaging by appending DOM path information.
+     * @param {any} host
+     * @returns {string}
+     */
     static #toPathString(host: any): string;
+    /**
+     * @param {any} host
+     * @param {any} property
+     */
     static #invalidateProperty(host: any, property: any): void;
+    /**
+     * @param {any} host
+     * @param {any} property
+     * @returns {any}
+     */
     static #getPropertyValue(host: any, property: any): any;
+    /**
+     * @param {any} host
+     * @param {any} property
+     */
     static #validatePropertyMutable(host: any, property: any): void;
+    /**
+     * @param {any} host
+     * @param {any} property
+     * @param {any} value
+     */
     static #validatePropertyValue(host: any, property: any, value: any): void;
+    /**
+     * @param {any} host
+     * @param {any} property
+     * @param {any} value
+     */
     static #setPropertyValue(host: any, property: any, value: any): void;
-    static #serializeProperty(host: any, property: any, value: any): any;
+    /**
+     * @param {any} host
+     * @param {any} property
+     * @param {any} value
+     * @returns {string | undefined}
+     */
+    static #serializeProperty(host: any, property: any, value: any): string | undefined;
+    /**
+     * @param {any} host
+     * @param {any} property
+     * @param {any} value
+     * @returns {any}
+     */
     static #deserializeProperty(host: any, property: any, value: any): any;
+    /**
+     * Public properties which are serializable or typeless have attributes.
+     * @param {any} property
+     * @returns {boolean}
+     */
     static #propertyHasAttribute(property: any): boolean;
-    static #getTypeName(value: any): string;
-    static #notNullish(value: any): boolean;
-    static #typeIsWrong(type: any, value: any): boolean;
-    static #camelToKebab(camel: any): any;
+    /**
+     * @param {unknown} value
+     * @returns {string}
+     */
+    static #getTypeName(value: unknown): string;
+    /**
+     * @param {unknown} value
+     * @returns {boolean}
+     */
+    static #notNullish(value: unknown): boolean;
+    /**
+     * @param {any} type
+     * @param {unknown} value
+     * @returns {boolean}
+     */
+    static #typeIsWrong(type: any, value: unknown): boolean;
+    /**
+     * @param {string} camel
+     * @returns {string | undefined}
+     */
+    static #camelToKebab(camel: string): string | undefined;
     static #constructors: WeakMap<WeakKey, any>;
     static #hosts: WeakMap<WeakKey, any>;
     static #propertyKeys: Set<string>;
