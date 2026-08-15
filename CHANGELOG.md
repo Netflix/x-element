@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `useUnknownInCatchVariables`, and `strictFunctionTypes` (#357).
 - Bump devDependencies (eslint 10, typescript 6, eslint-plugin-jsdoc 62, etc.).
 
+### Fixed
+- Markup-shaped plaintext (e.g., `<code>`) is no longer lost from attribute
+  values and `textarea` content when it appears alongside a character reference
+  (e.g., `&amp;`). Previously, the presence of any reference caused text to be
+  re-parsed as markup (#373).
+
 ## [2.0.2] - 2026-03-10
 
 ### Fixed

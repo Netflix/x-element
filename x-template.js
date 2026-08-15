@@ -43,7 +43,6 @@ class TemplateEngine {
    * @property {DocumentFragment | Element} element
    * @property {TagName} tagName
    * @property {number} childNodesIndex
-   * @property {boolean} encoded
    * @property {string} text
    * @property {string} name
    */
@@ -129,7 +128,7 @@ class TemplateEngine {
   }
 
   /**
-   * We only decode things we know to be encoded since it’s non-performant.
+   * Decode a character reference via “setHTMLUnsafe”.
    * @param {string} encoded
    * @returns {string}
    */
@@ -214,36 +213,29 @@ class TemplateEngine {
         break;
       case XParser.tokenTypes.textReference:
       case XParser.tokenTypes.attributeValueReference:
-        state.text += substring;
-        state.encoded = true;
+        state.text += TemplateEngine.#decode(substring);
         break;
-      case XParser.tokenTypes.textEnd: {
-        const decoded = state.encoded ? TemplateEngine.#decode(state.text) : state.text;
+      case XParser.tokenTypes.textEnd:
         if (
           state.tagName === 'pre' &&
           state.childNodesIndex === -1 &&
-          decoded.startsWith('\n')
+          state.text.startsWith('\n')
         ) {
           // First newline is stripped according to the <pre> tag specification.
           //  https://html.spec.whatwg.org/multipage/grouping-content.html#the-pre-element
-          state.element.appendChild(TemplateEngine.#document.createTextNode(decoded.slice(1)));
+          state.element.appendChild(TemplateEngine.#document.createTextNode(state.text.slice(1)));
         } else {
-          state.element.appendChild(TemplateEngine.#document.createTextNode(decoded));
+          state.element.appendChild(TemplateEngine.#document.createTextNode(state.text));
         }
         state.childNodesIndex += 1;
-        state.encoded = false;
         state.text = '';
         break;
-      }
-      case XParser.tokenTypes.attributeValueEnd: {
-        const decoded = state.encoded ? TemplateEngine.#decode(state.text) : state.text;
+      case XParser.tokenTypes.attributeValueEnd:
         // @ts-expect-error — TS doesn’t get that this is an element.
-        state.element.setAttribute(state.name, decoded);
+        state.element.setAttribute(state.name, state.text);
         state.name = '';
-        state.encoded = false;
         state.text = '';
         break;
-      }
       case XParser.tokenTypes.boundTextValue:
         onText(state.path);
         break;
@@ -815,7 +807,6 @@ class TemplateEngine {
         element: fragment,
         tagName: null,
         childNodesIndex: -1,
-        encoded: false,
         text: '',
         name: '',
       });

@@ -84,6 +84,12 @@ suite('html rendering', () => {
     assert(container.children[0].textContent === `--&:^);--`);
   });
 
+  test('renders non-interpolated <textarea> content with special characters and html entities', () => {
+    const container = document.createElement('div');
+    render(container, html`<textarea><em>this</em> is the &ldquo;default&rdquo; value</textarea>`);
+    assert(container.querySelector('textarea').value === '<em>this</em> is the “default” value');
+  });
+
   test('renders interpolated content without parsing', () => {
     const userContent = '<a href="https://evil.com">Click Me!</a>';
     const container = document.createElement('div');
@@ -254,6 +260,12 @@ suite('html rendering', () => {
     render(container, html`<div foo="--&#123;&lt;&amp;&gt;&apos;&quot;&#x007D;--"></div>`);
     assert(container.childElementCount === 1);
     assert(container.children[0].getAttribute('foo') === `--{<&>'"}--`);
+  });
+
+  test('renders non-interpolated attribute values with special characters and html entities', () => {
+    const container = document.createElement('div');
+    render(container, html`<div title="<code>tags</code> &amp; more"></div>`);
+    assert(container.children[0].getAttribute('title') === '<code>tags</code> & more');
   });
 
   test('renders boolean attributes', () => {
