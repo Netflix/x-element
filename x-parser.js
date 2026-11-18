@@ -214,6 +214,7 @@ export class XParser {
   static #boundBooleanMalformed   =   /\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
   static #boundDefinedMalformed   = /\?\?[a-zA-Z0-9-_]+=(?:"|')?$/y;
   static #boundAttributeMalformed =     /[a-zA-Z0-9-_]+=(?:"|')?$/y;
+  static #unclosedAttributeValue  =     /(?![0-9-])[a-z0-9-]+(?<!-)="[^"]+$/y;
 
   // See if incorrect characters, wrong quotes, or no quotes were used with
   //  a bound property.
@@ -257,6 +258,7 @@ export class XParser {
       case '#125': return 'Invalid tag attribute interpolation (must use kebab-case names and double-quoted values).';
       case '#126': return 'Invalid tag property interpolation (must use kebab-case names and double-quoted values).';
       case '#127': return 'Invalid closing quote on tag attribute or property.';
+      case '#128': return 'Unclosed attribute value. To interpolate, bind the entire value.';
 
       case '#140': return 'CDATA sections are not supported. Use character references instead: https://developer.mozilla.org/en-US/docs/Glossary/Character_reference.';
 
@@ -317,6 +319,7 @@ export class XParser {
       case XParser.#boundAttributeMalformed:  return '#125';
       case XParser.#boundPropertyMalformed:   return '#126';
       case XParser.#danglingQuoteMalformed:   return '#127';
+      case XParser.#unclosedAttributeValue:   return '#128';
     }
   }
 
@@ -421,6 +424,7 @@ export class XParser {
         XParser.#boundBooleanMalformed,
         XParser.#boundDefinedMalformed,
         XParser.#boundAttributeMalformed,
+        XParser.#unclosedAttributeValue,
         XParser.#boundPropertyMalformed,
         XParser.#startTagCloseMalformed);
       case XParser.#startTagClose: return XParser.#try(string, stringIndex,
