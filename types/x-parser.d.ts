@@ -34,6 +34,7 @@ export class XParser {
     static #boundBooleanMalformed: RegExp;
     static #boundDefinedMalformed: RegExp;
     static #boundAttributeMalformed: RegExp;
+    static #unclosedAttributeValue: RegExp;
     static #boundPropertyMalformed: RegExp;
     static #danglingQuoteMalformed: RegExp;
     /**

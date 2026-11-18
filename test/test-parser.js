@@ -1074,6 +1074,12 @@ suite('errors', () => {
     assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage)));
   });
 
+  test('explains how to bind an attribute with a literal prefix', () => {
+    const callback = () => html`<a href="/series/${VALUE}"></a>`;
+    const expectedMessage = 'Error: [#128] Unclosed attribute value. To interpolate, bind the entire value.';
+    assert.throws(callback, new RegExp('^' + RegExp.escape(expectedMessage)));
+  });
+
   test('throws if a bound attribute has a malformed dangling quote', () => {
     const callback = () => html`<div what="${VALUE} "></div>`;
     const expectedMessage = 'Error: [#127]';
